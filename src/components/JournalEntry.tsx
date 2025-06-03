@@ -1,9 +1,9 @@
 
 import { useState } from "react";
-import { Edit3, Trash2, Calendar, Smartphone, Monitor, Check, X } from "lucide-react";
+import { Edit3, Trash2, Calendar, Smartphone, Monitor, Check, X, Tag, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { Entry } from "@/components/JournalDashboard";
+import type { Entry } from "@/types/entry";
 
 interface JournalEntryProps {
   entry: Entry;
@@ -15,6 +15,7 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(entry.content);
   const [showActions, setShowActions] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', { 
@@ -37,84 +38,146 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
   };
 
   return (
-    <div 
-      className="group bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 hover:border-slate-300"
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-slate-600">
-            <Calendar className="w-4 h-4" />
-            <span className="font-medium text-sm">{entry.title}</span>
+    <>
+      <div 
+        className="group bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 hover:border-slate-300"
+        onMouseEnter={() => setShowActions(true)}
+        onMouseLeave={() => setShowActions(false)}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-slate-600">
+              <Calendar className="w-4 h-4" />
+              <span className="font-medium text-sm">{entry.title}</span>
+            </div>
+            <div className="flex items-center gap-1 text-slate-500">
+              {entry.source === 'sms' ? (
+                <Smartphone className="w-3 h-3" />
+              ) : (
+                <Monitor className="w-3 h-3" />
+              )}
+              <span className="text-xs">{formatTime(entry.timestamp)}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1 text-slate-500">
-            {entry.source === 'sms' ? (
-              <Smartphone className="w-3 h-3" />
-            ) : (
-              <Monitor className="w-3 h-3" />
-            )}
-            <span className="text-xs">{formatTime(entry.timestamp)}</span>
-          </div>
+          
+          {showActions && !isEditing && (
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+              >
+                <Edit3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(entry.id)}
+                className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+
+          {isEditing && (
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSaveEdit}
+                className="h-8 w-8 p-0 text-slate-400 hover:text-green-600 hover:bg-green-50"
+              >
+                <Check className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCancelEdit}
+                className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
         </div>
         
-        {showActions && !isEditing && (
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditing(true)}
-              className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
-            >
-              <Edit3 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDelete(entry.id)}
-              className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
+        {isEditing ? (
+          <Textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            className="w-full min-h-[100px] border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+            autoFocus
+          />
+        ) : (
+          <>
+            <div className="prose prose-slate max-w-none">
+              <p className="text-slate-700 leading-relaxed whitespace-pre-wrap text-base mb-4">
+                {entry.content}
+              </p>
+            </div>
 
-        {isEditing && (
-          <div className="flex gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSaveEdit}
-              className="h-8 w-8 p-0 text-slate-400 hover:text-green-600 hover:bg-green-50"
-            >
-              <Check className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleCancelEdit}
-              className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
+            {entry.photos && entry.photos.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 text-slate-600 mb-3">
+                  <Image className="w-4 h-4" />
+                  <span className="text-sm font-medium">{entry.photos.length} photo{entry.photos.length > 1 ? 's' : ''}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {entry.photos.map((photo, index) => (
+                    <img
+                      key={index}
+                      src={photo}
+                      alt={`Entry photo ${index + 1}`}
+                      className="w-full h-24 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => setSelectedPhoto(photo)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {entry.tags && entry.tags.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Tag className="w-3 h-3 text-slate-500" />
+                {entry.tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="inline-block bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
-      
-      {isEditing ? (
-        <Textarea
-          value={editContent}
-          onChange={(e) => setEditContent(e.target.value)}
-          className="w-full min-h-[100px] border-slate-200 focus:border-blue-500 focus:ring-blue-500"
-          autoFocus
-        />
-      ) : (
-        <div className="prose prose-slate max-w-none">
-          <p className="text-slate-700 leading-relaxed whitespace-pre-wrap text-base mb-0">
-            {entry.content}
-          </p>
+
+      {/* Photo Modal */}
+      {selectedPhoto && (
+        <div 
+          className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
+          onClick={() => setSelectedPhoto(null)}
+        >
+          <div className="relative max-w-4xl max-h-full">
+            <img
+              src={selectedPhoto}
+              alt="Full size"
+              className="max-w-full max-h-full object-contain rounded-lg"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedPhoto(null)}
+              className="absolute top-4 right-4 h-8 w-8 p-0 bg-black/50 hover:bg-black/70 text-white rounded-full"
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
