@@ -7,7 +7,7 @@ interface JournalContentProps {
   entries: Entry[];
   filteredEntries: Entry[];
   onDeleteEntry: (id: string) => void;
-  onEditEntry: (id: string, newContent: string) => void;
+  onEditEntry: (id: string, newContent: string, photos?: File[]) => void;
   onCreateEntry: () => void;
 }
 

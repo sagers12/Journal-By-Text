@@ -1,22 +1,35 @@
+
 import { useState } from "react";
 import { Edit3, Trash2, Calendar, Smartphone, Monitor, Check, X, Tag, Image, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Entry } from "@/types/entry";
 
 interface JournalEntryProps {
   entry: Entry;
   onDelete: (id: string) => void;
-  onEdit: (id: string, newContent: string) => void;
+  onEdit: (id: string, newContent: string, photos?: File[]) => void;
+}
+
+interface PhotoFile {
+  file: File;
+  previewUrl: string;
 }
 
 export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(entry.content);
+  const [editPhotos, setEditPhotos] = useState<PhotoFile[]>([]);
   const [showActions, setShowActions] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Photo validation constants
+  const MAX_PHOTOS = 10;
+  const MAX_PHOTO_SIZE = 10 * 1024 * 1024; // 10MB
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', { 
@@ -26,15 +39,65 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
     });
   };
 
+  const validatePhotoFile = (file: File): string | null => {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      return `Invalid file type. Allowed types: ${ALLOWED_IMAGE_TYPES.join(', ')}`;
+    }
+    if (file.size > MAX_PHOTO_SIZE) {
+      return `File size too large. Maximum size: ${MAX_PHOTO_SIZE / (1024 * 1024)}MB`;
+    }
+    return null;
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const currentPhotoCount = editPhotos.length + (entry.photos?.length || 0);
+    if (currentPhotoCount + files.length > MAX_PHOTOS) {
+      alert(`Maximum ${MAX_PHOTOS} photos allowed`);
+      return;
+    }
+
+    Array.from(files).forEach(file => {
+      const validationError = validatePhotoFile(file);
+      if (validationError) {
+        alert(validationError);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setEditPhotos(prev => [...prev, {
+            file,
+            previewUrl: event.target.result as string
+          }]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Clear the input so the same file can be selected again
+    e.target.value = '';
+  };
+
+  const removeNewPhoto = (index: number) => {
+    setEditPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSaveEdit = () => {
-    if (editContent.trim() !== entry.content) {
-      onEdit(entry.id, editContent);
+    if (editContent.trim() !== entry.content || editPhotos.length > 0) {
+      const photoFiles = editPhotos.map(p => p.file);
+      onEdit(entry.id, editContent, photoFiles.length > 0 ? photoFiles : undefined);
     }
     setIsEditing(false);
+    setEditPhotos([]);
   };
 
   const handleCancelEdit = () => {
     setEditContent(entry.content);
+    setEditPhotos([]);
     setIsEditing(false);
   };
 
@@ -122,12 +185,64 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
         </div>
         
         {isEditing ? (
-          <Textarea
-            value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
-            className="w-full min-h-[100px] border-slate-200 focus:border-blue-500 focus:ring-blue-500"
-            autoFocus
-          />
+          <div className="space-y-4">
+            <Textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="w-full min-h-[100px] border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+              autoFocus
+            />
+            
+            {/* Photo upload section in edit mode */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-3">
+                <Image className="w-4 h-4 inline mr-2" />
+                Add Photos (optional, max {MAX_PHOTOS} total)
+              </label>
+              <input
+                type="file"
+                accept={ALLOWED_IMAGE_TYPES.join(',')}
+                multiple
+                onChange={handlePhotoUpload}
+                className="hidden"
+                id={`photo-upload-${entry.id}`}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById(`photo-upload-${entry.id}`)?.click()}
+                className="w-full border-dashed border-slate-300 hover:border-blue-500 h-16"
+                disabled={editPhotos.length + (entry.photos?.length || 0) >= MAX_PHOTOS}
+              >
+                <Image className="w-5 h-5 mr-2 text-slate-400" />
+                {editPhotos.length + (entry.photos?.length || 0) >= MAX_PHOTOS ? 'Maximum photos reached' : 'Click to add photos'}
+              </Button>
+              
+              {/* Show new photos being added */}
+              {editPhotos.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mt-4">
+                  {editPhotos.map((photo, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={photo.previewUrl}
+                        alt={`New photo ${index + 1}`}
+                        className="w-full h-20 object-cover rounded-lg border border-slate-200"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeNewPhoto(index)}
+                        className="absolute top-1 right-1 h-6 w-6 p-0 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
           <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
             <div className="prose prose-slate max-w-none">

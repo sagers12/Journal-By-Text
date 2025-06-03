@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { JournalHeader } from "@/components/JournalHeader";
 import { JournalControls } from "@/components/JournalControls";
@@ -61,8 +60,16 @@ export const JournalDashboard = () => {
     }
   };
 
-  const handleEditEntry = (id: string, newContent: string) => {
-    updateEntry({ id, content: newContent.trim() });
+  const handleEditEntry = (id: string, newContent: string, photos?: File[]) => {
+    if (photos && photos.length > 0) {
+      // If photos are provided, we need to use createEntry to handle photo uploads
+      // For now, we'll just update the content. Photo editing during entry updates 
+      // would require a more complex update mechanism in the backend
+      console.log('Photo editing in updates is not yet implemented in the backend');
+      updateEntry({ id, content: newContent.trim() });
+    } else {
+      updateEntry({ id, content: newContent.trim() });
+    }
   };
 
   const applyFilters = (entries: Entry[], filters: SearchFilters): Entry[] => {
