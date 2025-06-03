@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { JournalHeader } from "@/components/JournalHeader";
 import { SearchBar } from "@/components/SearchBar";
 import { JournalEntry } from "@/components/JournalEntry";
@@ -8,6 +8,9 @@ import { ExportModal } from "@/components/ExportModal";
 import { EmptyState } from "@/components/EmptyState";
 import { Plus, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { useJournalEntries } from "@/hooks/useJournalEntries";
+import { useRealtime } from "@/hooks/useRealtime";
 import type { Entry } from "@/types/entry";
 
 interface SearchFilters {
@@ -19,28 +22,14 @@ interface SearchFilters {
 }
 
 export const JournalDashboard = () => {
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const { user } = useAuth();
+  const { entries, isLoading, createEntry, deleteEntry, updateEntry } = useJournalEntries(user?.id);
+  useRealtime(user?.id);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({ text: '', source: 'all' });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
-
-  // Load entries from localStorage on mount
-  useEffect(() => {
-    const savedEntries = localStorage.getItem("journal-entries");
-    if (savedEntries) {
-      const parsed = JSON.parse(savedEntries);
-      setEntries(parsed.map((entry: any) => ({
-        ...entry,
-        timestamp: new Date(entry.timestamp)
-      })));
-    }
-  }, []);
-
-  // Save entries to localStorage whenever entries change
-  useEffect(() => {
-    localStorage.setItem("journal-entries", JSON.stringify(entries));
-  }, [entries]);
 
   const formatEntryTitle = (date: Date) => {
     return date.toLocaleDateString('en-US', { 
@@ -50,31 +39,26 @@ export const JournalDashboard = () => {
     });
   };
 
-  const addEntry = (content: string, photos?: string[], tags?: string[]) => {
+  const addEntry = (content: string, photos?: File[], tags?: string[]) => {
     const now = new Date();
-    const newEntry: Entry = {
-      id: Date.now().toString(),
+    const title = `Journal Entry - ${formatEntryTitle(now)}`;
+    
+    createEntry({
       content: content.trim(),
-      timestamp: now,
-      title: `Journal Entry - ${formatEntryTitle(now)}`,
-      source: 'web',
-      photos,
-      tags
-    };
-    setEntries(prev => [newEntry, ...prev]);
+      title,
+      tags: tags || [],
+      photos: photos || []
+    });
+    
     setIsFormOpen(false);
   };
 
-  const deleteEntry = (id: string) => {
-    setEntries(prev => prev.filter(entry => entry.id !== id));
+  const handleDeleteEntry = (id: string) => {
+    deleteEntry(id);
   };
 
-  const editEntry = (id: string, newContent: string) => {
-    setEntries(prev => prev.map(entry => 
-      entry.id === id 
-        ? { ...entry, content: newContent.trim() }
-        : entry
-    ));
+  const handleEditEntry = (id: string, newContent: string) => {
+    updateEntry({ id, content: newContent.trim() });
   };
 
   const applyFilters = (entries: Entry[], filters: SearchFilters): Entry[] => {
@@ -121,6 +105,14 @@ export const JournalDashboard = () => {
 
   const filteredEntries = applyFilters(entries, searchFilters);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-slate-600">Loading your journal...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <div className="max-w-4xl mx-auto px-4 py-6">
@@ -166,8 +158,8 @@ export const JournalDashboard = () => {
                   <JournalEntry 
                     key={entry.id} 
                     entry={entry} 
-                    onDelete={deleteEntry}
-                    onEdit={editEntry}
+                    onDelete={handleDeleteEntry}
+                    onEdit={handleEditEntry}
                   />
                 ))}
               </>
