@@ -6,13 +6,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 
 interface EntryFormProps {
-  onSubmit: (content: string, photos?: string[], tags?: string[]) => void;
+  onSubmit: (content: string, photos?: File[], tags?: string[]) => void;
   onClose: () => void;
+}
+
+interface PhotoFile {
+  file: File;
+  previewUrl: string;
 }
 
 export const EntryForm = ({ onSubmit, onClose }: EntryFormProps) => {
   const [content, setContent] = useState("");
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<PhotoFile[]>([]);
   const [tags, setTags] = useState<string>("");
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,7 +27,10 @@ export const EntryForm = ({ onSubmit, onClose }: EntryFormProps) => {
         const reader = new FileReader();
         reader.onload = (event) => {
           if (event.target?.result) {
-            setPhotos(prev => [...prev, event.target.result as string]);
+            setPhotos(prev => [...prev, {
+              file,
+              previewUrl: event.target.result as string
+            }]);
           }
         };
         reader.readAsDataURL(file);
@@ -38,7 +46,8 @@ export const EntryForm = ({ onSubmit, onClose }: EntryFormProps) => {
     e.preventDefault();
     if (content.trim()) {
       const tagArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
-      onSubmit(content.trim(), photos, tagArray.length > 0 ? tagArray : undefined);
+      const photoFiles = photos.map(p => p.file);
+      onSubmit(content.trim(), photoFiles.length > 0 ? photoFiles : undefined, tagArray.length > 0 ? tagArray : undefined);
       setContent("");
       setPhotos([]);
       setTags("");
@@ -119,7 +128,7 @@ export const EntryForm = ({ onSubmit, onClose }: EntryFormProps) => {
                   {photos.map((photo, index) => (
                     <div key={index} className="relative group">
                       <img
-                        src={photo}
+                        src={photo.previewUrl}
                         alt={`Upload ${index + 1}`}
                         className="w-full h-20 object-cover rounded-lg border border-slate-200"
                       />
