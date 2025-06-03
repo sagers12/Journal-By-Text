@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Edit3, Trash2, Calendar, Smartphone, Monitor, Check, X, Tag, Image, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,16 +38,16 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
     setIsEditing(false);
   };
 
-  // Get preview text (first two lines or 150 characters, whichever is shorter)
+  // Get preview text (first four lines or 200 characters, whichever is shorter)
   const getPreviewText = (text: string) => {
     const lines = text.split('\n');
-    const firstTwoLines = lines.slice(0, 2).join('\n');
+    const firstFourLines = lines.slice(0, 4).join('\n');
     
-    if (firstTwoLines.length <= 150) {
-      return firstTwoLines;
+    if (firstFourLines.length <= 200) {
+      return firstFourLines;
     }
     
-    return text.substring(0, 150) + '...';
+    return text.substring(0, 200) + '...';
   };
 
   const previewText = getPreviewText(entry.content);
