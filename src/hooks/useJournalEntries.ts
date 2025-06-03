@@ -1,9 +1,12 @@
 
-import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import type { Entry } from '@/types/entry';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  fetchJournalEntries, 
+  createJournalEntry, 
+  updateJournalEntry, 
+  deleteJournalEntry 
+} from '@/services/journalService';
 
 export const useJournalEntries = (userId?: string) => {
   const { toast } = useToast();
@@ -12,47 +15,7 @@ export const useJournalEntries = (userId?: string) => {
   // Fetch entries
   const { data: entries = [], isLoading, error } = useQuery({
     queryKey: ['journal-entries', userId],
-    queryFn: async () => {
-      if (!userId) return [];
-      
-      try {
-        const { data, error } = await supabase
-          .from('journal_entries')
-          .select(`
-            *,
-            journal_photos (
-              id,
-              file_path,
-              file_name
-            )
-          `)
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        // Transform data to match Entry interface
-        return data.map((entry): Entry => ({
-          id: entry.id,
-          content: entry.content,
-          title: entry.title,
-          source: entry.source as 'web' | 'sms',
-          timestamp: new Date(entry.created_at),
-          entry_date: entry.entry_date,
-          user_id: entry.user_id,
-          tags: entry.tags || [],
-          photos: entry.journal_photos?.map((photo: any) => {
-            const { data: publicUrl } = supabase.storage
-              .from('journal-photos')
-              .getPublicUrl(photo.file_path);
-            return publicUrl.publicUrl;
-          }) || []
-        }));
-      } catch (error) {
-        console.error('Error fetching entries:', error);
-        throw error;
-      }
-    },
+    queryFn: () => fetchJournalEntries(userId!),
     enabled: !!userId
   });
 
@@ -64,78 +27,7 @@ export const useJournalEntries = (userId?: string) => {
       tags?: string[];
       photos?: File[];
     }) => {
-      if (!userId) throw new Error('User not authenticated');
-
-      // Input validation
-      if (!content.trim()) {
-        throw new Error('Content cannot be empty');
-      }
-
-      if (content.length > 10000) {
-        throw new Error('Content too long (max 10,000 characters)');
-      }
-
-      if (photos.length > 10) {
-        throw new Error('Too many photos (max 10)');
-      }
-
-      // Create the entry
-      const entryDate = new Date().toISOString().split('T')[0];
-      const { data: entry, error } = await supabase
-        .from('journal_entries')
-        .insert({
-          user_id: userId,
-          content: content.trim(),
-          title: title.trim(),
-          source: 'web',
-          entry_date: entryDate,
-          tags: tags.filter(tag => tag.trim().length > 0).slice(0, 10)
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Upload photos if any
-      if (photos.length > 0) {
-        const photoPromises = photos.map(async (photo) => {
-          const fileExt = photo.name.split('.').pop()?.toLowerCase();
-          if (!fileExt || !['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt)) {
-            throw new Error(`Invalid file type: ${photo.type}`);
-          }
-
-          if (photo.size > 10 * 1024 * 1024) {
-            throw new Error(`File too large: ${photo.name} (max 10MB)`);
-          }
-
-          const fileName = `${userId}/${entry.id}/${Date.now()}.${fileExt}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('journal-photos')
-            .upload(fileName, photo);
-
-          if (uploadError) throw uploadError;
-
-          // Save photo record
-          const { error: photoError } = await supabase
-            .from('journal_photos')
-            .insert({
-              entry_id: entry.id,
-              file_path: fileName,
-              file_name: photo.name,
-              file_size: photo.size,
-              mime_type: photo.type
-            });
-
-          if (photoError) throw photoError;
-
-          return fileName;
-        });
-
-        await Promise.all(photoPromises);
-      }
-
-      return entry;
+      return createJournalEntry({ content, title, tags, photos, userId: userId! });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['journal-entries', userId] });
@@ -161,73 +53,7 @@ export const useJournalEntries = (userId?: string) => {
       content: string; 
       photos?: File[];
     }) => {
-      if (!content.trim()) {
-        throw new Error('Content cannot be empty');
-      }
-
-      if (content.length > 10000) {
-        throw new Error('Content too long (max 10,000 characters)');
-      }
-
-      // Update the entry content
-      const { error } = await supabase
-        .from('journal_entries')
-        .update({ content: content.trim() })
-        .eq('id', id)
-        .eq('user_id', userId);
-
-      if (error) throw error;
-
-      // Upload new photos if any
-      if (photos && photos.length > 0) {
-        // Check current photo count for this entry
-        const { data: existingPhotos } = await supabase
-          .from('journal_photos')
-          .select('id')
-          .eq('entry_id', id);
-
-        const currentPhotoCount = existingPhotos?.length || 0;
-        
-        if (currentPhotoCount + photos.length > 10) {
-          throw new Error(`Cannot add ${photos.length} photos. Maximum 10 photos per entry (currently ${currentPhotoCount})`);
-        }
-
-        const photoPromises = photos.map(async (photo) => {
-          const fileExt = photo.name.split('.').pop()?.toLowerCase();
-          if (!fileExt || !['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt)) {
-            throw new Error(`Invalid file type: ${photo.type}`);
-          }
-
-          if (photo.size > 10 * 1024 * 1024) {
-            throw new Error(`File too large: ${photo.name} (max 10MB)`);
-          }
-
-          const fileName = `${userId}/${id}/${Date.now()}.${fileExt}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('journal-photos')
-            .upload(fileName, photo);
-
-          if (uploadError) throw uploadError;
-
-          // Save photo record
-          const { error: photoError } = await supabase
-            .from('journal_photos')
-            .insert({
-              entry_id: id,
-              file_path: fileName,
-              file_name: photo.name,
-              file_size: photo.size,
-              mime_type: photo.type
-            });
-
-          if (photoError) throw photoError;
-
-          return fileName;
-        });
-
-        await Promise.all(photoPromises);
-      }
+      return updateJournalEntry({ id, content, photos, userId: userId! });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['journal-entries', userId] });
@@ -249,31 +75,7 @@ export const useJournalEntries = (userId?: string) => {
   // Delete entry mutation
   const deleteEntryMutation = useMutation({
     mutationFn: async (entryId: string) => {
-      // First delete associated photos from storage
-      const { data: photos } = await supabase
-        .from('journal_photos')
-        .select('file_path')
-        .eq('entry_id', entryId);
-
-      if (photos && photos.length > 0) {
-        const filePaths = photos.map(photo => photo.file_path);
-        const { error: storageError } = await supabase.storage
-          .from('journal-photos')
-          .remove(filePaths);
-
-        if (storageError) {
-          console.error('Error deleting photos from storage:', storageError);
-        }
-      }
-
-      // Delete the entry (photos will be deleted via cascade)
-      const { error } = await supabase
-        .from('journal_entries')
-        .delete()
-        .eq('id', entryId)
-        .eq('user_id', userId);
-
-      if (error) throw error;
+      return deleteJournalEntry(entryId, userId!);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['journal-entries', userId] });
