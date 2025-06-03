@@ -23,7 +23,7 @@ interface SearchFilters {
 
 export const JournalDashboard = () => {
   const { user } = useAuth();
-  const { entries, isLoading, createEntry, deleteEntry, updateEntry } = useJournalEntries(user?.id);
+  const { entries, isLoading, createEntry, deleteEntry, updateEntry, error } = useJournalEntries(user?.id);
   useRealtime(user?.id);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,22 +39,29 @@ export const JournalDashboard = () => {
     });
   };
 
-  const addEntry = (content: string, photos?: File[], tags?: string[]) => {
+  const addEntry = async (content: string, photos?: File[], tags?: string[]) => {
     const now = new Date();
     const title = `Journal Entry - ${formatEntryTitle(now)}`;
     
-    createEntry({
-      content: content.trim(),
-      title,
-      tags: tags || [],
-      photos: photos || []
-    });
-    
-    setIsFormOpen(false);
+    try {
+      await createEntry({
+        content: content.trim(),
+        title,
+        tags: tags || [],
+        photos: photos || []
+      });
+      
+      setIsFormOpen(false);
+    } catch (error) {
+      console.error('Failed to create entry:', error);
+      // Error handling is done in the hook
+    }
   };
 
   const handleDeleteEntry = (id: string) => {
-    deleteEntry(id);
+    if (window.confirm('Are you sure you want to delete this entry? This action cannot be undone.')) {
+      deleteEntry(id);
+    }
   };
 
   const handleEditEntry = (id: string, newContent: string) => {
@@ -109,6 +116,17 @@ export const JournalDashboard = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-slate-600">Loading your journal...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 mb-2">Error loading journal entries</div>
+          <div className="text-slate-600 text-sm">Please check your connection and try again</div>
+        </div>
       </div>
     );
   }

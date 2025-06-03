@@ -15,35 +15,43 @@ export const useJournalEntries = (userId?: string) => {
     queryFn: async () => {
       if (!userId) return [];
       
-      const { data, error } = await supabase
-        .from('journal_entries')
-        .select(`
-          *,
-          journal_photos (
-            id,
-            file_path,
-            file_name
-          )
-        `)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('journal_entries')
+          .select(`
+            *,
+            journal_photos (
+              id,
+              file_path,
+              file_name
+            )
+          `)
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Transform data to match Entry interface
-      return data.map((entry): Entry => ({
-        id: entry.id,
-        content: entry.content,
-        title: entry.title,
-        source: entry.source as 'web' | 'sms',
-        timestamp: new Date(entry.created_at),
-        entry_date: entry.entry_date,
-        user_id: entry.user_id,
-        tags: entry.tags || [],
-        photos: entry.journal_photos?.map((photo: any) => 
-          `${supabase.storage.from('journal-photos').getPublicUrl(photo.file_path).data.publicUrl}`
-        ) || []
-      }));
+        // Transform data to match Entry interface
+        return data.map((entry): Entry => ({
+          id: entry.id,
+          content: entry.content,
+          title: entry.title,
+          source: entry.source as 'web' | 'sms',
+          timestamp: new Date(entry.created_at),
+          entry_date: entry.entry_date,
+          user_id: entry.user_id,
+          tags: entry.tags || [],
+          photos: entry.journal_photos?.map((photo: any) => {
+            const { data: publicUrl } = supabase.storage
+              .from('journal-photos')
+              .getPublicUrl(photo.file_path);
+            return publicUrl.publicUrl;
+          }) || []
+        }));
+      } catch (error) {
+        console.error('Error fetching entries:', error);
+        throw error;
+      }
     },
     enabled: !!userId
   });
@@ -58,17 +66,30 @@ export const useJournalEntries = (userId?: string) => {
     }) => {
       if (!userId) throw new Error('User not authenticated');
 
+      // Input validation
+      if (!content.trim()) {
+        throw new Error('Content cannot be empty');
+      }
+
+      if (content.length > 10000) {
+        throw new Error('Content too long (max 10,000 characters)');
+      }
+
+      if (photos.length > 10) {
+        throw new Error('Too many photos (max 10)');
+      }
+
       // Create the entry
       const entryDate = new Date().toISOString().split('T')[0];
       const { data: entry, error } = await supabase
         .from('journal_entries')
         .insert({
           user_id: userId,
-          content,
-          title,
+          content: content.trim(),
+          title: title.trim(),
           source: 'web',
           entry_date: entryDate,
-          tags
+          tags: tags.filter(tag => tag.trim().length > 0).slice(0, 10)
         })
         .select()
         .single();
@@ -78,7 +99,15 @@ export const useJournalEntries = (userId?: string) => {
       // Upload photos if any
       if (photos.length > 0) {
         const photoPromises = photos.map(async (photo) => {
-          const fileExt = photo.name.split('.').pop();
+          const fileExt = photo.name.split('.').pop()?.toLowerCase();
+          if (!fileExt || !['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt)) {
+            throw new Error(`Invalid file type: ${photo.type}`);
+          }
+
+          if (photo.size > 10 * 1024 * 1024) {
+            throw new Error(`File too large: ${photo.name} (max 10MB)`);
+          }
+
           const fileName = `${userId}/${entry.id}/${Date.now()}.${fileExt}`;
           
           const { error: uploadError } = await supabase.storage
@@ -119,7 +148,7 @@ export const useJournalEntries = (userId?: string) => {
       console.error('Error creating entry:', error);
       toast({
         title: "Error",
-        description: "Failed to create journal entry. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create journal entry. Please try again.",
         variant: "destructive",
       });
     }
@@ -128,9 +157,17 @@ export const useJournalEntries = (userId?: string) => {
   // Update entry mutation
   const updateEntryMutation = useMutation({
     mutationFn: async ({ id, content }: { id: string; content: string }) => {
+      if (!content.trim()) {
+        throw new Error('Content cannot be empty');
+      }
+
+      if (content.length > 10000) {
+        throw new Error('Content too long (max 10,000 characters)');
+      }
+
       const { error } = await supabase
         .from('journal_entries')
-        .update({ content })
+        .update({ content: content.trim() })
         .eq('id', id)
         .eq('user_id', userId);
 
@@ -147,7 +184,7 @@ export const useJournalEntries = (userId?: string) => {
       console.error('Error updating entry:', error);
       toast({
         title: "Error",
-        description: "Failed to update journal entry. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to update journal entry. Please try again.",
         variant: "destructive",
       });
     }
@@ -156,6 +193,24 @@ export const useJournalEntries = (userId?: string) => {
   // Delete entry mutation
   const deleteEntryMutation = useMutation({
     mutationFn: async (entryId: string) => {
+      // First delete associated photos from storage
+      const { data: photos } = await supabase
+        .from('journal_photos')
+        .select('file_path')
+        .eq('entry_id', entryId);
+
+      if (photos && photos.length > 0) {
+        const filePaths = photos.map(photo => photo.file_path);
+        const { error: storageError } = await supabase.storage
+          .from('journal-photos')
+          .remove(filePaths);
+
+        if (storageError) {
+          console.error('Error deleting photos from storage:', storageError);
+        }
+      }
+
+      // Delete the entry (photos will be deleted via cascade)
       const { error } = await supabase
         .from('journal_entries')
         .delete()
