@@ -1,8 +1,13 @@
 
 import { MessageSquare, Calendar, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 
 export const JournalHeader = () => {
+  const { user, signOut } = useAuth();
+  const { profile } = useProfile(user?.id);
+  
   const today = new Date().toLocaleDateString('en-US', { 
     weekday: 'long',
     year: 'numeric', 
@@ -10,14 +15,11 @@ export const JournalHeader = () => {
     day: 'numeric' 
   });
 
-  const handleLogout = () => {
-    localStorage.removeItem("journal-auth");
-    localStorage.removeItem("journal-entries");
-    window.location.reload();
+  const handleLogout = async () => {
+    await signOut();
   };
 
-  const authData = localStorage.getItem("journal-auth");
-  const phoneNumber = authData ? JSON.parse(authData).phoneNumber : "";
+  const displayInfo = profile?.phone_number || user?.email || "User";
 
   return (
     <div className="mb-8">
@@ -30,7 +32,7 @@ export const JournalHeader = () => {
             <h1 className="text-3xl font-bold text-slate-800">My Journal</h1>
             <div className="flex items-center text-slate-600 text-sm">
               <User className="w-4 h-4 mr-1" />
-              <span>{phoneNumber}</span>
+              <span>{displayInfo}</span>
             </div>
           </div>
         </div>
