@@ -136,16 +136,17 @@ export const JournalDashboard = () => {
       <div className="max-w-4xl mx-auto px-4 py-6">
         <JournalHeader />
         
-        <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="flex-1">
-              <SearchBar 
-                searchTerm={searchTerm} 
-                onSearchChange={setSearchTerm}
-                onFiltersChange={setSearchFilters}
-              />
-            </div>
-            {entries.length > 0 && (
+        {/* Only show search bar and export button if there are entries */}
+        {entries.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex-1">
+                <SearchBar 
+                  searchTerm={searchTerm} 
+                  onSearchChange={setSearchTerm}
+                  onFiltersChange={setSearchFilters}
+                />
+              </div>
               <Button
                 variant="outline"
                 onClick={() => setIsExportOpen(true)}
@@ -154,9 +155,9 @@ export const JournalDashboard = () => {
                 <Download className="w-4 h-4" />
                 Export
               </Button>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
         {filteredEntries.length === 0 && entries.length === 0 ? (
           <EmptyState onCreateEntry={() => setIsFormOpen(true)} />
