@@ -1,8 +1,9 @@
 
 import { useState } from "react";
-import { Edit3, Trash2, Calendar, Smartphone, Monitor, Check, X, Tag, Image } from "lucide-react";
+import { Edit3, Trash2, Calendar, Smartphone, Monitor, Check, X, Tag, Image, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Entry } from "@/types/entry";
 
 interface JournalEntryProps {
@@ -16,6 +17,7 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
   const [editContent, setEditContent] = useState(entry.content);
   const [showActions, setShowActions] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', { 
@@ -36,6 +38,21 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
     setEditContent(entry.content);
     setIsEditing(false);
   };
+
+  // Get preview text (first two lines or 150 characters, whichever is shorter)
+  const getPreviewText = (text: string) => {
+    const lines = text.split('\n');
+    const firstTwoLines = lines.slice(0, 2).join('\n');
+    
+    if (firstTwoLines.length <= 150) {
+      return firstTwoLines;
+    }
+    
+    return text.substring(0, 150) + '...';
+  };
+
+  const previewText = getPreviewText(entry.content);
+  const needsExpansion = entry.content !== previewText;
 
   return (
     <>
@@ -111,47 +128,115 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
             autoFocus
           />
         ) : (
-          <>
+          <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
             <div className="prose prose-slate max-w-none">
-              <p className="text-slate-700 leading-relaxed whitespace-pre-wrap text-base mb-4">
-                {entry.content}
+              {/* Preview or full content */}
+              <p className="text-slate-700 leading-relaxed whitespace-pre-wrap text-base mb-2">
+                {isExpanded ? entry.content : previewText}
               </p>
+              
+              {/* Show expand/collapse button if content is long */}
+              {needsExpansion && (
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-blue-600 hover:text-blue-700 p-0 h-auto font-medium text-sm mb-3"
+                  >
+                    {isExpanded ? (
+                      <>
+                        <ChevronUp className="w-4 h-4 mr-1" />
+                        Show less
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-4 h-4 mr-1" />
+                        Show more
+                      </>
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+              )}
             </div>
 
-            {entry.photos && entry.photos.length > 0 && (
-              <div className="mb-4">
-                <div className="flex items-center gap-2 text-slate-600 mb-3">
-                  <Image className="w-4 h-4" />
-                  <span className="text-sm font-medium">{entry.photos.length} photo{entry.photos.length > 1 ? 's' : ''}</span>
+            {/* Content that appears when expanded */}
+            <CollapsibleContent>
+              {/* Photos - only show when expanded or if no expansion needed */}
+              {entry.photos && entry.photos.length > 0 && (
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 text-slate-600 mb-3">
+                    <Image className="w-4 h-4" />
+                    <span className="text-sm font-medium">{entry.photos.length} photo{entry.photos.length > 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {entry.photos.map((photo, index) => (
+                      <img
+                        key={index}
+                        src={photo}
+                        alt={`Entry photo ${index + 1}`}
+                        className="w-full h-24 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setSelectedPhoto(photo)}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {entry.photos.map((photo, index) => (
-                    <img
+              )}
+
+              {/* Tags - only show when expanded or if no expansion needed */}
+              {entry.tags && entry.tags.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Tag className="w-3 h-3 text-slate-500" />
+                  {entry.tags.map((tag, index) => (
+                    <span
                       key={index}
-                      src={photo}
-                      alt={`Entry photo ${index + 1}`}
-                      className="w-full h-24 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => setSelectedPhoto(photo)}
-                    />
+                      className="inline-block bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium"
+                    >
+                      {tag}
+                    </span>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </CollapsibleContent>
 
-            {entry.tags && entry.tags.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <Tag className="w-3 h-3 text-slate-500" />
-                {entry.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="inline-block bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+            {/* Show photos and tags inline if content doesn't need expansion */}
+            {!needsExpansion && (
+              <>
+                {entry.photos && entry.photos.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 text-slate-600 mb-3">
+                      <Image className="w-4 h-4" />
+                      <span className="text-sm font-medium">{entry.photos.length} photo{entry.photos.length > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {entry.photos.map((photo, index) => (
+                        <img
+                          key={index}
+                          src={photo}
+                          alt={`Entry photo ${index + 1}`}
+                          className="w-full h-24 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => setSelectedPhoto(photo)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {entry.tags && entry.tags.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Tag className="w-3 h-3 text-slate-500" />
+                    {entry.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="inline-block bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
-          </>
+          </Collapsible>
         )}
       </div>
 
