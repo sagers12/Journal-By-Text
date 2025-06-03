@@ -1,12 +1,44 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { JournalDashboard } from "@/components/JournalDashboard";
+import { AuthForm } from "@/components/AuthForm";
 
 const Index = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Check if user is already authenticated
+    const authData = localStorage.getItem("journal-auth");
+    if (authData) {
+      const { phoneNumber, isVerified } = JSON.parse(authData);
+      if (phoneNumber && isVerified) {
+        setIsAuthenticated(true);
+      }
+    }
+    setIsLoading(false);
+  }, []);
+
+  const handleAuthSuccess = () => {
+    setIsAuthenticated(true);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-slate-600">Loading...</div>
       </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {isAuthenticated ? (
+        <JournalDashboard />
+      ) : (
+        <AuthForm onAuthSuccess={handleAuthSuccess} />
+      )}
     </div>
   );
 };
