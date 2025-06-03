@@ -156,7 +156,11 @@ export const useJournalEntries = (userId?: string) => {
 
   // Update entry mutation
   const updateEntryMutation = useMutation({
-    mutationFn: async ({ id, content }: { id: string; content: string }) => {
+    mutationFn: async ({ id, content, photos }: { 
+      id: string; 
+      content: string; 
+      photos?: File[];
+    }) => {
       if (!content.trim()) {
         throw new Error('Content cannot be empty');
       }
@@ -165,6 +169,7 @@ export const useJournalEntries = (userId?: string) => {
         throw new Error('Content too long (max 10,000 characters)');
       }
 
+      // Update the entry content
       const { error } = await supabase
         .from('journal_entries')
         .update({ content: content.trim() })
@@ -172,6 +177,57 @@ export const useJournalEntries = (userId?: string) => {
         .eq('user_id', userId);
 
       if (error) throw error;
+
+      // Upload new photos if any
+      if (photos && photos.length > 0) {
+        // Check current photo count for this entry
+        const { data: existingPhotos } = await supabase
+          .from('journal_photos')
+          .select('id')
+          .eq('entry_id', id);
+
+        const currentPhotoCount = existingPhotos?.length || 0;
+        
+        if (currentPhotoCount + photos.length > 10) {
+          throw new Error(`Cannot add ${photos.length} photos. Maximum 10 photos per entry (currently ${currentPhotoCount})`);
+        }
+
+        const photoPromises = photos.map(async (photo) => {
+          const fileExt = photo.name.split('.').pop()?.toLowerCase();
+          if (!fileExt || !['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt)) {
+            throw new Error(`Invalid file type: ${photo.type}`);
+          }
+
+          if (photo.size > 10 * 1024 * 1024) {
+            throw new Error(`File too large: ${photo.name} (max 10MB)`);
+          }
+
+          const fileName = `${userId}/${id}/${Date.now()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('journal-photos')
+            .upload(fileName, photo);
+
+          if (uploadError) throw uploadError;
+
+          // Save photo record
+          const { error: photoError } = await supabase
+            .from('journal_photos')
+            .insert({
+              entry_id: id,
+              file_path: fileName,
+              file_name: photo.name,
+              file_size: photo.size,
+              mime_type: photo.type
+            });
+
+          if (photoError) throw photoError;
+
+          return fileName;
+        });
+
+        await Promise.all(photoPromises);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['journal-entries', userId] });
