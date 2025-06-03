@@ -1,38 +1,40 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { PhoneVerification } from '@/components/PhoneVerification';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+
 export const AuthComponent = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const {
-    signUp,
-    signIn
-  } = useAuth();
-  const {
-    toast
-  } = useToast();
+  const [showPhoneVerification, setShowPhoneVerification] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
+  
+  const { signUp, signIn } = useAuth();
+  const { toast } = useToast();
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // For signup, we still need an email for Supabase auth, but phone is primary
       if (!email) {
         throw new Error('Email is required for account creation');
       }
-      const {
-        error
-      } = await signUp(email, password, phoneNumber);
+      const { error } = await signUp(email, password, phoneNumber);
       if (error) throw error;
+      
+      setIsNewUser(true);
+      setShowPhoneVerification(true);
       toast({
         title: "Account created!",
-        description: "Please check your email to verify your account."
+        description: "Please verify your phone number to start journaling via SMS."
       });
     } catch (error: any) {
       toast({
@@ -44,18 +46,17 @@ export const AuthComponent = () => {
       setLoading(false);
     }
   };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // For signin, we still use email for Supabase auth
       if (!email) {
         throw new Error('Email is required for sign in');
       }
-      const {
-        error
-      } = await signIn(email, password);
+      const { error } = await signIn(email, password);
       if (error) throw error;
+      
       toast({
         title: "Welcome back!",
         description: "You have successfully signed in."
@@ -70,7 +71,36 @@ export const AuthComponent = () => {
       setLoading(false);
     }
   };
-  return <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-4">
+
+  const handlePhoneVerificationComplete = () => {
+    setShowPhoneVerification(false);
+    toast({
+      title: "Setup complete!",
+      description: "You can now send journal entries via SMS."
+    });
+  };
+
+  const handleSkipPhoneVerification = () => {
+    setShowPhoneVerification(false);
+    toast({
+      title: "Welcome!",
+      description: "You can verify your phone number later in settings."
+    });
+  };
+
+  if (showPhoneVerification) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-4">
+        <PhoneVerification 
+          onVerificationComplete={handlePhoneVerificationComplete}
+          onSkip={isNewUser ? handleSkipPhoneVerification : undefined}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">SMS Journal</CardTitle>
@@ -88,19 +118,25 @@ export const AuthComponent = () => {
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div>
-                  <Label htmlFor="signin-phone">Phone Number</Label>
-                  <Input id="signin-phone" type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="+1 (555) 123-4567" required />
-                  <p className="text-xs text-slate-500 mt-1">
-                    This is where you'll send your journal entries
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="signin-email">Email (for account access)</Label>
-                  <Input id="signin-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" required />
+                  <Label htmlFor="signin-email">Email</Label>
+                  <Input 
+                    id="signin-email" 
+                    type="email" 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)} 
+                    placeholder="your@email.com" 
+                    required 
+                  />
                 </div>
                 <div>
                   <Label htmlFor="signin-password">Password</Label>
-                  <Input id="signin-password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+                  <Input 
+                    id="signin-password" 
+                    type="password" 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    required 
+                  />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Signing in...' : 'Sign In'}
@@ -111,20 +147,42 @@ export const AuthComponent = () => {
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div>
-                  <Label htmlFor="signup-phone">Phone Number</Label>
-                  <Input id="signup-phone" type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="+1 (555) 123-4567" required />
-                  <p className="text-xs text-slate-500 mt-1">This is the number from which you'll send your journal entries.</p>
-                </div>
-                <div>
                   <Label htmlFor="signup-email">Email</Label>
-                  <Input id="signup-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" required />
+                  <Input 
+                    id="signup-email" 
+                    type="email" 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)} 
+                    placeholder="your@email.com" 
+                    required 
+                  />
                   <p className="text-xs text-slate-500 mt-1">
                     Used for account verification and recovery
                   </p>
                 </div>
                 <div>
+                  <Label htmlFor="signup-phone">Phone Number (Optional)</Label>
+                  <Input 
+                    id="signup-phone" 
+                    type="tel" 
+                    value={phoneNumber} 
+                    onChange={e => setPhoneNumber(e.target.value)} 
+                    placeholder="+1 (555) 123-4567" 
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    For sending journal entries via SMS
+                  </p>
+                </div>
+                <div>
                   <Label htmlFor="signup-password">Password</Label>
-                  <Input id="signup-password" type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
+                  <Input 
+                    id="signup-password" 
+                    type="password" 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    required 
+                    minLength={6} 
+                  />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Creating account...' : 'Sign Up'}
@@ -134,5 +192,6 @@ export const AuthComponent = () => {
           </Tabs>
         </CardContent>
       </Card>
-    </div>;
+    </div>
+  );
 };

@@ -1,6 +1,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { createHmac } from 'https://deno.land/std@0.168.0/node/crypto.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +13,71 @@ interface SMSWebhookPayload {
   Body: string;
   MessageSid: string;
   AccountSid: string;
+  NumMedia?: string;
+  MediaUrl0?: string;
+  MediaContentType0?: string;
 }
+
+const validateTwilioSignature = (signature: string, url: string, params: Record<string, string>) => {
+  const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+  if (!authToken) return false;
+
+  // Create the signature string
+  const data = Object.keys(params)
+    .sort()
+    .map(key => `${key}${params[key]}`)
+    .join('');
+
+  const computedSignature = createHmac('sha1', authToken)
+    .update(url + data)
+    .digest('base64');
+
+  return signature === `sha1=${computedSignature}`;
+};
+
+const downloadAndStoreMedia = async (mediaUrl: string, entryId: string, userId: string, supabaseClient: any) => {
+  try {
+    // Download the media file
+    const response = await fetch(mediaUrl);
+    if (!response.ok) throw new Error('Failed to download media');
+
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+
+    // Generate filename
+    const fileExt = blob.type.split('/')[1] || 'jpg';
+    const fileName = `${userId}/${entryId}/${Date.now()}.${fileExt}`;
+
+    // Upload to Supabase storage
+    const { error: uploadError } = await supabaseClient.storage
+      .from('journal-photos')
+      .upload(fileName, uint8Array, {
+        contentType: blob.type,
+        upsert: false
+      });
+
+    if (uploadError) throw uploadError;
+
+    // Save photo record to database
+    const { error: photoError } = await supabaseClient
+      .from('journal_photos')
+      .insert({
+        entry_id: entryId,
+        file_path: fileName,
+        file_name: `SMS_Photo_${Date.now()}.${fileExt}`,
+        file_size: uint8Array.length,
+        mime_type: blob.type
+      });
+
+    if (photoError) throw photoError;
+
+    return fileName;
+  } catch (error) {
+    console.error('Error processing media:', error);
+    throw error;
+  }
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -29,10 +94,26 @@ serve(async (req) => {
     // Parse the webhook payload
     const formData = await req.formData()
     const from = formData.get('From') as string
-    const body = formData.get('Body') as string
+    const body = formData.get('Body') as string || ''
     const messageSid = formData.get('MessageSid') as string
+    const numMedia = parseInt(formData.get('NumMedia') as string || '0')
 
-    console.log('SMS received:', { from, body, messageSid })
+    console.log('SMS received:', { from, body, messageSid, numMedia })
+
+    // Validate Twilio signature for security
+    const twilioSignature = req.headers.get('x-twilio-signature')
+    if (twilioSignature) {
+      const url = req.url
+      const params: Record<string, string> = {}
+      for (const [key, value] of formData.entries()) {
+        params[key] = value as string
+      }
+      
+      if (!validateTwilioSignature(twilioSignature, url, params)) {
+        console.error('Invalid Twilio signature')
+        return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+      }
+    }
 
     // Clean phone number (remove +1, spaces, dashes)
     const cleanPhone = from.replace(/[\+\-\s]/g, '')
@@ -46,7 +127,28 @@ serve(async (req) => {
 
     if (profileError || !profile) {
       console.error('User not found for phone:', cleanPhone)
-      return new Response('User not found', { status: 404, headers: corsHeaders })
+      return new Response(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>Phone number not registered. Please sign up at your journal app first.</Message>
+</Response>`, {
+        headers: { 
+          ...corsHeaders,
+          'Content-Type': 'text/xml'
+        }
+      })
+    }
+
+    if (!profile.phone_verified) {
+      console.error('Phone not verified for user:', profile.id)
+      return new Response(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>Please verify your phone number in the app before sending journal entries.</Message>
+</Response>`, {
+        headers: { 
+          ...corsHeaders,
+          'Content-Type': 'text/xml'
+        }
+      })
     }
 
     // Get user's timezone or default to UTC
@@ -87,13 +189,15 @@ serve(async (req) => {
       .single()
 
     let entryId: string
+    const timestamp = now.toLocaleTimeString('en-US', { 
+      timeZone: userTimezone,
+      hour12: true 
+    })
 
     if (existingEntry) {
       // Append to existing entry
-      const updatedContent = `${existingEntry.content}\n\n[${now.toLocaleTimeString('en-US', { 
-        timeZone: userTimezone,
-        hour12: true 
-      })}] ${body}`
+      const newContent = body ? `[${timestamp}] ${body}` : `[${timestamp}] Photo attachment`
+      const updatedContent = `${existingEntry.content}\n\n${newContent}`
 
       const { error: updateError } = await supabaseClient
         .from('journal_entries')
@@ -115,10 +219,7 @@ serve(async (req) => {
         year: 'numeric'
       }).format(now)}`
 
-      const content = `[${now.toLocaleTimeString('en-US', { 
-        timeZone: userTimezone,
-        hour12: true 
-      })}] ${body}`
+      const content = body ? `[${timestamp}] ${body}` : `[${timestamp}] Photo attachment`
 
       const { data: newEntry, error: createError } = await supabaseClient
         .from('journal_entries')
@@ -141,6 +242,24 @@ serve(async (req) => {
       entryId = newEntry.id
     }
 
+    // Process media attachments if any
+    if (numMedia > 0) {
+      const mediaPromises = []
+      for (let i = 0; i < numMedia; i++) {
+        const mediaUrl = formData.get(`MediaUrl${i}`) as string
+        if (mediaUrl) {
+          mediaPromises.push(downloadAndStoreMedia(mediaUrl, entryId, profile.id, supabaseClient))
+        }
+      }
+
+      try {
+        await Promise.all(mediaPromises)
+      } catch (mediaError) {
+        console.error('Error processing media attachments:', mediaError)
+        // Continue processing even if media fails
+      }
+    }
+
     // Mark SMS as processed
     const { error: markProcessedError } = await supabaseClient
       .from('sms_messages')
@@ -157,10 +276,14 @@ serve(async (req) => {
       console.error('Error marking SMS as processed:', markProcessedError)
     }
 
-    // Send TwiML response
+    // Send appropriate TwiML response
+    const responseMessage = numMedia > 0 && !body ? 
+      'Your photo has been added to your journal! 📸' : 
+      'Your journal entry has been recorded! 📝'
+
     const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Message>Your journal entry has been recorded! 📝</Message>
+  <Message>${responseMessage}</Message>
 </Response>`
 
     return new Response(twimlResponse, {
@@ -172,9 +295,15 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Webhook error:', error)
-    return new Response('Internal server error', { 
+    return new Response(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>Sorry, there was an error processing your message. Please try again later.</Message>
+</Response>`, { 
       status: 500, 
-      headers: corsHeaders 
+      headers: { 
+        ...corsHeaders,
+        'Content-Type': 'text/xml'
+      }
     })
   }
 })
