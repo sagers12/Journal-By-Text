@@ -9,9 +9,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
 export const AuthComponent = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const { signUp, signIn } = useAuth();
   const { toast } = useToast();
@@ -21,6 +21,11 @@ export const AuthComponent = () => {
     setLoading(true);
 
     try {
+      // For signup, we still need an email for Supabase auth, but phone is primary
+      if (!email) {
+        throw new Error('Email is required for account creation');
+      }
+      
       const { error } = await signUp(email, password, phoneNumber);
       if (error) throw error;
 
@@ -44,6 +49,11 @@ export const AuthComponent = () => {
     setLoading(true);
 
     try {
+      // For signin, we still use email for Supabase auth
+      if (!email) {
+        throw new Error('Email is required for sign in');
+      }
+      
       const { error } = await signIn(email, password);
       if (error) throw error;
 
@@ -81,12 +91,27 @@ export const AuthComponent = () => {
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div>
-                  <Label htmlFor="signin-email">Email</Label>
+                  <Label htmlFor="signin-phone">Phone Number</Label>
+                  <Input
+                    id="signin-phone"
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="+1 (555) 123-4567"
+                    required
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    This is where you'll send your journal entries
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="signin-email">Email (for account access)</Label>
                   <Input
                     id="signin-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
                     required
                   />
                 </div>
@@ -109,14 +134,32 @@ export const AuthComponent = () => {
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div>
+                  <Label htmlFor="signup-phone">Phone Number</Label>
+                  <Input
+                    id="signup-phone"
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="+1 (555) 123-4567"
+                    required
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    This is where you'll send your journal entries
+                  </p>
+                </div>
+                <div>
                   <Label htmlFor="signup-email">Email</Label>
                   <Input
                     id="signup-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
                     required
                   />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Used for account verification and recovery
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="signup-password">Password</Label>
@@ -127,16 +170,6 @@ export const AuthComponent = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={6}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone Number (Optional)</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="+1234567890"
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
