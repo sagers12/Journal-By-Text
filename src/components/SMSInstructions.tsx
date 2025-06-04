@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,8 +8,8 @@ export const SMSInstructions = () => {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
   
-  // This should be the actual Twilio number from your configuration
-  const twilioNumber = '+1234567890'; // You'll need to replace this with your actual Twilio number
+  // Updated with your actual 10DLC number
+  const twilioNumber = '+1 947 777 7291';
 
   const copyPhoneNumber = async () => {
     try {
