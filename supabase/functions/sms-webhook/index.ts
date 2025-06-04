@@ -80,8 +80,14 @@ const downloadAndStoreMedia = async (mediaUrl: string, entryId: string, userId: 
 };
 
 serve(async (req) => {
+  console.log('=== SMS WEBHOOK CALLED ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers:', Object.fromEntries(req.headers.entries()));
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS request');
     return new Response('ok', { headers: corsHeaders })
   }
 
@@ -93,16 +99,27 @@ serve(async (req) => {
 
     // Parse the webhook payload
     const formData = await req.formData()
+    console.log('Form data entries:');
+    for (const [key, value] of formData.entries()) {
+      console.log(`${key}: ${value}`);
+    }
+
     const from = formData.get('From') as string
     const body = formData.get('Body') as string || ''
     const messageSid = formData.get('MessageSid') as string
     const numMedia = parseInt(formData.get('NumMedia') as string || '0')
 
-    console.log('SMS received:', { from, body, messageSid, numMedia })
+    console.log('Parsed data:', { from, body, messageSid, numMedia })
+
+    if (!from) {
+      console.error('No From field in webhook data');
+      return new Response('Bad Request: Missing From field', { status: 400, headers: corsHeaders })
+    }
 
     // Validate Twilio signature for security
     const twilioSignature = req.headers.get('x-twilio-signature')
     if (twilioSignature) {
+      console.log('Validating Twilio signature...');
       const url = req.url
       const params: Record<string, string> = {}
       for (const [key, value] of formData.entries()) {
@@ -113,10 +130,14 @@ serve(async (req) => {
         console.error('Invalid Twilio signature')
         return new Response('Unauthorized', { status: 401, headers: corsHeaders })
       }
+      console.log('Signature validated successfully');
+    } else {
+      console.log('No Twilio signature found - this is normal for testing');
     }
 
     // Clean phone number (remove +1, spaces, dashes)
     const cleanPhone = from.replace(/[\+\-\s]/g, '')
+    console.log('Clean phone number:', cleanPhone);
 
     // Find user by phone number
     const { data: profile, error: profileError } = await supabaseClient
@@ -124,6 +145,8 @@ serve(async (req) => {
       .select('id, phone_verified, timezone')
       .eq('phone_number', cleanPhone)
       .single()
+
+    console.log('Profile lookup result:', { profile, profileError });
 
     if (profileError || !profile) {
       console.error('User not found for phone:', cleanPhone)
@@ -163,6 +186,8 @@ serve(async (req) => {
       day: '2-digit'
     }).format(now)
 
+    console.log('Processing for user:', profile.id, 'Entry date:', entryDate);
+
     // Store the SMS message
     const { error: smsError } = await supabaseClient
       .from('sms_messages')
@@ -179,6 +204,8 @@ serve(async (req) => {
       return new Response('Error storing SMS', { status: 500, headers: corsHeaders })
     }
 
+    console.log('SMS message stored successfully');
+
     // Check if there's already an entry for today
     const { data: existingEntry } = await supabaseClient
       .from('journal_entries')
@@ -187,6 +214,8 @@ serve(async (req) => {
       .eq('entry_date', entryDate)
       .eq('source', 'sms')
       .single()
+
+    console.log('Existing entry check:', existingEntry);
 
     let entryId: string
     const timestamp = now.toLocaleTimeString('en-US', { 
@@ -209,6 +238,7 @@ serve(async (req) => {
         return new Response('Error updating entry', { status: 500, headers: corsHeaders })
       }
 
+      console.log('Updated existing entry:', existingEntry.id);
       entryId = existingEntry.id
     } else {
       // Create new entry
@@ -239,11 +269,13 @@ serve(async (req) => {
         return new Response('Error creating entry', { status: 500, headers: corsHeaders })
       }
 
+      console.log('Created new entry:', newEntry.id);
       entryId = newEntry.id
     }
 
     // Process media attachments if any
     if (numMedia > 0) {
+      console.log('Processing', numMedia, 'media attachments');
       const mediaPromises = []
       for (let i = 0; i < numMedia; i++) {
         const mediaUrl = formData.get(`MediaUrl${i}`) as string
@@ -254,6 +286,7 @@ serve(async (req) => {
 
       try {
         await Promise.all(mediaPromises)
+        console.log('Media attachments processed successfully');
       } catch (mediaError) {
         console.error('Error processing media attachments:', mediaError)
         // Continue processing even if media fails
@@ -280,6 +313,8 @@ serve(async (req) => {
     const responseMessage = numMedia > 0 && !body ? 
       'Your photo has been added to your journal! 📸' : 
       'Your journal entry has been recorded! 📝'
+
+    console.log('Sending TwiML response:', responseMessage);
 
     const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
