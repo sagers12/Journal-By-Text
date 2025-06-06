@@ -1,9 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PhoneVerification } from '@/components/PhoneVerification';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +18,7 @@ export const AuthComponent = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
+  const [smsConsent, setSmsConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPhoneVerification, setShowPhoneVerification] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
@@ -37,6 +40,12 @@ export const AuthComponent = () => {
     try {
       if (!email) {
         throw new Error('Email is required for account creation');
+      }
+      if (!phoneNumber) {
+        throw new Error('Phone number is required for account creation');
+      }
+      if (!smsConsent) {
+        throw new Error('You must agree to receive SMS messages to use SMS Journal');
       }
       const { error } = await signUp(email, password, phoneNumber);
       if (error) throw error;
@@ -172,17 +181,33 @@ export const AuthComponent = () => {
                   </p>
                 </div>
                 <div>
-                  <Label htmlFor="signup-phone">Phone Number (Optional)</Label>
+                  <Label htmlFor="signup-phone">Phone Number</Label>
                   <Input 
                     id="signup-phone" 
                     type="tel" 
                     value={phoneNumber} 
                     onChange={e => setPhoneNumber(e.target.value)} 
                     placeholder="+1 (555) 123-4567" 
+                    required
                   />
                   <p className="text-xs text-slate-500 mt-1">
-                    For sending journal entries via SMS
+                    Required for sending journal entries via SMS
                   </p>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <Checkbox 
+                    id="sms-consent" 
+                    checked={smsConsent}
+                    onCheckedChange={(checked) => setSmsConsent(checked === true)}
+                  />
+                  <div className="grid gap-1.5 leading-none">
+                    <Label 
+                      htmlFor="sms-consent"
+                      className="text-sm font-normal leading-snug peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      I agree to receive SMS messages from SMS Journal.
+                    </Label>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="signup-password">Password</Label>
