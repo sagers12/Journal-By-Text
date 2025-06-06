@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,17 +7,29 @@ import { Label } from '@/components/ui/label';
 import { PhoneVerification } from '@/components/PhoneVerification';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useSearchParams } from 'react-router-dom';
 
 export const AuthComponent = () => {
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'signin';
+  
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPhoneVerification, setShowPhoneVerification] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
+  const [activeTab, setActiveTab] = useState(initialTab);
   
   const { signUp, signIn } = useAuth();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && (tab === 'signin' || tab === 'signup')) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,7 +120,7 @@ export const AuthComponent = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="signin" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
