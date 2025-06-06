@@ -79,8 +79,9 @@ export const AuthComponent = () => {
       
       toast({
         title: "Welcome back!",
-        description: "You have successfully signed in."
+        description: "Redirecting to your journal..."
       });
+      // Navigation will be handled by the Auth page component
     } catch (error: any) {
       toast({
         title: "Sign in failed",
