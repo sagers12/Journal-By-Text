@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,22 +38,17 @@ const Marketing = () => {
             ✨ Journal anywhere, anytime
           </Badge>
           <h1 className="text-5xl md:text-6xl font-bold text-slate-800 mb-6 leading-tight">
-            Your thoughts, one
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600"> text </span>
-            away
+            Finally, an easy way to keep a journal
           </h1>
           <p className="text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Transform journaling forever. Send a simple text message and watch your thoughts become a beautiful, searchable journal. No apps to open, no login friction—just pure expression.
+            You want to keep a journal, but you never do. We get it. So we made it mind-blowingly simple. Just send a text. No apps, no logins, no friction.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex justify-center">
             <Link to="/auth?tab=signup">
               <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-3">
-                Start Journaling Free
+                Start now—it's free
               </Button>
             </Link>
-            <Button size="lg" variant="outline" className="text-lg px-8 py-3">
-              Watch Demo
-            </Button>
           </div>
         </div>
       </section>
