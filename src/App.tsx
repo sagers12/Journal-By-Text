@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Marketing from "./pages/Marketing";
 import Auth from "./pages/Auth";
 import Journal from "./pages/Journal";
+import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -21,6 +22,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Marketing />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="/journal" element={
             <ProtectedRoute>
               <Journal />
