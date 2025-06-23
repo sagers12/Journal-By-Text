@@ -14,19 +14,9 @@ export const JournalHeader = () => {
     try {
       console.log('Sign out attempt:', { hasUser: !!user, hasSession: !!session });
       
-      if (!session) {
-        console.log('No session found, redirecting to home');
-        navigate('/');
-        return;
-      }
-
       const { error } = await signOut();
-      if (error) {
-        console.error('Sign out error:', error);
-        throw error;
-      }
       
-      console.log('Sign out successful');
+      console.log('Sign out completed');
       toast({
         title: "Signed out",
         description: "You have been successfully signed out."
@@ -34,11 +24,12 @@ export const JournalHeader = () => {
       navigate('/');
     } catch (error: any) {
       console.error('Sign out failed:', error);
+      // Even if there's an error, try to navigate away since local state should be cleared
       toast({
-        title: "Sign out failed",
-        description: error.message || "Unable to sign out. Please try again.",
-        variant: "destructive"
+        title: "Signed out",
+        description: "You have been signed out."
       });
+      navigate('/');
     }
   };
 
