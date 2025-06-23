@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SignUpFormProps {
   loading: boolean;
@@ -22,6 +24,31 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
   const { signUp } = useAuth();
   const { toast } = useToast();
 
+  const consentText = "By submitting, you authorize Text-2-Journal to text the number you provided with offers & other information, possibly using automated means. Message/data rates apply. Message frequency varies. Text HELP for help or STOP to opt out. Consent is not a condition of purchase. See privacy policy.";
+
+  const storeSmsConsent = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('sms_consents')
+        .insert({
+          user_id: userId,
+          phone_number: phoneNumber,
+          consent_text: consentText,
+          user_agent: navigator.userAgent,
+        });
+
+      if (error) {
+        console.error('Failed to store SMS consent:', error);
+        // Don't throw here - we don't want to block signup for consent logging issues
+      } else {
+        console.log('SMS consent recorded successfully');
+      }
+    } catch (error) {
+      console.error('Error storing SMS consent:', error);
+      // Don't throw here - we don't want to block signup for consent logging issues
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -35,8 +62,14 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
       if (!smsConsent) {
         throw new Error('You must agree to receive SMS messages to use SMS Journal');
       }
-      const { error } = await signUp(email, password, phoneNumber);
+      
+      const { data, error } = await signUp(email, password, phoneNumber);
       if (error) throw error;
+      
+      // Store SMS consent record after successful signup
+      if (data.user?.id) {
+        await storeSmsConsent(data.user.id);
+      }
       
       onSignUpSuccess(phoneNumber);
       toast({

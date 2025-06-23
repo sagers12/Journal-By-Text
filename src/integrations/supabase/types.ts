@@ -137,6 +137,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_consents: {
+        Row: {
+          consent_text: string
+          consented_at: string
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          phone_number: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          consent_text: string
+          consented_at?: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          phone_number: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          consent_text?: string
+          consented_at?: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          phone_number?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       sms_messages: {
         Row: {
           entry_date: string
