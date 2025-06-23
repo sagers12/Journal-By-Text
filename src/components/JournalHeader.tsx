@@ -6,24 +6,37 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
 export const JournalHeader = () => {
-  const { signOut } = useAuth();
+  const { signOut, user, session } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
     try {
-      const { error } = await signOut();
-      if (error) throw error;
+      console.log('Sign out attempt:', { hasUser: !!user, hasSession: !!session });
       
+      if (!session) {
+        console.log('No session found, redirecting to home');
+        navigate('/');
+        return;
+      }
+
+      const { error } = await signOut();
+      if (error) {
+        console.error('Sign out error:', error);
+        throw error;
+      }
+      
+      console.log('Sign out successful');
       toast({
         title: "Signed out",
         description: "You have been successfully signed out."
       });
       navigate('/');
     } catch (error: any) {
+      console.error('Sign out failed:', error);
       toast({
         title: "Sign out failed",
-        description: error.message,
+        description: error.message || "Unable to sign out. Please try again.",
         variant: "destructive"
       });
     }

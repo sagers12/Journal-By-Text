@@ -8,14 +8,22 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
+  const { user, session, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
+    console.log('ProtectedRoute - Auth state:', { 
+      loading, 
+      hasUser: !!user, 
+      hasSession: !!session,
+      userId: user?.id 
+    });
+    
+    if (!loading && (!user || !session)) {
+      console.log('Redirecting to sign-in - missing auth');
       navigate('/sign-in');
     }
-  }, [user, loading, navigate]);
+  }, [user, session, loading, navigate]);
 
   if (loading) {
     return (
@@ -25,7 +33,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  if (!user) {
+  if (!user || !session) {
     return null;
   }
 
