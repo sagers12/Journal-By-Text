@@ -19,7 +19,7 @@ export const JournalHeader = () => {
         title: "Signed out",
         description: "You have been successfully signed out."
       });
-      navigate('/auth');
+      navigate('/');
     } catch (error: any) {
       toast({
         title: "Sign out failed",
@@ -36,7 +36,7 @@ export const JournalHeader = () => {
           <MessageSquare className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">SMS Journal</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Text-2-Journal</h1>
           <p className="text-slate-600">Your personal journaling space</p>
         </div>
       </div>

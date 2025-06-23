@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,12 +18,12 @@ const Marketing = () => {
             <span className="text-xl font-bold text-slate-800">Text-2-Journal</span>
           </div>
           <div className="flex items-center gap-4">
-            <Link to="/auth?tab=signin">
+            <Link to="/sign-in">
               <Button variant="ghost" className="text-slate-600 hover:text-slate-800">
                 Log in
               </Button>
             </Link>
-            <Link to="/auth?tab=signup">
+            <Link to="/sign-up">
               <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
                 Start Now
               </Button>
@@ -44,7 +45,7 @@ const Marketing = () => {
             You want to keep a journal, but you never do. We get it. So we made it mind-blowingly simple. Just send a text. No apps, no logins, no friction.
           </p>
           <div className="flex justify-center">
-            <Link to="/auth?tab=signup">
+            <Link to="/sign-up">
               <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-3">
                 Start now—it's free
               </Button>
@@ -235,7 +236,7 @@ const Marketing = () => {
                     30-day export history
                   </li>
                 </ul>
-                <Link to="/auth?tab=signup" className="block">
+                <Link to="/sign-up" className="block">
                   <Button className="w-full mt-6" variant="outline">
                     Start Free
                   </Button>
@@ -279,7 +280,7 @@ const Marketing = () => {
                     Priority support
                   </li>
                 </ul>
-                <Link to="/auth?tab=signup" className="block">
+                <Link to="/sign-up" className="block">
                   <Button className="w-full mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
                     Start Pro Trial
                   </Button>
@@ -298,7 +299,7 @@ const Marketing = () => {
             Join thousands of people who have transformed their journaling practice with SMS Journal. 
             Your future self will thank you.
           </p>
-          <Link to="/auth?tab=signup">
+          <Link to="/sign-up">
             <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-3">
               Start Journaling Now - It's Free
             </Button>
