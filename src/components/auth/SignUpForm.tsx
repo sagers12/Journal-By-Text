@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +23,7 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
   const { signUp } = useAuth();
   const { toast } = useToast();
 
-  const consentText = "By submitting, you authorize Text-2-Journal to text the number you provided with offers & other information, possibly using automated means. Message/data rates apply. Message frequency varies. Text HELP for help or STOP to opt out. Consent is not a condition of purchase. See privacy policy.";
+  const consentText = "I authorize Text-2-Journal to send journaling reminders and prompts to the provided phone number using automated means. Message/data rates apply. Message frequency varies. Text HELP for help or STOP to opt out. Consent is not a condition of purchase. See privacy policy.";
 
   const storeSmsConsent = async (userId: string) => {
     try {
@@ -128,7 +127,7 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
             htmlFor="sms-consent"
             className="text-sm font-normal leading-snug peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
-            By submitting, you authorize Text-2-Journal to text the number you provided with offers & other information, possibly using automated means. Message/data rates apply. Message frequency varies. Text HELP for help or STOP to opt out. Consent is not a condition of purchase. See{' '}
+            I authorize Text-2-Journal to send journaling reminders and prompts to the provided phone number using automated means. Message/data rates apply. Message frequency varies. Text HELP for help or STOP to opt out. Consent is not a condition of purchase. See{' '}
             <Link to="/privacy" className="text-blue-600 hover:text-blue-700 underline">
               privacy policy
             </Link>
