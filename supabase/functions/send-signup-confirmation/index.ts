@@ -24,23 +24,25 @@ serve(async (req) => {
       throw new Error('Phone number is required')
     }
 
-    // Send SMS via Surge
+    // Send SMS via Surge with corrected API structure
     const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
     const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
-    const surgePhoneNumber = Deno.env.get('SURGE_PHONE_NUMBER')
 
-    if (!surgeApiToken || !surgeAccountId || !surgePhoneNumber) {
+    if (!surgeApiToken || !surgeAccountId) {
       throw new Error('Surge credentials not configured')
     }
 
-    const surgeUrl = `https://api.surge.app/v1/accounts/${surgeAccountId}/messages/send`
+    // Updated API endpoint to match Surge documentation
+    const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
+    // Updated payload structure based on cURL example
     const payload = {
-      body: 'Thanks for signing up for Text2Journal! Please respond YES so we can message your prompts and reminders in the future.',
       conversation: {
-        phone_number: phoneNumber,
-        from_phone_number: surgePhoneNumber
+        contact: {
+          phone_number: phoneNumber
+        }
       },
+      body: 'Thanks for signing up for Text2Journal! Please respond YES so we can message your prompts and reminders in the future.',
       attachments: []
     }
 

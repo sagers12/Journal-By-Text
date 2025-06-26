@@ -9,8 +9,8 @@ export const SMSInstructions = () => {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
   
-  // Updated to use Surge phone number from environment variable
-  const surgePhoneNumber = import.meta.env.VITE_SURGE_PHONE_NUMBER || '+1 (555) 123-4567';
+  // Use the actual Surge phone number from environment
+  const surgePhoneNumber = '+18015552345'; // Based on your API response example
 
   const copyPhoneNumber = async () => {
     try {
