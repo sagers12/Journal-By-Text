@@ -24,39 +24,43 @@ serve(async (req) => {
       throw new Error('Phone number is required')
     }
 
-    // Send SMS via Twilio
-    const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
-    const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
-    const fromNumber = Deno.env.get('TWILIO_PHONE_NUMBER')
+    // Send SMS via Surge
+    const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
+    const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
+    const surgePhoneNumber = Deno.env.get('SURGE_PHONE_NUMBER')
 
-    if (!accountSid || !authToken || !fromNumber) {
-      throw new Error('Twilio credentials not configured')
+    if (!surgeApiToken || !surgeAccountId || !surgePhoneNumber) {
+      throw new Error('Surge credentials not configured')
     }
 
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
+    const surgeUrl = `https://api.surge.app/v1/accounts/${surgeAccountId}/messages/send`
     
-    const formData = new URLSearchParams()
-    formData.append('From', fromNumber)
-    formData.append('To', phoneNumber)
-    formData.append('Body', 'Thanks for signing up for Text2Journal! Please respond YES so we can message your prompts and reminders in the future.')
+    const payload = {
+      body: 'Thanks for signing up for Text2Journal! Please respond YES so we can message your prompts and reminders in the future.',
+      conversation: {
+        phone_number: phoneNumber,
+        from_phone_number: surgePhoneNumber
+      },
+      attachments: []
+    }
 
-    const twilioResponse = await fetch(twilioUrl, {
+    const surgeResponse = await fetch(surgeUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${btoa(`${accountSid}:${authToken}`)}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Bearer ${surgeApiToken}`,
+        'Content-Type': 'application/json',
       },
-      body: formData
+      body: JSON.stringify(payload)
     })
 
-    if (!twilioResponse.ok) {
-      const error = await twilioResponse.text()
-      console.error('Twilio error:', error)
+    if (!surgeResponse.ok) {
+      const error = await surgeResponse.text()
+      console.error('Surge error:', error)
       throw new Error(`Failed to send SMS: ${error}`)
     }
 
-    const result = await twilioResponse.json()
-    console.log('SMS sent successfully:', result)
+    const result = await surgeResponse.json()
+    console.log('SMS sent successfully via Surge:', result)
 
     return new Response(
       JSON.stringify({ success: true, message: 'Signup confirmation sent' }),

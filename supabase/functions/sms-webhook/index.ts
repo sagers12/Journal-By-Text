@@ -8,20 +8,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const validateTwilioSignature = (signature: string, url: string, params: Record<string, string>) => {
-  const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-  if (!authToken) return false;
+const validateSurgeSignature = (signature: string, payload: string, timestamp: string) => {
+  const webhookSecret = Deno.env.get('SURGE_WEBHOOK_SECRET');
+  if (!webhookSecret) return false;
 
-  const data = Object.keys(params)
-    .sort()
-    .map(key => `${key}${params[key]}`)
-    .join('');
+  const expectedSignature = createHmac('sha256', webhookSecret)
+    .update(timestamp + payload)
+    .digest('hex');
 
-  const computedSignature = createHmac('sha1', authToken)
-    .update(url + data)
-    .digest('base64');
+  // Extract hash from signature (format: "t=timestamp,v1=hash")
+  const hashMatch = signature.match(/v1=([a-f0-9]+)/);
+  if (!hashMatch) return false;
 
-  return signature === `sha1=${computedSignature}`;
+  return hashMatch[1] === expectedSignature;
 };
 
 const downloadAndStoreMedia = async (mediaUrl: string, entryId: string, userId: string, supabaseClient: any) => {
@@ -65,7 +64,7 @@ const downloadAndStoreMedia = async (mediaUrl: string, entryId: string, userId: 
 };
 
 serve(async (req) => {
-  console.log('=== SMS WEBHOOK CALLED ===');
+  console.log('=== SURGE SMS WEBHOOK CALLED ===');
   console.log('Method:', req.method);
   console.log('URL:', req.url);
   console.log('Headers:', Object.fromEntries(req.headers.entries()));
@@ -81,41 +80,46 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const formData = await req.formData()
-    console.log('Form data entries:');
-    for (const [key, value] of formData.entries()) {
-      console.log(`${key}: ${value}`);
-    }
+    const rawBody = await req.text()
+    const webhookData = JSON.parse(rawBody)
+    
+    console.log('Webhook data:', webhookData);
 
-    const from = formData.get('From') as string
-    const body = formData.get('Body') as string || ''
-    const messageSid = formData.get('MessageSid') as string
-    const numMedia = parseInt(formData.get('NumMedia') as string || '0')
-
-    console.log('Parsed data:', { from, body, messageSid, numMedia })
-
-    if (!from) {
-      console.error('No From field in webhook data');
-      return new Response('Bad Request: Missing From field', { status: 400, headers: corsHeaders })
-    }
-
-    // Validate Twilio signature for security
-    const twilioSignature = req.headers.get('x-twilio-signature')
-    if (twilioSignature) {
-      console.log('Validating Twilio signature...');
-      const url = req.url
-      const params: Record<string, string> = {}
-      for (const [key, value] of formData.entries()) {
-        params[key] = value as string
+    // Validate Surge signature for security
+    const surgeSignature = req.headers.get('surge-signature')
+    if (surgeSignature) {
+      console.log('Validating Surge signature...');
+      const timestampMatch = surgeSignature.match(/t=(\d+)/);
+      if (!timestampMatch) {
+        console.error('Invalid signature format')
+        return new Response('Unauthorized', { status: 401, headers: corsHeaders })
       }
       
-      if (!validateTwilioSignature(twilioSignature, url, params)) {
-        console.error('Invalid Twilio signature')
+      if (!validateSurgeSignature(surgeSignature, rawBody, timestampMatch[1])) {
+        console.error('Invalid Surge signature')
         return new Response('Unauthorized', { status: 401, headers: corsHeaders })
       }
       console.log('Signature validated successfully');
     } else {
-      console.log('No Twilio signature found - this is normal for testing');
+      console.log('No Surge signature found - this is normal for testing');
+    }
+
+    // Handle only message.received events
+    if (webhookData.event !== 'message.received') {
+      console.log('Ignoring non-message.received event:', webhookData.event);
+      return new Response('OK', { status: 200, headers: corsHeaders })
+    }
+
+    const message = webhookData.data
+    const from = message.conversation?.phone_number
+    const body = message.body || ''
+    const attachments = message.attachments || []
+
+    console.log('Parsed data:', { from, body, attachments: attachments.length })
+
+    if (!from) {
+      console.error('No phone number in webhook data');
+      return new Response('Bad Request: Missing phone number', { status: 400, headers: corsHeaders })
     }
 
     // Clean phone number (remove +1, spaces, dashes)
@@ -133,15 +137,13 @@ serve(async (req) => {
 
     if (profileError || !profile) {
       console.error('User not found for phone:', cleanPhone)
-      return new Response(`<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Message>Phone number not registered. Please sign up at your journal app first.</Message>
-</Response>`, {
-        headers: { 
-          ...corsHeaders,
-          'Content-Type': 'text/xml'
+      return new Response(
+        JSON.stringify({ error: 'Phone number not registered. Please sign up at your journal app first.' }),
+        { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
-      })
+      )
     }
 
     // Handle "YES" confirmation for new users
@@ -158,28 +160,24 @@ serve(async (req) => {
         console.log('Phone verified for user:', profile.id)
       }
 
-      return new Response(`<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Message>Great! Your phone is now verified. You can start sending journal entries by texting us your thoughts, experiences, or photos. Multiple messages on the same day will be grouped together. Happy journaling! 📝</Message>
-</Response>`, {
-        headers: { 
-          ...corsHeaders,
-          'Content-Type': 'text/xml'
+      return new Response(
+        JSON.stringify({ message: 'Great! Your phone is now verified. You can start sending journal entries by texting us your thoughts, experiences, or photos. Multiple messages on the same day will be grouped together. Happy journaling! 📝' }),
+        { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
-      })
+      )
     }
 
     if (!profile.phone_verified) {
       console.error('Phone not verified for user:', profile.id)
-      return new Response(`<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Message>Please reply YES to verify your phone number before sending journal entries.</Message>
-</Response>`, {
-        headers: { 
-          ...corsHeaders,
-          'Content-Type': 'text/xml'
+      return new Response(
+        JSON.stringify({ message: 'Please reply YES to verify your phone number before sending journal entries.' }),
+        { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
-      })
+      )
     }
 
     // Get user's timezone or default to UTC
@@ -282,13 +280,12 @@ serve(async (req) => {
     }
 
     // Process media attachments if any
-    if (numMedia > 0) {
-      console.log('Processing', numMedia, 'media attachments');
+    if (attachments.length > 0) {
+      console.log('Processing', attachments.length, 'media attachments');
       const mediaPromises = []
-      for (let i = 0; i < numMedia; i++) {
-        const mediaUrl = formData.get(`MediaUrl${i}`) as string
-        if (mediaUrl) {
-          mediaPromises.push(downloadAndStoreMedia(mediaUrl, entryId, profile.id, supabaseClient))
+      for (const attachment of attachments) {
+        if (attachment.url) {
+          mediaPromises.push(downloadAndStoreMedia(attachment.url, entryId, profile.id, supabaseClient))
         }
       }
 
@@ -317,36 +314,29 @@ serve(async (req) => {
       console.error('Error marking SMS as processed:', markProcessedError)
     }
 
-    // Send appropriate TwiML response
-    const responseMessage = numMedia > 0 && !body ? 
+    // Send appropriate response
+    const responseMessage = attachments.length > 0 && !body ? 
       'Your photo has been added to your journal! 📸' : 
       'Your journal entry has been recorded! 📝'
 
-    console.log('Sending TwiML response:', responseMessage);
+    console.log('Sending response:', responseMessage);
 
-    const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Message>${responseMessage}</Message>
-</Response>`
-
-    return new Response(twimlResponse, {
-      headers: { 
-        ...corsHeaders,
-        'Content-Type': 'text/xml'
+    return new Response(
+      JSON.stringify({ message: responseMessage }),
+      { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
-    })
+    )
 
   } catch (error) {
     console.error('Webhook error:', error)
-    return new Response(`<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Message>Sorry, there was an error processing your message. Please try again later.</Message>
-</Response>`, { 
-      status: 500, 
-      headers: { 
-        ...corsHeaders,
-        'Content-Type': 'text/xml'
+    return new Response(
+      JSON.stringify({ error: 'Sorry, there was an error processing your message. Please try again later.' }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
-    })
+    )
   }
 })

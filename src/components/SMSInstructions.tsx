@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,12 +9,12 @@ export const SMSInstructions = () => {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
   
-  // Updated with your actual 10DLC number
-  const twilioNumber = '+1 947 777 7291';
+  // Updated to use Surge phone number from environment variable
+  const surgePhoneNumber = import.meta.env.VITE_SURGE_PHONE_NUMBER || '+1 (555) 123-4567';
 
   const copyPhoneNumber = async () => {
     try {
-      await navigator.clipboard.writeText(twilioNumber);
+      await navigator.clipboard.writeText(surgePhoneNumber);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       toast({
@@ -45,7 +46,7 @@ export const SMSInstructions = () => {
           <Phone className="w-6 h-6 text-blue-600" />
           <div className="flex-1">
             <p className="text-sm font-medium text-gray-900">Text your entries to:</p>
-            <p className="text-lg font-bold text-blue-600">{twilioNumber}</p>
+            <p className="text-lg font-bold text-blue-600">{surgePhoneNumber}</p>
           </div>
           <Button
             onClick={copyPhoneNumber}
