@@ -77,7 +77,13 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
       }
       
       const { data, error } = await signUp(email, password, phoneNumber);
-      if (error) throw error;
+      if (error) {
+        // Handle specific error for duplicate phone number
+        if (error.message.includes('duplicate key value violates unique constraint "profiles_phone_number_unique"')) {
+          throw new Error('This phone number is already registered with another account. Please use a different phone number or sign in to your existing account.');
+        }
+        throw error;
+      }
       
       // Store SMS consent record after successful signup
       if (data.user?.id) {
@@ -130,7 +136,7 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
           required
         />
         <p className="text-xs text-slate-500 mt-1">
-          Required for sending journal entries via SMS
+          Required for sending journal entries via SMS. Each phone number can only be used for one account.
         </p>
       </div>
       <div className="flex items-start space-x-2">
