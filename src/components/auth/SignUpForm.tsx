@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,13 +39,26 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
 
       if (error) {
         console.error('Failed to store SMS consent:', error);
-        // Don't throw here - we don't want to block signup for consent logging issues
       } else {
         console.log('SMS consent recorded successfully');
       }
     } catch (error) {
       console.error('Error storing SMS consent:', error);
-      // Don't throw here - we don't want to block signup for consent logging issues
+    }
+  };
+
+  const sendSignupConfirmation = async (phoneNumber: string) => {
+    try {
+      const { error } = await supabase.functions.invoke('send-signup-confirmation', {
+        body: { phoneNumber }
+      });
+
+      if (error) throw error;
+      
+      console.log('Signup confirmation SMS sent successfully');
+    } catch (error) {
+      console.error('Error sending signup confirmation:', error);
+      // Don't throw here - we don't want to block signup for SMS issues
     }
   };
 
@@ -68,12 +82,15 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
       // Store SMS consent record after successful signup
       if (data.user?.id) {
         await storeSmsConsent(data.user.id);
+        
+        // Send signup confirmation SMS
+        await sendSignupConfirmation(phoneNumber);
       }
       
       onSignUpSuccess(phoneNumber);
       toast({
         title: "Account created!",
-        description: "Please verify your phone number to start journaling via SMS."
+        description: "We've sent a confirmation message to your phone. Please reply YES to start journaling via SMS."
       });
     } catch (error: any) {
       toast({

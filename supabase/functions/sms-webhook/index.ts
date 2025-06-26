@@ -8,21 +8,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface SMSWebhookPayload {
-  From: string;
-  Body: string;
-  MessageSid: string;
-  AccountSid: string;
-  NumMedia?: string;
-  MediaUrl0?: string;
-  MediaContentType0?: string;
-}
-
 const validateTwilioSignature = (signature: string, url: string, params: Record<string, string>) => {
   const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
   if (!authToken) return false;
 
-  // Create the signature string
   const data = Object.keys(params)
     .sort()
     .map(key => `${key}${params[key]}`)
@@ -37,7 +26,6 @@ const validateTwilioSignature = (signature: string, url: string, params: Record<
 
 const downloadAndStoreMedia = async (mediaUrl: string, entryId: string, userId: string, supabaseClient: any) => {
   try {
-    // Download the media file
     const response = await fetch(mediaUrl);
     if (!response.ok) throw new Error('Failed to download media');
 
@@ -45,11 +33,9 @@ const downloadAndStoreMedia = async (mediaUrl: string, entryId: string, userId: 
     const arrayBuffer = await blob.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
 
-    // Generate filename
     const fileExt = blob.type.split('/')[1] || 'jpg';
     const fileName = `${userId}/${entryId}/${Date.now()}.${fileExt}`;
 
-    // Upload to Supabase storage
     const { error: uploadError } = await supabaseClient.storage
       .from('journal-photos')
       .upload(fileName, uint8Array, {
@@ -59,7 +45,6 @@ const downloadAndStoreMedia = async (mediaUrl: string, entryId: string, userId: 
 
     if (uploadError) throw uploadError;
 
-    // Save photo record to database
     const { error: photoError } = await supabaseClient
       .from('journal_photos')
       .insert({
@@ -85,7 +70,6 @@ serve(async (req) => {
   console.log('URL:', req.url);
   console.log('Headers:', Object.fromEntries(req.headers.entries()));
 
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling OPTIONS request');
     return new Response('ok', { headers: corsHeaders })
@@ -97,7 +81,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Parse the webhook payload
     const formData = await req.formData()
     console.log('Form data entries:');
     for (const [key, value] of formData.entries()) {
@@ -161,11 +144,36 @@ serve(async (req) => {
       })
     }
 
+    // Handle "YES" confirmation for new users
+    if (body.trim().toUpperCase() === 'YES' && !profile.phone_verified) {
+      // Mark phone as verified
+      const { error: verifyError } = await supabaseClient
+        .from('profiles')
+        .update({ phone_verified: true })
+        .eq('id', profile.id)
+
+      if (verifyError) {
+        console.error('Error verifying phone:', verifyError)
+      } else {
+        console.log('Phone verified for user:', profile.id)
+      }
+
+      return new Response(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>Great! Your phone is now verified. You can start sending journal entries by texting us your thoughts, experiences, or photos. Multiple messages on the same day will be grouped together. Happy journaling! 📝</Message>
+</Response>`, {
+        headers: { 
+          ...corsHeaders,
+          'Content-Type': 'text/xml'
+        }
+      })
+    }
+
     if (!profile.phone_verified) {
       console.error('Phone not verified for user:', profile.id)
       return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Message>Please verify your phone number in the app before sending journal entries.</Message>
+  <Message>Please reply YES to verify your phone number before sending journal entries.</Message>
 </Response>`, {
         headers: { 
           ...corsHeaders,
