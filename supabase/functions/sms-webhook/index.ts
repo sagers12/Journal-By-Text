@@ -21,10 +21,12 @@ serve(async (req) => {
     const body = await req.json()
     console.log('SMS webhook received:', JSON.stringify(body, null, 2))
 
-    // Extract message data from Surge webhook
-    const messageBody = body.body || body.message?.body
-    const fromPhoneNumber = body.conversation?.contact?.phone_number
-    const attachments = body.attachments || []
+    // Extract message data from various SMS provider formats
+    let messageBody = body.body || body.message?.body || body.text || body.Body
+    let fromPhoneNumber = body.conversation?.contact?.phone_number || body.from || body.From || body.phone_number
+    let attachments = body.attachments || body.media || []
+
+    console.log('Extracted data:', { messageBody, fromPhoneNumber, attachments })
 
     if (!messageBody || !fromPhoneNumber) {
       console.error('Missing required fields:', { messageBody, fromPhoneNumber })
@@ -34,14 +36,19 @@ serve(async (req) => {
       })
     }
 
-    // Find user by phone number
-    const { data: profile, error: profileError } = await supabaseClient
-      .from('profiles')
-      .select('id')
-      .eq('phone_number', fromPhoneNumber)
-      .single()
+    // Normalize phone number format (remove +1, spaces, dashes, etc.)
+    const normalizedPhone = fromPhoneNumber.replace(/[\s\-\+\(\)]/g, '')
+    console.log('Normalized phone number:', normalizedPhone)
 
-    if (profileError || !profile) {
+    // Find user by phone number (check multiple formats)
+    const { data: profiles, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('id, phone_number')
+      .or(`phone_number.eq.${fromPhoneNumber},phone_number.eq.${normalizedPhone},phone_number.eq.+1${normalizedPhone}`)
+
+    console.log('Profile lookup result:', { profiles, profileError })
+
+    if (profileError || !profiles || profiles.length === 0) {
       console.error('User not found for phone number:', fromPhoneNumber)
       return new Response(JSON.stringify({ error: 'User not found' }), {
         status: 404,
@@ -49,8 +56,12 @@ serve(async (req) => {
       })
     }
 
+    const profile = profiles[0]
     const userId = profile.id
     const entryDate = new Date().toISOString().split('T')[0]
+    const timestamp = new Date().toLocaleTimeString()
+
+    console.log('Processing message for user:', userId)
 
     // Store SMS message record
     const { data: smsMessage, error: smsError } = await supabaseClient
@@ -70,8 +81,10 @@ serve(async (req) => {
       throw new Error('Failed to store SMS message')
     }
 
+    console.log('SMS message stored:', smsMessage)
+
     // Check for existing journal entry for today
-    const { data: existingEntry } = await supabaseClient
+    const { data: existingEntry, error: existingError } = await supabaseClient
       .from('journal_entries')
       .select('id, content')
       .eq('user_id', userId)
@@ -79,11 +92,13 @@ serve(async (req) => {
       .eq('source', 'sms')
       .single()
 
+    console.log('Existing entry check:', { existingEntry, existingError })
+
     let entryId: string
 
     if (existingEntry) {
       // Append to existing entry
-      const updatedContent = `${existingEntry.content}\n\n[${new Date().toLocaleTimeString()}] ${messageBody}`
+      const updatedContent = `${existingEntry.content}\n\n[${timestamp}] ${messageBody}`
       
       const { data: updatedEntry, error: updateError } = await supabaseClient
         .from('journal_entries')
@@ -92,7 +107,12 @@ serve(async (req) => {
         .select()
         .single()
 
-      if (updateError) throw updateError
+      if (updateError) {
+        console.error('Error updating journal entry:', updateError)
+        throw updateError
+      }
+      
+      console.log('Updated existing entry:', updatedEntry)
       entryId = existingEntry.id
     } else {
       // Create new journal entry
@@ -102,7 +122,7 @@ serve(async (req) => {
         year: 'numeric' 
       })}`
       
-      const content = `[${new Date().toLocaleTimeString()}] ${messageBody}`
+      const content = `[${timestamp}] ${messageBody}`
 
       const { data: newEntry, error: entryError } = await supabaseClient
         .from('journal_entries')
@@ -117,12 +137,19 @@ serve(async (req) => {
         .select()
         .single()
 
-      if (entryError) throw entryError
+      if (entryError) {
+        console.error('Error creating journal entry:', entryError)
+        throw entryError
+      }
+
+      console.log('Created new entry:', newEntry)
       entryId = newEntry.id
     }
 
     // Process attachments (photos)
     if (attachments && attachments.length > 0) {
+      console.log('Processing attachments:', attachments.length)
+      
       for (const attachment of attachments) {
         if (attachment.type === 'image' && attachment.url) {
           try {
@@ -152,6 +179,8 @@ serve(async (req) => {
                     file_size: imageBuffer.byteLength,
                     mime_type: 'image/jpeg'
                   })
+                
+                console.log('Photo uploaded and saved:', fileName)
               }
             }
           } catch (photoError) {
@@ -167,7 +196,9 @@ serve(async (req) => {
       .update({ processed: true, entry_id: entryId })
       .eq('id', smsMessage.id)
 
-    // Send confirmation response using correct Surge API structure
+    console.log('SMS processing complete, sending confirmation')
+
+    // Send confirmation response
     const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
     const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
 
@@ -185,7 +216,7 @@ serve(async (req) => {
 
         const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
         
-        await fetch(surgeUrl, {
+        const surgeResponse = await fetch(surgeUrl, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${surgeApiToken}`,
@@ -193,6 +224,8 @@ serve(async (req) => {
           },
           body: JSON.stringify(responsePayload)
         })
+
+        console.log('Confirmation sent, status:', surgeResponse.status)
       } catch (responseError) {
         console.error('Error sending confirmation response:', responseError)
       }
