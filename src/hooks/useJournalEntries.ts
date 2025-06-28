@@ -15,8 +15,24 @@ export const useJournalEntries = (userId?: string) => {
   // Fetch entries
   const { data: entries = [], isLoading, error } = useQuery({
     queryKey: ['journal-entries', userId],
-    queryFn: () => fetchJournalEntries(userId!),
-    enabled: !!userId
+    queryFn: () => {
+      console.log('Fetching journal entries for user:', userId);
+      return fetchJournalEntries(userId!);
+    },
+    enabled: !!userId,
+    retry: (failureCount, error) => {
+      console.error('Journal entries query failed:', error);
+      // Only retry 2 times for network errors
+      return failureCount < 2;
+    }
+  });
+
+  // Log the query state for debugging
+  console.log('useJournalEntries state:', { 
+    userId, 
+    entriesCount: entries.length, 
+    isLoading, 
+    hasError: !!error 
   });
 
   // Create entry mutation

@@ -19,12 +19,14 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       userId: user?.id 
     });
     
+    // Only redirect if we're done loading and there's no valid session
     if (!loading && (!user || !session)) {
       console.log('Redirecting to sign-in - missing auth');
-      navigate('/sign-in');
+      navigate('/sign-in', { replace: true });
     }
   }, [user, session, loading, navigate]);
 
+  // Show loading while auth state is being determined
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
@@ -33,6 +35,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
+  // Don't render children if no auth
   if (!user || !session) {
     return null;
   }
