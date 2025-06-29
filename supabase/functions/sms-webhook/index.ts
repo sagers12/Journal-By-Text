@@ -118,7 +118,8 @@ serve(async (req) => {
           message_content: messageBody,
           entry_date: new Date().toISOString().split('T')[0],
           processed: false,
-          error_message: 'User not found'
+          error_message: 'User not found',
+          user_id: '00000000-0000-0000-0000-000000000000' // Placeholder UUID
         })
 
       return new Response('User not found - message logged', {

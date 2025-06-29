@@ -174,31 +174,37 @@ export type Database = {
         Row: {
           entry_date: string
           entry_id: string | null
+          error_message: string | null
           id: string
           message_content: string
           phone_number: string
           processed: boolean | null
           received_at: string | null
+          surge_message_id: string | null
           user_id: string
         }
         Insert: {
           entry_date: string
           entry_id?: string | null
+          error_message?: string | null
           id?: string
           message_content: string
           phone_number: string
           processed?: boolean | null
           received_at?: string | null
+          surge_message_id?: string | null
           user_id: string
         }
         Update: {
           entry_date?: string
           entry_id?: string | null
+          error_message?: string | null
           id?: string
           message_content?: string
           phone_number?: string
           processed?: boolean | null
           received_at?: string | null
+          surge_message_id?: string | null
           user_id?: string
         }
         Relationships: [
