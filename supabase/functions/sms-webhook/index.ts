@@ -18,41 +18,112 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const body = await req.json()
-    console.log('SMS webhook received:', JSON.stringify(body, null, 2))
+    // Get the raw body and headers for signature validation
+    const body = await req.text()
+    const signature = req.headers.get('x-surge-signature')
+    const webhookSecret = Deno.env.get('SURGE_WEBHOOK_SECRET')
 
-    // Extract message data from various SMS provider formats
-    let messageBody = body.body || body.message?.body || body.text || body.Body
-    let fromPhoneNumber = body.conversation?.contact?.phone_number || body.from || body.From || body.phone_number
-    let attachments = body.attachments || body.media || []
+    console.log('SMS webhook received:', {
+      hasSignature: !!signature,
+      hasSecret: !!webhookSecret,
+      bodyLength: body.length,
+      headers: Object.fromEntries(req.headers.entries())
+    })
 
-    console.log('Extracted data:', { messageBody, fromPhoneNumber, attachments })
+    // Validate signature if secret is configured
+    if (webhookSecret && signature) {
+      const expectedSignature = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(webhookSecret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      ).then(key =>
+        crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body))
+      ).then(signature =>
+        Array.from(new Uint8Array(signature))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('')
+      )
 
-    if (!messageBody || !fromPhoneNumber) {
-      console.error('Missing required fields:', { messageBody, fromPhoneNumber })
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+      if (`sha256=${expectedSignature}` !== signature) {
+        console.error('Invalid webhook signature')
+        return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+      }
+    }
+
+    const data = JSON.parse(body)
+    console.log('Parsed webhook data:', JSON.stringify(data, null, 2))
+
+    // Filter for message.received events only
+    if (data.event !== 'message.received') {
+      console.log('Ignoring non-message event:', data.event)
+      return new Response('OK', { status: 200, headers: corsHeaders })
+    }
+
+    // Extract message data from Surge webhook format
+    const messageId = data.data?.id || data.id
+    const messageBody = data.data?.body || data.body
+    const fromPhone = data.data?.from?.phone_number || data.from?.phone_number
+    const attachments = data.data?.attachments || data.attachments || []
+
+    console.log('Extracted message data:', {
+      messageId,
+      messageBody,
+      fromPhone,
+      attachmentsCount: attachments.length
+    })
+
+    if (!messageId || !messageBody || !fromPhone) {
+      console.error('Missing required message data:', { messageId, messageBody, fromPhone })
+      return new Response('Bad Request: Missing required message data', {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: corsHeaders
       })
     }
 
-    // Normalize phone number format (remove +1, spaces, dashes, etc.)
-    const normalizedPhone = fromPhoneNumber.replace(/[\s\-\+\(\)]/g, '')
-    console.log('Normalized phone number:', normalizedPhone)
+    // Check for duplicate messages using message ID
+    const { data: existingMessage } = await supabaseClient
+      .from('sms_messages')
+      .select('id')
+      .eq('surge_message_id', messageId)
+      .single()
 
-    // Find user by phone number (check multiple formats)
+    if (existingMessage) {
+      console.log('Duplicate message ignored:', messageId)
+      return new Response('OK - Duplicate', { status: 200, headers: corsHeaders })
+    }
+
+    // Normalize phone number for matching
+    const normalizedPhone = fromPhone.replace(/[\s\-\+\(\)]/g, '')
+    console.log('Looking for user with phone:', { original: fromPhone, normalized: normalizedPhone })
+
+    // Find user by phone number with multiple format attempts
     const { data: profiles, error: profileError } = await supabaseClient
       .from('profiles')
       .select('id, phone_number')
-      .or(`phone_number.eq.${fromPhoneNumber},phone_number.eq.${normalizedPhone},phone_number.eq.+1${normalizedPhone}`)
+      .or(`phone_number.eq.${fromPhone},phone_number.eq.${normalizedPhone},phone_number.eq.+1${normalizedPhone},phone_number.eq.1${normalizedPhone}`)
 
-    console.log('Profile lookup result:', { profiles, profileError })
+    console.log('Profile lookup result:', { profiles, profileError, count: profiles?.length })
 
     if (profileError || !profiles || profiles.length === 0) {
-      console.error('User not found for phone number:', fromPhoneNumber)
-      return new Response(JSON.stringify({ error: 'User not found' }), {
+      console.error('User not found for phone number:', fromPhone)
+      
+      // Create SMS message record even if user not found for debugging
+      await supabaseClient
+        .from('sms_messages')
+        .insert({
+          surge_message_id: messageId,
+          phone_number: fromPhone,
+          message_content: messageBody,
+          entry_date: new Date().toISOString().split('T')[0],
+          processed: false,
+          error_message: 'User not found'
+        })
+
+      return new Response('User not found - message logged', {
         status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: corsHeaders
       })
     }
 
@@ -61,14 +132,15 @@ serve(async (req) => {
     const entryDate = new Date().toISOString().split('T')[0]
     const timestamp = new Date().toLocaleTimeString()
 
-    console.log('Processing message for user:', userId)
+    console.log('Processing message for user:', { userId, entryDate })
 
-    // Store SMS message record
+    // Store SMS message record first
     const { data: smsMessage, error: smsError } = await supabaseClient
       .from('sms_messages')
       .insert({
         user_id: userId,
-        phone_number: fromPhoneNumber,
+        surge_message_id: messageId,
+        phone_number: fromPhone,
         message_content: messageBody,
         entry_date: entryDate,
         processed: false
@@ -78,10 +150,10 @@ serve(async (req) => {
 
     if (smsError) {
       console.error('Error storing SMS message:', smsError)
-      throw new Error('Failed to store SMS message')
+      throw new Error(`Failed to store SMS message: ${smsError.message}`)
     }
 
-    console.log('SMS message stored:', smsMessage)
+    console.log('SMS message stored:', smsMessage.id)
 
     // Check for existing journal entry for today
     const { data: existingEntry, error: existingError } = await supabaseClient
@@ -92,12 +164,12 @@ serve(async (req) => {
       .eq('source', 'sms')
       .single()
 
-    console.log('Existing entry check:', { existingEntry, existingError })
+    console.log('Existing entry check:', { hasExisting: !!existingEntry, existingError })
 
     let entryId: string
 
     if (existingEntry) {
-      // Append to existing entry
+      // Append to existing entry with timestamp
       const updatedContent = `${existingEntry.content}\n\n[${timestamp}] ${messageBody}`
       
       const { data: updatedEntry, error: updateError } = await supabaseClient
@@ -112,7 +184,7 @@ serve(async (req) => {
         throw updateError
       }
       
-      console.log('Updated existing entry:', updatedEntry)
+      console.log('Updated existing entry:', updatedEntry.id)
       entryId = existingEntry.id
     } else {
       // Create new journal entry
@@ -142,28 +214,30 @@ serve(async (req) => {
         throw entryError
       }
 
-      console.log('Created new entry:', newEntry)
+      console.log('Created new entry:', newEntry.id)
       entryId = newEntry.id
     }
 
-    // Process attachments (photos)
+    // Process attachments (photos) if any
     if (attachments && attachments.length > 0) {
       console.log('Processing attachments:', attachments.length)
       
       for (const attachment of attachments) {
-        if (attachment.type === 'image' && attachment.url) {
+        if (attachment.content_type?.startsWith('image/') && attachment.url) {
           try {
             // Download the image
             const imageResponse = await fetch(attachment.url)
             if (imageResponse.ok) {
               const imageBuffer = await imageResponse.arrayBuffer()
-              const fileName = `${userId}/${entryId}/${Date.now()}.jpg`
+              const fileExt = attachment.content_type === 'image/jpeg' ? 'jpg' : 
+                             attachment.content_type === 'image/png' ? 'png' : 'jpg'
+              const fileName = `${userId}/${entryId}/${Date.now()}.${fileExt}`
               
               // Upload to Supabase storage
               const { error: uploadError } = await supabaseClient.storage
                 .from('journal-photos')
                 .upload(fileName, imageBuffer, {
-                  contentType: 'image/jpeg'
+                  contentType: attachment.content_type
                 })
 
               if (uploadError) {
@@ -175,9 +249,9 @@ serve(async (req) => {
                   .insert({
                     entry_id: entryId,
                     file_path: fileName,
-                    file_name: `sms_photo_${Date.now()}.jpg`,
+                    file_name: attachment.filename || `sms_photo_${Date.now()}.${fileExt}`,
                     file_size: imageBuffer.byteLength,
-                    mime_type: 'image/jpeg'
+                    mime_type: attachment.content_type
                   })
                 
                 console.log('Photo uploaded and saved:', fileName)
@@ -196,43 +270,42 @@ serve(async (req) => {
       .update({ processed: true, entry_id: entryId })
       .eq('id', smsMessage.id)
 
-    console.log('SMS processing complete, sending confirmation')
+    console.log('SMS processing complete')
 
-    // Send confirmation response
+    // Send auto-reply confirmation if configured
     const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
     const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
 
     if (surgeApiToken && surgeAccountId) {
       try {
-        const responsePayload = {
-          conversation: {
-            contact: {
-              phone_number: fromPhoneNumber
-            }
-          },
-          body: '✅ Your journal entry has been saved!',
-          attachments: []
-        }
-
-        const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
+        const conversationId = data.data?.conversation?.id || data.conversation?.id
         
-        const surgeResponse = await fetch(surgeUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${surgeApiToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(responsePayload)
-        })
+        if (conversationId) {
+          const responsePayload = {
+            conversation: { id: conversationId },
+            body: '✅ Your journal entry has been saved!'
+          }
 
-        console.log('Confirmation sent, status:', surgeResponse.status)
+          const surgeUrl = `https://api.surge.app/v1/accounts/${surgeAccountId}/messages`
+          
+          const surgeResponse = await fetch(surgeUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${surgeApiToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(responsePayload)
+          })
+
+          console.log('Auto-reply sent, status:', surgeResponse.status)
+        }
       } catch (responseError) {
-        console.error('Error sending confirmation response:', responseError)
+        console.error('Error sending auto-reply:', responseError)
       }
     }
 
     return new Response(
-      JSON.stringify({ success: true, entryId }),
+      JSON.stringify({ success: true, entryId, messageId }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
