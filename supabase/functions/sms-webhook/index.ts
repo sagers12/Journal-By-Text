@@ -63,15 +63,17 @@ serve(async (req) => {
 
     // Extract message data from Surge webhook format
     const messageId = data.data?.id || data.id
-    const messageBody = data.data?.body || data.body
+    const messageBody = data.data?.body?.trim() || data.body?.trim() || ''
     const fromPhone = data.data?.from?.phone_number || data.from?.phone_number
     const attachments = data.data?.attachments || data.attachments || []
+    const conversationId = data.data?.conversation?.id || data.conversation?.id
 
     console.log('Extracted message data:', {
       messageId,
       messageBody,
       fromPhone,
-      attachmentsCount: attachments.length
+      attachmentsCount: attachments.length,
+      conversationId
     })
 
     if (!messageId || !messageBody || !fromPhone) {
@@ -94,15 +96,23 @@ serve(async (req) => {
       return new Response('OK - Duplicate', { status: 200, headers: corsHeaders })
     }
 
-    // Normalize phone number for matching
+    // Normalize phone number for matching - try multiple formats
     const normalizedPhone = fromPhone.replace(/[\s\-\+\(\)]/g, '')
-    console.log('Looking for user with phone:', { original: fromPhone, normalized: normalizedPhone })
+    const phoneFormats = [
+      fromPhone,
+      normalizedPhone,
+      `+1${normalizedPhone}`,
+      `1${normalizedPhone}`,
+      `+${normalizedPhone}`
+    ]
+
+    console.log('Looking for user with phone formats:', phoneFormats)
 
     // Find user by phone number with multiple format attempts
     const { data: profiles, error: profileError } = await supabaseClient
       .from('profiles')
-      .select('id, phone_number')
-      .or(`phone_number.eq.${fromPhone},phone_number.eq.${normalizedPhone},phone_number.eq.+1${normalizedPhone},phone_number.eq.1${normalizedPhone}`)
+      .select('id, phone_number, phone_verified')
+      .or(phoneFormats.map(format => `phone_number.eq.${format}`).join(','))
 
     console.log('Profile lookup result:', { profiles, profileError, count: profiles?.length })
 
@@ -133,7 +143,66 @@ serve(async (req) => {
     const entryDate = new Date().toISOString().split('T')[0]
     const timestamp = new Date().toLocaleTimeString()
 
-    console.log('Processing message for user:', { userId, entryDate })
+    console.log('Processing message for user:', { userId, entryDate, phoneVerified: profile.phone_verified })
+
+    // Check if this is a "YES" response to verify phone number
+    if (messageBody.toUpperCase() === 'YES' && !profile.phone_verified) {
+      console.log('Processing YES response for phone verification')
+      
+      // Update phone verification status
+      const { error: verifyError } = await supabaseClient
+        .from('profiles')
+        .update({ phone_verified: true })
+        .eq('id', userId)
+
+      if (verifyError) {
+        console.error('Error updating phone verification:', verifyError)
+      } else {
+        console.log('Phone verified successfully for user:', userId)
+      }
+
+      // Send follow-up instruction message
+      await sendInstructionMessage(conversationId)
+
+      // Store the YES message
+      await supabaseClient
+        .from('sms_messages')
+        .insert({
+          user_id: userId,
+          surge_message_id: messageId,
+          phone_number: fromPhone,
+          message_content: messageBody,
+          entry_date: entryDate,
+          processed: true
+        })
+
+      return new Response(
+        JSON.stringify({ success: true, action: 'phone_verified', messageId }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Only process journal entries for verified phone numbers
+    if (!profile.phone_verified) {
+      console.log('Phone not verified, skipping journal entry creation')
+      
+      await supabaseClient
+        .from('sms_messages')
+        .insert({
+          user_id: userId,
+          surge_message_id: messageId,
+          phone_number: fromPhone,
+          message_content: messageBody,
+          entry_date: entryDate,
+          processed: false,
+          error_message: 'Phone not verified'
+        })
+
+      return new Response('Phone not verified', {
+        status: 403,
+        headers: corsHeaders
+      })
+    }
 
     // Store SMS message record first
     const { data: smsMessage, error: smsError } = await supabaseClient
@@ -273,37 +342,8 @@ serve(async (req) => {
 
     console.log('SMS processing complete')
 
-    // Send auto-reply confirmation if configured
-    const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
-    const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
-
-    if (surgeApiToken && surgeAccountId) {
-      try {
-        const conversationId = data.data?.conversation?.id || data.conversation?.id
-        
-        if (conversationId) {
-          const responsePayload = {
-            conversation: { id: conversationId },
-            body: '✅ Your journal entry has been saved!'
-          }
-
-          const surgeUrl = `https://api.surge.app/v1/accounts/${surgeAccountId}/messages`
-          
-          const surgeResponse = await fetch(surgeUrl, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${surgeApiToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(responsePayload)
-          })
-
-          console.log('Auto-reply sent, status:', surgeResponse.status)
-        }
-      } catch (responseError) {
-        console.error('Error sending auto-reply:', responseError)
-      }
-    }
+    // Send auto-reply confirmation
+    await sendConfirmationMessage(conversationId)
 
     return new Response(
       JSON.stringify({ success: true, entryId, messageId }),
@@ -321,3 +361,69 @@ serve(async (req) => {
     )
   }
 })
+
+// Helper function to send instruction message after YES response
+async function sendInstructionMessage(conversationId: string) {
+  const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
+  const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
+
+  if (!surgeApiToken || !surgeAccountId || !conversationId) {
+    console.log('Missing Surge credentials or conversation ID for instruction message')
+    return
+  }
+
+  try {
+    const responsePayload = {
+      conversation: { id: conversationId },
+      body: 'To submit a journal entry, simply send a message to this number. You will be able to view your journal entries on our website.'
+    }
+
+    const surgeUrl = `https://api.surge.app/v1/accounts/${surgeAccountId}/messages`
+    
+    const surgeResponse = await fetch(surgeUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${surgeApiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(responsePayload)
+    })
+
+    console.log('Instruction message sent, status:', surgeResponse.status)
+  } catch (error) {
+    console.error('Error sending instruction message:', error)
+  }
+}
+
+// Helper function to send confirmation message for journal entries
+async function sendConfirmationMessage(conversationId: string) {
+  const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
+  const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
+
+  if (!surgeApiToken || !surgeAccountId || !conversationId) {
+    console.log('Missing Surge credentials or conversation ID for confirmation message')
+    return
+  }
+
+  try {
+    const responsePayload = {
+      conversation: { id: conversationId },
+      body: '✅ Your journal entry has been saved!'
+    }
+
+    const surgeUrl = `https://api.surge.app/v1/accounts/${surgeAccountId}/messages`
+    
+    const surgeResponse = await fetch(surgeUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${surgeApiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(responsePayload)
+    })
+
+    console.log('Confirmation message sent, status:', surgeResponse.status)
+  } catch (error) {
+    console.error('Error sending confirmation message:', error)
+  }
+}

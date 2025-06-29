@@ -26,13 +26,36 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
 
   const consentText = "I authorize Text-2-Journal to send journaling reminders and prompts to the provided phone number using automated means. Message/data rates apply. Message frequency varies. Text HELP for help or STOP to opt out. Consent is not a condition of purchase. See privacy policy.";
 
-  const storeSmsConsent = async (userId: string) => {
+  const formatPhoneNumber = (input: string) => {
+    // Remove all non-digit characters
+    const digits = input.replace(/\D/g, '');
+    
+    // If it starts with 1, remove it (we'll add +1 later)
+    const cleanDigits = digits.startsWith('1') && digits.length === 11 ? digits.slice(1) : digits;
+    
+    // Ensure we have exactly 10 digits
+    if (cleanDigits.length === 10) {
+      return `+1${cleanDigits}`;
+    }
+    
+    return null;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow user to type, but limit to reasonable length
+    if (value.replace(/\D/g, '').length <= 11) {
+      setPhoneNumber(value);
+    }
+  };
+
+  const storeSmsConsent = async (userId: string, formattedPhone: string) => {
     try {
       const { error } = await supabase
         .from('sms_consents')
         .insert({
           user_id: userId,
-          phone_number: phoneNumber,
+          phone_number: formattedPhone,
           consent_text: consentText,
           user_agent: navigator.userAgent,
         });
@@ -47,10 +70,10 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
     }
   };
 
-  const sendSignupConfirmation = async (phoneNumber: string) => {
+  const sendSignupConfirmation = async (formattedPhone: string) => {
     try {
       const { error } = await supabase.functions.invoke('send-signup-confirmation', {
-        body: { phoneNumber }
+        body: { phoneNumber: formattedPhone }
       });
 
       if (error) throw error;
@@ -76,7 +99,13 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
         throw new Error('You must agree to receive SMS messages to use SMS Journal');
       }
       
-      const { data, error } = await signUp(email, password, phoneNumber);
+      // Format and validate phone number
+      const formattedPhone = formatPhoneNumber(phoneNumber);
+      if (!formattedPhone) {
+        throw new Error('Please enter a valid 10-digit US phone number');
+      }
+      
+      const { data, error } = await signUp(email, password, formattedPhone);
       if (error) {
         // Handle specific error for duplicate phone number
         if (error.message.includes('duplicate key value violates unique constraint "profiles_phone_number_unique"')) {
@@ -87,13 +116,13 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
       
       // Store SMS consent record after successful signup
       if (data.user?.id) {
-        await storeSmsConsent(data.user.id);
+        await storeSmsConsent(data.user.id, formattedPhone);
         
         // Send signup confirmation SMS
-        await sendSignupConfirmation(phoneNumber);
+        await sendSignupConfirmation(formattedPhone);
       }
       
-      onSignUpSuccess(phoneNumber);
+      onSignUpSuccess(formattedPhone);
       toast({
         title: "Account created!",
         description: "We've sent a confirmation message to your phone. Please reply YES to start journaling via SMS."
@@ -131,12 +160,12 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
           id="signup-phone" 
           type="tel" 
           value={phoneNumber} 
-          onChange={e => setPhoneNumber(e.target.value)} 
-          placeholder="+1 (555) 123-4567" 
+          onChange={handlePhoneChange} 
+          placeholder="5551234567" 
           required
         />
         <p className="text-xs text-slate-500 mt-1">
-          Required for sending journal entries via SMS. Each phone number can only be used for one account.
+          Enter your 10-digit US phone number (we'll automatically add +1). Each phone number can only be used for one account.
         </p>
       </div>
       <div className="flex items-start space-x-2">
