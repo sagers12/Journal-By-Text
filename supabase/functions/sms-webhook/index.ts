@@ -20,53 +20,44 @@ serve(async (req) => {
 
     // Get the raw body and headers for signature validation
     const body = await req.text()
-    const signature = req.headers.get('x-surge-signature')
+    const surgeSignature = req.headers.get('Surge-Signature')
     const webhookSecret = Deno.env.get('SURGE_WEBHOOK_SECRET')
 
     console.log('SMS webhook received:', {
-      hasSignature: !!signature,
+      hasSignature: !!surgeSignature,
       hasSecret: !!webhookSecret,
       bodyLength: body.length,
+      signature: surgeSignature,
       headers: Object.fromEntries(req.headers.entries())
     })
 
     // Validate signature if secret is configured
-    if (webhookSecret && signature) {
-      const expectedSignature = await crypto.subtle.importKey(
-        'raw',
-        new TextEncoder().encode(webhookSecret),
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign']
-      ).then(key =>
-        crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body))
-      ).then(signature =>
-        Array.from(new Uint8Array(signature))
-          .map(b => b.toString(16).padStart(2, '0'))
-          .join('')
-      )
-
-      if (`sha256=${expectedSignature}` !== signature) {
+    if (webhookSecret && surgeSignature) {
+      const isValid = await validateSurgeSignature(body, surgeSignature, webhookSecret)
+      if (!isValid) {
         console.error('Invalid webhook signature')
         return new Response('Unauthorized', { status: 401, headers: corsHeaders })
       }
+      console.log('Webhook signature validated successfully')
+    } else {
+      console.log('Webhook signature validation skipped - missing secret or signature')
     }
 
     const data = JSON.parse(body)
     console.log('Parsed webhook data:', JSON.stringify(data, null, 2))
 
     // Filter for message.received events only
-    if (data.event !== 'message.received') {
-      console.log('Ignoring non-message event:', data.event)
+    if (data.type !== 'message.received') {
+      console.log('Ignoring non-message event:', data.type)
       return new Response('OK', { status: 200, headers: corsHeaders })
     }
 
     // Extract message data from Surge webhook format
-    const messageId = data.data?.id || data.id
-    const messageBody = data.data?.body?.trim() || data.body?.trim() || ''
-    const fromPhone = data.data?.from?.phone_number || data.from?.phone_number
-    const attachments = data.data?.attachments || data.attachments || []
-    const conversationId = data.data?.conversation?.id || data.conversation?.id
+    const messageId = data.data.id
+    const messageBody = data.data.body?.trim() || ''
+    const fromPhone = data.data.conversation.contact.phone_number
+    const attachments = data.data.attachments || []
+    const conversationId = data.data.conversation.id
 
     console.log('Extracted message data:', {
       messageId,
@@ -293,21 +284,20 @@ serve(async (req) => {
       console.log('Processing attachments:', attachments.length)
       
       for (const attachment of attachments) {
-        if (attachment.content_type?.startsWith('image/') && attachment.url) {
+        if (attachment.type === 'image' && attachment.url) {
           try {
             // Download the image
             const imageResponse = await fetch(attachment.url)
             if (imageResponse.ok) {
               const imageBuffer = await imageResponse.arrayBuffer()
-              const fileExt = attachment.content_type === 'image/jpeg' ? 'jpg' : 
-                             attachment.content_type === 'image/png' ? 'png' : 'jpg'
+              const fileExt = 'jpg' // Default to jpg for images
               const fileName = `${userId}/${entryId}/${Date.now()}.${fileExt}`
               
               // Upload to Supabase storage
               const { error: uploadError } = await supabaseClient.storage
                 .from('journal-photos')
                 .upload(fileName, imageBuffer, {
-                  contentType: attachment.content_type
+                  contentType: 'image/jpeg'
                 })
 
               if (uploadError) {
@@ -319,9 +309,9 @@ serve(async (req) => {
                   .insert({
                     entry_id: entryId,
                     file_path: fileName,
-                    file_name: attachment.filename || `sms_photo_${Date.now()}.${fileExt}`,
+                    file_name: `sms_photo_${Date.now()}.${fileExt}`,
                     file_size: imageBuffer.byteLength,
-                    mime_type: attachment.content_type
+                    mime_type: 'image/jpeg'
                   })
                 
                 console.log('Photo uploaded and saved:', fileName)
@@ -362,6 +352,82 @@ serve(async (req) => {
   }
 })
 
+// Helper function to validate Surge webhook signature
+async function validateSurgeSignature(body: string, signature: string, secret: string): Promise<boolean> {
+  try {
+    // Parse the signature header: t=1737830031,v1=41f947e88a483327c878d6c08b27b22fbe7c9ea5608b035707c6667d1df866dd
+    const parts = signature.split(',')
+    let timestamp = ''
+    const v1Hashes: string[] = []
+
+    for (const part of parts) {
+      const [key, value] = part.split('=')
+      if (key === 't') {
+        timestamp = value
+      } else if (key === 'v1') {
+        v1Hashes.push(value)
+      }
+    }
+
+    if (!timestamp || v1Hashes.length === 0) {
+      console.error('Invalid signature format')
+      return false
+    }
+
+    // Check timestamp is within 5 minutes (300 seconds) to prevent replay attacks
+    const now = Math.floor(Date.now() / 1000)
+    const webhookTime = parseInt(timestamp)
+    if (Math.abs(now - webhookTime) > 300) {
+      console.error('Webhook timestamp too old or too far in future')
+      return false
+    }
+
+    // Generate the payload: timestamp + '.' + raw body
+    const payload = `${timestamp}.${body}`
+
+    // Compute expected HMAC-SHA256 hash
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    )
+    
+    const signature_buffer = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
+    const expectedHash = Array.from(new Uint8Array(signature_buffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+
+    // Compare with any of the v1 hashes using constant-time comparison
+    for (const v1Hash of v1Hashes) {
+      if (constantTimeEqual(expectedHash, v1Hash)) {
+        return true
+      }
+    }
+
+    console.error('Signature validation failed')
+    return false
+  } catch (error) {
+    console.error('Error validating signature:', error)
+    return false
+  }
+}
+
+// Constant-time string comparison to prevent timing attacks
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    return false
+  }
+  
+  let result = 0
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+  
+  return result === 0
+}
+
 // Helper function to send instruction message after YES response
 async function sendInstructionMessage(conversationId: string) {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
@@ -375,10 +441,10 @@ async function sendInstructionMessage(conversationId: string) {
   try {
     const responsePayload = {
       conversation: { id: conversationId },
-      body: 'To submit a journal entry, simply send a message to this number. You will be able to view your journal entries on our website.'
+      body: 'Perfect! Your phone is now verified. To create a journal entry, simply send a message to this number. You can view all your entries on our website.'
     }
 
-    const surgeUrl = `https://api.surge.app/v1/accounts/${surgeAccountId}/messages`
+    const surgeUrl = `https://api.surge.sh/v1/accounts/${surgeAccountId}/messages`
     
     const surgeResponse = await fetch(surgeUrl, {
       method: 'POST',
@@ -389,7 +455,11 @@ async function sendInstructionMessage(conversationId: string) {
       body: JSON.stringify(responsePayload)
     })
 
-    console.log('Instruction message sent, status:', surgeResponse.status)
+    if (surgeResponse.ok) {
+      console.log('Instruction message sent successfully')
+    } else {
+      console.error('Failed to send instruction message:', surgeResponse.status, await surgeResponse.text())
+    }
   } catch (error) {
     console.error('Error sending instruction message:', error)
   }
@@ -411,7 +481,7 @@ async function sendConfirmationMessage(conversationId: string) {
       body: '✅ Your journal entry has been saved!'
     }
 
-    const surgeUrl = `https://api.surge.app/v1/accounts/${surgeAccountId}/messages`
+    const surgeUrl = `https://api.surge.sh/v1/accounts/${surgeAccountId}/messages`
     
     const surgeResponse = await fetch(surgeUrl, {
       method: 'POST',
@@ -422,7 +492,11 @@ async function sendConfirmationMessage(conversationId: string) {
       body: JSON.stringify(responsePayload)
     })
 
-    console.log('Confirmation message sent, status:', surgeResponse.status)
+    if (surgeResponse.ok) {
+      console.log('Confirmation message sent successfully')
+    } else {
+      console.error('Failed to send confirmation message:', surgeResponse.status, await surgeResponse.text())
+    }
   } catch (error) {
     console.error('Error sending confirmation message:', error)
   }
