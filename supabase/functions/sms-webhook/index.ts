@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
@@ -28,7 +29,9 @@ serve(async (req) => {
       bodyLength: body.length,
       signature: surgeSignature,
       headers: Object.fromEntries(req.headers.entries()),
-      rawBody: body // Add raw body to see exactly what we're getting
+      rawBody: body,
+      method: req.method,
+      url: req.url
     })
 
     // Parse the webhook data first to see what we're dealing with
@@ -41,13 +44,21 @@ serve(async (req) => {
       return new Response('Invalid JSON', { status: 400, headers: corsHeaders })
     }
 
-    // Check if this is a test webhook or health check
-    if (!data.type) {
-      console.log('Webhook has no type field, likely a test webhook:', data)
-      return new Response('OK - Test webhook', { status: 200, headers: corsHeaders })
+    // Handle different webhook formats from Surge
+    // Sometimes Surge sends test webhooks or different payload structures
+    if (!data || typeof data !== 'object') {
+      console.log('Invalid webhook data structure:', data)
+      return new Response('Invalid data structure', { status: 400, headers: corsHeaders })
     }
 
-    // Validate signature if secret is configured (skip for now to debug)
+    // Check if this is a test webhook (like {"name": "Functions"})
+    if (data.name === "Functions" || !data.type) {
+      console.log('Received test webhook or webhook without type field:', data)
+      // For test webhooks, we'll return success but won't process
+      return new Response('OK - Test webhook received', { status: 200, headers: corsHeaders })
+    }
+
+    // Validate signature if secret is configured (temporarily disabled for debugging)
     if (webhookSecret && surgeSignature) {
       console.log('Signature validation temporarily disabled for debugging')
       // const isValid = await validateSurgeSignature(body, surgeSignature, webhookSecret)
