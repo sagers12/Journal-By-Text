@@ -45,50 +45,85 @@ serve(async (req) => {
     }
 
     // Handle different webhook formats from Surge
-    // Sometimes Surge sends test webhooks or different payload structures
     if (!data || typeof data !== 'object') {
       console.log('Invalid webhook data structure:', data)
       return new Response('Invalid data structure', { status: 400, headers: corsHeaders })
     }
 
     // Check if this is a test webhook (like {"name": "Functions"})
-    if (data.name === "Functions" || !data.type) {
-      console.log('Received test webhook or webhook without type field:', data)
-      // For test webhooks, we'll return success but won't process
+    if (data.name === "Functions" || (!data.type && !data.event)) {
+      console.log('Received test webhook or webhook without type/event field:', data)
       return new Response('OK - Test webhook received', { status: 200, headers: corsHeaders })
     }
 
-    // Validate signature if secret is configured (temporarily disabled for debugging)
+    // Validate signature if secret is configured
     if (webhookSecret && surgeSignature) {
-      console.log('Signature validation temporarily disabled for debugging')
-      // const isValid = await validateSurgeSignature(body, surgeSignature, webhookSecret)
-      // if (!isValid) {
-      //   console.error('Invalid webhook signature')
-      //   return new Response('Unauthorized', { status: 401, headers: corsHeaders })
-      // }
-      // console.log('Webhook signature validated successfully')
+      try {
+        const isValid = await validateSurgeSignature(body, surgeSignature, webhookSecret)
+        if (!isValid) {
+          console.error('Invalid webhook signature')
+          return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+        }
+        console.log('Webhook signature validated successfully')
+      } catch (sigError) {
+        console.error('Signature validation error:', sigError)
+        // Continue processing for debugging, but log the error
+      }
     } else {
       console.log('Webhook signature validation skipped - missing secret or signature')
     }
 
+    // Determine payload format and extract event type
+    let eventType = null
+    let messageData = null
+    
+    // Try new format first (payload.event and payload.properties)
+    if (data.event && data.properties) {
+      console.log('Using new payload format (event/properties)')
+      eventType = data.event
+      messageData = data.properties
+    }
+    // Fall back to old format (payload.type and payload.data)
+    else if (data.type && data.data) {
+      console.log('Using old payload format (type/data)')
+      eventType = data.type
+      messageData = data.data
+    }
+    else {
+      console.error('Unknown payload format:', data)
+      return new Response('Bad Request: Unknown payload format', { status: 400, headers: corsHeaders })
+    }
+
     // Filter for message.received events only
-    if (data.type !== 'message.received') {
-      console.log('Ignoring non-message event:', data.type)
+    if (eventType !== 'message.received') {
+      console.log('Ignoring non-message event:', eventType)
       return new Response('OK', { status: 200, headers: corsHeaders })
     }
 
-    // Extract message data from Surge webhook format
-    const messageData = data.data
     if (!messageData) {
-      console.error('No data field in webhook:', data)
-      return new Response('Bad Request: No data field', { status: 400, headers: corsHeaders })
+      console.error('No message data field in webhook:', data)
+      return new Response('Bad Request: No message data field', { status: 400, headers: corsHeaders })
     }
 
-    const messageId = messageData.id
-    const messageBody = messageData.body?.trim() || ''
-    const fromPhone = messageData.conversation?.contact?.phone_number
-    const attachments = messageData.attachments || []
-    const conversationId = messageData.conversation?.id
+    // Extract message details - handle both formats
+    let messageId, messageBody, fromPhone, conversationId, attachments
+    
+    // New format extraction
+    if (data.event) {
+      messageId = messageData.id
+      messageBody = messageData.content?.trim() || ''
+      fromPhone = messageData.contact?.phone_number
+      conversationId = messageData.conversation?.id
+      attachments = messageData.attachments || []
+    }
+    // Old format extraction
+    else {
+      messageId = messageData.id
+      messageBody = messageData.body?.trim() || ''
+      fromPhone = messageData.conversation?.contact?.phone_number
+      conversationId = messageData.conversation?.id
+      attachments = messageData.attachments || []
+    }
 
     console.log('Extracted message data:', {
       messageId,
@@ -96,7 +131,7 @@ serve(async (req) => {
       fromPhone,
       attachmentsCount: attachments.length,
       conversationId,
-      fullConversation: messageData.conversation
+      format: data.event ? 'new' : 'old'
     })
 
     if (!messageId || !messageBody || !fromPhone) {
@@ -155,10 +190,10 @@ serve(async (req) => {
           user_id: '00000000-0000-0000-0000-000000000000' // Placeholder UUID
         })
 
-      return new Response('User not found - message logged', {
-        status: 404,
-        headers: corsHeaders
-      })
+      return new Response(
+        JSON.stringify({ error: 'User not found', phone: fromPhone, messageId }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     const profile = profiles[0]
@@ -221,10 +256,10 @@ serve(async (req) => {
           error_message: 'Phone not verified'
         })
 
-      return new Response('Phone not verified', {
-        status: 403,
-        headers: corsHeaders
-      })
+      return new Response(
+        JSON.stringify({ error: 'Phone not verified', messageId }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // Store SMS message record first
@@ -375,7 +410,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('SMS webhook error:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message, stack: error.stack }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
