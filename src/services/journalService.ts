@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Entry } from '@/types/entry';
 import { validateEntryContent, validatePhotos, validateTags } from '@/utils/validation';
 import { uploadPhotos, checkPhotoLimit, deleteEntryPhotos } from '@/utils/photoUpload';
+import { encryptText, decryptText, isEncrypted } from '@/utils/encryption';
 
 export const fetchJournalEntries = async (userId: string): Promise<Entry[]> => {
   if (!userId) return [];
@@ -23,23 +24,41 @@ export const fetchJournalEntries = async (userId: string): Promise<Entry[]> => {
 
     if (error) throw error;
 
-    // Transform data to match Entry interface
-    return data.map((entry): Entry => ({
-      id: entry.id,
-      content: entry.content,
-      title: entry.title,
-      source: entry.source as 'web' | 'sms',
-      timestamp: new Date(entry.created_at),
-      entry_date: entry.entry_date,
-      user_id: entry.user_id,
-      tags: entry.tags || [],
-      photos: entry.journal_photos?.map((photo: any) => {
-        const { data: publicUrl } = supabase.storage
-          .from('journal-photos')
-          .getPublicUrl(photo.file_path);
-        return publicUrl.publicUrl;
-      }) || []
-    }));
+    // Transform data to match Entry interface and decrypt content
+    return data.map((entry): Entry => {
+      let decryptedContent = entry.content;
+      let decryptedTitle = entry.title;
+      
+      // Decrypt content if it appears to be encrypted
+      try {
+        if (isEncrypted(entry.content)) {
+          decryptedContent = decryptText(entry.content, userId);
+        }
+        if (isEncrypted(entry.title)) {
+          decryptedTitle = decryptText(entry.title, userId);
+        }
+      } catch (error) {
+        console.error('Failed to decrypt entry:', entry.id, error);
+        // Keep encrypted content if decryption fails
+      }
+      
+      return {
+        id: entry.id,
+        content: decryptedContent,
+        title: decryptedTitle,
+        source: entry.source as 'web' | 'sms',
+        timestamp: new Date(entry.created_at),
+        entry_date: entry.entry_date,
+        user_id: entry.user_id,
+        tags: entry.tags || [],
+        photos: entry.journal_photos?.map((photo: any) => {
+          const { data: publicUrl } = supabase.storage
+            .from('journal-photos')
+            .getPublicUrl(photo.file_path);
+          return publicUrl.publicUrl;
+        }) || []
+      };
+    });
   } catch (error) {
     console.error('Error fetching entries:', error);
     throw error;
@@ -65,14 +84,18 @@ export const createJournalEntry = async ({
   validateEntryContent(content);
   validatePhotos(photos);
 
+  // Encrypt content and title before storing
+  const encryptedContent = encryptText(content.trim(), userId);
+  const encryptedTitle = encryptText(title.trim(), userId);
+  
   // Create the entry
   const entryDate = new Date().toISOString().split('T')[0];
   const { data: entry, error } = await supabase
     .from('journal_entries')
     .insert({
       user_id: userId,
-      content: content.trim(),
-      title: title.trim(),
+      content: encryptedContent,
+      title: encryptedTitle,
       source: 'web',
       entry_date: entryDate,
       tags: validateTags(tags)
@@ -103,10 +126,13 @@ export const updateJournalEntry = async ({
 }) => {
   validateEntryContent(content);
 
+  // Encrypt content before updating
+  const encryptedContent = encryptText(content.trim(), userId);
+
   // Update the entry content
   const { error } = await supabase
     .from('journal_entries')
-    .update({ content: content.trim() })
+    .update({ content: encryptedContent })
     .eq('id', id)
     .eq('user_id', userId);
 
