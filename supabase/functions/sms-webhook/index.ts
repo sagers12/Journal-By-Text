@@ -220,6 +220,7 @@ serve(async (req) => {
       }
 
       // Send follow-up instruction message
+      console.log('About to send instruction message with conversationId:', conversationId)
       await sendInstructionMessage(conversationId)
 
       // Store the YES message
