@@ -85,7 +85,7 @@ export const useAuth = () => {
     };
   }, []);
 
-  const signUp = async (email: string, password: string, phoneNumber?: string) => {
+  const signUp = async (email: string, password: string, phoneNumber?: string, timezone?: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { data, error } = await supabase.auth.signUp({
@@ -93,7 +93,10 @@ export const useAuth = () => {
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: phoneNumber ? { phone_number: phoneNumber } : {}
+        data: {
+          ...(phoneNumber && { phone_number: phoneNumber }),
+          ...(timezone && { timezone })
+        }
       }
     });
     return { data, error };

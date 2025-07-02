@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useTimezone } from "@/hooks/useTimezone";
 import type { Entry } from "@/types/entry";
 
 interface JournalEntryProps {
@@ -19,6 +20,7 @@ interface PhotoFile {
 }
 
 export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => {
+  const { formatTimeInUserTimezone } = useTimezone();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(entry.content);
   const [editPhotos, setEditPhotos] = useState<PhotoFile[]>([]);
@@ -31,13 +33,6 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
   const MAX_PHOTO_SIZE = 10 * 1024 * 1024; // 10MB
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
 
   const validatePhotoFile = (file: File): string | null => {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
@@ -136,7 +131,7 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
               ) : (
                 <Monitor className="w-3 h-3" />
               )}
-              <span className="text-xs">{formatTime(entry.timestamp)}</span>
+              <span className="text-xs">{formatTimeInUserTimezone(entry.timestamp)}</span>
             </div>
           </div>
           

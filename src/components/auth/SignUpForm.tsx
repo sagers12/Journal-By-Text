@@ -105,7 +105,10 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
         throw new Error('Please enter a valid 10-digit US phone number');
       }
       
-      const { data, error } = await signUp(email, password, formattedPhone);
+      // Get user's timezone
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      
+      const { data, error } = await signUp(email, password, formattedPhone, userTimezone);
       if (error) {
         // Handle specific error for duplicate phone number
         if (error.message.includes('duplicate key value violates unique constraint "profiles_phone_number_unique"')) {

@@ -125,6 +125,13 @@ serve(async (req) => {
       attachments = messageData.attachments || []
     }
 
+    console.log('DEBUG: conversationId extraction:', {
+      conversationId,
+      hasConversationId: !!conversationId,
+      conversationPath: data.event ? 'messageData.conversation?.id' : 'messageData.conversation?.id',
+      conversationObject: data.event ? messageData.conversation : messageData.conversation
+    })
+
     console.log('Extracted message data:', {
       messageId,
       messageBody,
@@ -223,7 +230,11 @@ serve(async (req) => {
 
       // Send follow-up instruction message
       console.log('About to send instruction message with conversationId:', conversationId)
-      await sendInstructionMessage(conversationId)
+      if (conversationId) {
+        await sendInstructionMessage(conversationId)
+      } else {
+        console.error('No conversationId available for instruction message')
+      }
 
       // Store the YES message
       await supabaseClient
@@ -403,7 +414,11 @@ serve(async (req) => {
     console.log('SMS processing complete')
 
     // Send auto-reply confirmation
-    await sendConfirmationMessage(conversationId)
+    if (conversationId) {
+      await sendConfirmationMessage(conversationId)
+    } else {
+      console.error('No conversationId available for confirmation message')
+    }
 
     return new Response(
       JSON.stringify({ success: true, entryId, messageId }),
