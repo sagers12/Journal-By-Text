@@ -131,7 +131,9 @@ serve(async (req) => {
       fromPhone,
       attachmentsCount: attachments.length,
       conversationId,
-      format: data.event ? 'new' : 'old'
+      format: data.event ? 'new' : 'old',
+      rawAttachments: attachments,
+      conversationData: data.event ? messageData.conversation : messageData.conversation
     })
 
     if (!messageId || !messageBody || !fromPhone) {
