@@ -39,8 +39,15 @@ export const decryptText = (encryptedText: string, userId: string): string => {
   }
 };
 
-// Helper to check if text appears to be encrypted (starts with standard AES prefix)
+// Helper to check if text appears to be encrypted
 export const isEncrypted = (text: string): boolean => {
-  // CryptoJS AES encrypted strings typically start with 'U2FsdGVkX1' in base64
-  return text.startsWith('U2FsdGVkX1') || text.length > 100 && /^[A-Za-z0-9+/]+=*$/.test(text);
+  // Check for base64 patterns that indicate encrypted content
+  // Encrypted strings are typically long base64-encoded strings
+  if (text.length < 50) return false; // Plain text is usually shorter
+  
+  // Check if it matches base64 pattern and doesn't contain common plaintext words
+  const base64Pattern = /^[A-Za-z0-9+/]+=*$/;
+  const hasCommonWords = /\b(the|and|or|in|on|at|to|for|of|with|by)\b/i.test(text);
+  
+  return base64Pattern.test(text) && !hasCommonWords;
 };

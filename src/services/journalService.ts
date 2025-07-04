@@ -32,13 +32,17 @@ export const fetchJournalEntries = async (userId: string): Promise<Entry[]> => {
       // Decrypt content if it appears to be encrypted
       try {
         if (isEncrypted(entry.content)) {
+          console.log('Decrypting content for entry:', entry.id);
           decryptedContent = decryptText(entry.content, userId);
         }
         if (isEncrypted(entry.title)) {
+          console.log('Decrypting title for entry:', entry.id);
           decryptedTitle = decryptText(entry.title, userId);
         }
       } catch (error) {
         console.error('Failed to decrypt entry:', entry.id, error);
+        console.error('Entry content length:', entry.content.length);
+        console.error('User ID:', userId);
         // Keep encrypted content if decryption fails
       }
       
