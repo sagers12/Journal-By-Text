@@ -42,19 +42,16 @@ export const decryptText = (encryptedText: string, userId: string): string => {
 // Helper to check if text appears to be encrypted
 export const isEncrypted = (text: string): boolean => {
   // CryptoJS AES encrypted strings typically start with 'U2FsdGVkX1' in base64
-  // But also check for other long base64-like patterns that don't contain readable text
   if (text.startsWith('U2FsdGVkX1')) {
     return true;
   }
   
-  // Check for long base64-like strings that are likely encrypted
-  if (text.length > 40 && /^[A-Za-z0-9+/=]+$/.test(text)) {
-    // If it's a long base64 string without spaces or common readable patterns, it's likely encrypted
-    const hasReadableWords = /\b(the|and|or|in|on|at|to|for|of|with|by|is|are|was|were|will|would|could|should)\b/i.test(text);
-    const hasSpaces = text.includes(' ');
-    
-    // If it's a long base64 string without readable words or spaces, it's probably encrypted
-    return !hasReadableWords && !hasSpaces;
+  // Check for base64 patterns that don't look like readable text
+  // Must be longer than typical readable text and match base64 pattern
+  if (text.length > 50 && /^[A-Za-z0-9+/=]+$/.test(text) && !text.includes(' ')) {
+    // Additional check: if it doesn't contain common readable patterns, it's likely encrypted
+    const hasReadablePattern = /[aeiou]{2,}|th[eiy]|and|ing|ion|ly\b/i.test(text);
+    return !hasReadablePattern;
   }
   
   return false;
