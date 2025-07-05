@@ -38,6 +38,18 @@ serve(async (req) => {
       .single()
 
     if (verificationError || !verification) {
+      // Rate limiting for failed attempts - max 5 attempts per phone per hour
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+      const { data: failedAttempts } = await supabaseClient
+        .from('phone_verifications')
+        .select('id')
+        .eq('phone_number', cleanPhone)
+        .gte('created_at', oneHourAgo)
+      
+      if (failedAttempts && failedAttempts.length >= 5) {
+        throw new Error('Too many failed verification attempts. Please request a new code.')
+      }
+      
       throw new Error('Invalid or expired verification code')
     }
 

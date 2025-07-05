@@ -610,7 +610,6 @@ async function validateSurgeSignature(body: string, signature: string, secret: s
     console.error('Error validating signature:', error)
     return false
   }
-  return true // Temporarily return true for debugging
 }
 
 // Constant-time string comparison to prevent timing attacks

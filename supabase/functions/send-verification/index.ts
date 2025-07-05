@@ -24,14 +24,33 @@ serve(async (req) => {
       throw new Error('Phone number is required')
     }
 
-    // Generate 6-digit verification code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
+    // Input validation - phone number format
+    if (!/^\+?[\d\s\-\(\)]{10,15}$/.test(phoneNumber)) {
+      throw new Error('Invalid phone number format')
+    }
 
     // Clean phone number
     const cleanPhone = phoneNumber.replace(/[\+\-\s\(\)]/g, '')
+    
+    // Rate limiting check - allow max 3 attempts per phone per hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { data: recentAttempts } = await supabaseClient
+      .from('phone_verifications')
+      .select('id')
+      .eq('phone_number', cleanPhone)
+      .gte('created_at', oneHourAgo)
+    
+    if (recentAttempts && recentAttempts.length >= 3) {
+      throw new Error('Too many verification attempts. Please try again in an hour.')
+    }
 
-    // Store verification code (expires in 10 minutes)
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
+    // Generate 6-digit verification code using cryptographically secure random
+    const randomArray = new Uint32Array(1)
+    crypto.getRandomValues(randomArray)
+    const verificationCode = (100000 + (randomArray[0] % 900000)).toString()
+
+    // Store verification code (expires in 5 minutes for better security)
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString()
     
     const { error: storeError } = await supabaseClient
       .from('phone_verifications')
@@ -39,7 +58,8 @@ serve(async (req) => {
         phone_number: cleanPhone,
         verification_code: verificationCode,
         expires_at: expiresAt,
-        verified: false
+        verified: false,
+        created_at: new Date().toISOString() // Ensure created_at is always updated
       }, {
         onConflict: 'phone_number'
       })

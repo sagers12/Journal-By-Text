@@ -1,13 +1,14 @@
 import CryptoJS from 'crypto-js';
 
-// Generate encryption key from user ID and a static salt
+// Generate encryption key from user ID with unique salt per user
 const generateEncryptionKey = (userId: string): string => {
-  // Use user ID as part of the key derivation
-  // In a production app, you might want to use a user-provided passphrase
-  const salt = 'journal-encryption-salt-2024';
-  return CryptoJS.PBKDF2(userId, salt, {
+  // Create unique salt per user by combining base salt with user ID
+  const baseSalt = 'journal-encryption-salt-2024';
+  const userSalt = CryptoJS.SHA256(baseSalt + userId).toString();
+  
+  return CryptoJS.PBKDF2(userId, userSalt, {
     keySize: 256 / 32,
-    iterations: 10000
+    iterations: 100000 // Increased iterations for stronger security
   }).toString();
 };
 
