@@ -1,106 +1,10 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
-import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-// Encryption utilities (same as client-side)
-async function generateEncryptionKey(userId: string): Promise<Uint8Array> {
-  const salt = 'journal-encryption-salt-2024'
-  const encoder = new TextEncoder()
-  const userIdBytes = encoder.encode(userId)
-  const saltBytes = encoder.encode(salt)
-  
-  // Simple key derivation - in production you'd use PBKDF2 or similar
-  const combined = new Uint8Array(userIdBytes.length + saltBytes.length)
-  combined.set(userIdBytes)
-  combined.set(saltBytes, userIdBytes.length)
-  
-  const hash = await crypto.subtle.digest('SHA-256', combined)
-  return new Uint8Array(hash)
-}
-
-async function encryptText(text: string, userId: string): Promise<string> {
-  try {
-    const key = await generateEncryptionKey(userId)
-    const encoder = new TextEncoder()
-    const data = encoder.encode(text)
-    
-    // Generate random IV
-    const iv = crypto.getRandomValues(new Uint8Array(16))
-    
-    // Import key for AES-GCM
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      key,
-      { name: 'AES-GCM' },
-      false,
-      ['encrypt']
-    )
-    
-    // Encrypt
-    const encrypted = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv },
-      cryptoKey,
-      data
-    )
-    
-    // Combine IV and encrypted data
-    const combined = new Uint8Array(iv.length + encrypted.byteLength)
-    combined.set(iv)
-    combined.set(new Uint8Array(encrypted), iv.length)
-    
-    // Convert to base64
-    return btoa(String.fromCharCode(...combined))
-  } catch (error) {
-    console.error('Encryption failed:', error)
-    throw new Error('Failed to encrypt data')
-  }
-}
-
-async function decryptText(encryptedText: string, userId: string): Promise<string> {
-  try {
-    const key = await generateEncryptionKey(userId)
-    
-    // Decode from base64
-    const combined = new Uint8Array(atob(encryptedText).split('').map(c => c.charCodeAt(0)))
-    
-    // Extract IV and encrypted data
-    const iv = combined.slice(0, 16)
-    const encryptedData = combined.slice(16)
-    
-    // Import key for AES-GCM
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      key,
-      { name: 'AES-GCM' },
-      false,
-      ['decrypt']
-    )
-    
-    // Decrypt
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
-      cryptoKey,
-      encryptedData
-    )
-    
-    // Convert back to string
-    const decoder = new TextDecoder()
-    return decoder.decode(decrypted)
-  } catch (error) {
-    console.error('Decryption failed:', error)
-    throw new Error('Failed to decrypt data')
-  }
-}
-
-function isEncrypted(text: string): boolean {
-  // Simple check for base64 encoded data that's likely encrypted
-  return text.length > 20 && /^[A-Za-z0-9+/]+=*$/.test(text)
 }
 
 serve(async (req) => {
@@ -407,23 +311,12 @@ serve(async (req) => {
     let entryId: string
 
     if (existingEntry) {
-      // Decrypt existing content, append new message, then re-encrypt
-      let existingContent = existingEntry.content
-      try {
-        if (isEncrypted(existingEntry.content)) {
-          existingContent = await decryptText(existingEntry.content, userId)
-        }
-      } catch (error) {
-        console.error('Failed to decrypt existing content:', error)
-        // Keep encrypted content if decryption fails
-      }
-      
-      const updatedContent = `${existingContent}\n\n[${timestamp}] ${messageBody}`
-      const encryptedContent = await encryptText(updatedContent, userId)
+      // Append to existing entry with timestamp
+      const updatedContent = `${existingEntry.content}\n\n[${timestamp}] ${messageBody}`
       
       const { data: updatedEntry, error: updateError } = await supabaseClient
         .from('journal_entries')
-        .update({ content: encryptedContent })
+        .update({ content: updatedContent })
         .eq('id', existingEntry.id)
         .select()
         .single()
@@ -436,7 +329,7 @@ serve(async (req) => {
       console.log('Updated existing entry:', updatedEntry.id)
       entryId = existingEntry.id
     } else {
-      // Create new journal entry with encryption
+      // Create new journal entry
       const title = `Journal Entry - ${new Date(entryDate).toLocaleDateString('en-US', { 
         month: 'long', 
         day: 'numeric', 
@@ -444,15 +337,13 @@ serve(async (req) => {
       })}`
       
       const content = `[${timestamp}] ${messageBody}`
-      const encryptedContent = await encryptText(content, userId)
-      const encryptedTitle = await encryptText(title, userId)
 
       const { data: newEntry, error: entryError } = await supabaseClient
         .from('journal_entries')
         .insert({
           user_id: userId,
-          content: encryptedContent,
-          title: encryptedTitle,
+          content,
+          title,
           source: 'sms',
           entry_date: entryDate,
           tags: []
