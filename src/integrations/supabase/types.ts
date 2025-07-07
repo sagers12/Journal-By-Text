@@ -88,6 +88,33 @@ export type Database = {
           },
         ]
       }
+      journal_prompts: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          prompt_text: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          prompt_text: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          prompt_text?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       phone_verifications: {
         Row: {
           created_at: string | null
@@ -121,6 +148,9 @@ export type Database = {
           id: string
           phone_number: string | null
           phone_verified: boolean | null
+          reminder_enabled: boolean | null
+          reminder_time: string | null
+          reminder_timezone: string | null
           timezone: string | null
           updated_at: string | null
         }
@@ -129,6 +159,9 @@ export type Database = {
           id: string
           phone_number?: string | null
           phone_verified?: boolean | null
+          reminder_enabled?: boolean | null
+          reminder_time?: string | null
+          reminder_timezone?: string | null
           timezone?: string | null
           updated_at?: string | null
         }
@@ -137,6 +170,9 @@ export type Database = {
           id?: string
           phone_number?: string | null
           phone_verified?: boolean | null
+          reminder_enabled?: boolean | null
+          reminder_time?: string | null
+          reminder_timezone?: string | null
           timezone?: string | null
           updated_at?: string | null
         }
@@ -222,11 +258,40 @@ export type Database = {
           },
         ]
       }
+      user_prompt_history: {
+        Row: {
+          id: string
+          prompt_id: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          prompt_id: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          prompt_id?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      get_next_prompt_for_user: {
+        Args: { user_uuid: string }
+        Returns: {
+          prompt_id: string
+          prompt_text: string
+          category: string
+        }[]
+      }
       validate_password_strength: {
         Args: { password: string }
         Returns: boolean

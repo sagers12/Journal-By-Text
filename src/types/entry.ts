@@ -16,6 +16,9 @@ export interface Profile {
   phone_number?: string;
   phone_verified: boolean;
   timezone: string;
+  reminder_enabled?: boolean;
+  reminder_time?: string;
+  reminder_timezone?: string;
   created_at: string;
   updated_at: string;
 }
