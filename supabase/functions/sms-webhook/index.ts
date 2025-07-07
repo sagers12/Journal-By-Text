@@ -2,6 +2,68 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
+// Encryption utilities (duplicated for edge function)
+const ALGORITHM = 'AES-GCM';
+const KEY_LENGTH = 256;
+const IV_LENGTH = 12;
+const SALT_LENGTH = 16;
+
+async function deriveKey(userId: string, salt: Uint8Array): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(userId),
+    'PBKDF2',
+    false,
+    ['deriveBits', 'deriveKey']
+  );
+
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    { name: ALGORITHM, length: KEY_LENGTH },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encrypt(text: string, userId: string): Promise<string> {
+  if (!text || !userId) {
+    throw new Error('Text and userId are required for encryption');
+  }
+
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    
+    const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
+    const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+    
+    const key = await deriveKey(userId, salt);
+    
+    const encryptedData = await crypto.subtle.encrypt(
+      { name: ALGORITHM, iv: iv },
+      key,
+      data
+    );
+    
+    const combined = new Uint8Array(salt.length + iv.length + encryptedData.byteLength);
+    combined.set(salt, 0);
+    combined.set(iv, salt.length);
+    combined.set(new Uint8Array(encryptedData), salt.length + iv.length);
+    
+    return 'ENC:' + btoa(String.fromCharCode(...combined));
+  } catch (error) {
+    console.error('Encryption failed:', error);
+    throw new Error('Failed to encrypt data');
+  }
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -276,6 +338,9 @@ serve(async (req) => {
       )
     }
 
+    // Encrypt message content before storing
+    const encryptedMessageContent = await encrypt(messageBody, userId);
+
     // Store SMS message record first
     const { data: smsMessage, error: smsError } = await supabaseClient
       .from('sms_messages')
@@ -283,7 +348,7 @@ serve(async (req) => {
         user_id: userId,
         surge_message_id: messageId,
         phone_number: fromPhone,
-        message_content: messageBody,
+        message_content: encryptedMessageContent,
         entry_date: entryDate,
         processed: false
       })
@@ -311,12 +376,39 @@ serve(async (req) => {
     let entryId: string
 
     if (existingEntry) {
-      // Append to existing entry with timestamp
-      const updatedContent = `${existingEntry.content}\n\n[${timestamp}] ${messageBody}`
+      // Decrypt existing content, append new message, then re-encrypt
+      let decryptedExistingContent = existingEntry.content;
+      try {
+        // Try to decrypt existing content (it might be encrypted)
+        if (existingEntry.content.startsWith('ENC:')) {
+          const encoder = new TextEncoder();
+          const decoder = new TextDecoder();
+          const combined = new Uint8Array(
+            atob(existingEntry.content.substring(4))
+              .split('')
+              .map(char => char.charCodeAt(0))
+          );
+          const salt = combined.slice(0, SALT_LENGTH);
+          const iv = combined.slice(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
+          const encryptedData = combined.slice(SALT_LENGTH + IV_LENGTH);
+          const key = await deriveKey(userId, salt);
+          const decryptedData = await crypto.subtle.decrypt(
+            { name: ALGORITHM, iv: iv },
+            key,
+            encryptedData
+          );
+          decryptedExistingContent = decoder.decode(decryptedData);
+        }
+      } catch (error) {
+        console.error('Failed to decrypt existing content, using as-is:', error);
+      }
+      
+      const updatedContent = `${decryptedExistingContent}\n\n[${timestamp}] ${messageBody}`;
+      const encryptedUpdatedContent = await encrypt(updatedContent, userId);
       
       const { data: updatedEntry, error: updateError } = await supabaseClient
         .from('journal_entries')
-        .update({ content: updatedContent })
+        .update({ content: encryptedUpdatedContent })
         .eq('id', existingEntry.id)
         .select()
         .single()
@@ -336,14 +428,18 @@ serve(async (req) => {
         year: 'numeric' 
       })}`
       
-      const content = `[${timestamp}] ${messageBody}`
+      const content = `[${timestamp}] ${messageBody}`;
+      
+      // Encrypt content and title before storing
+      const encryptedContent = await encrypt(content, userId);
+      const encryptedTitle = await encrypt(title, userId);
 
       const { data: newEntry, error: entryError } = await supabaseClient
         .from('journal_entries')
         .insert({
           user_id: userId,
-          content,
-          title,
+          content: encryptedContent,
+          title: encryptedTitle,
           source: 'sms',
           entry_date: entryDate,
           tags: []
