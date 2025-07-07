@@ -151,7 +151,7 @@ const Marketing = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-slate-600">
-                  Bank-level encryption keeps your thoughts safe. Your journal is private and always will be.
+                  Your thoughts are kept safe and private. Your journal is secure and always will be.
                 </p>
               </CardContent>
             </Card>
