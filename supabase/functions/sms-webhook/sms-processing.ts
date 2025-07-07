@@ -50,7 +50,6 @@ export async function processJournalEntry(
   entryDate: string,
   attachments: any[]
 ) {
-  const timestamp = new Date().toLocaleTimeString()
 
   // Encrypt message content before storing
   const encryptedMessageContent = await encrypt(messageBody, userId)
@@ -101,7 +100,7 @@ export async function processJournalEntry(
       console.error('Failed to decrypt existing content, using as-is:', error)
     }
     
-    const updatedContent = `${decryptedExistingContent}\n\n[${timestamp}] ${messageBody}`
+    const updatedContent = `${decryptedExistingContent}\n\n${messageBody}`
     const encryptedUpdatedContent = await encrypt(updatedContent, userId)
     
     const { data: updatedEntry, error: updateError } = await supabaseClient
@@ -126,7 +125,7 @@ export async function processJournalEntry(
       year: 'numeric' 
     })}`
     
-    const content = `[${timestamp}] ${messageBody}`
+    const content = messageBody
     
     // Encrypt content and title before storing
     const encryptedContent = await encrypt(content, userId)
