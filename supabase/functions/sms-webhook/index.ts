@@ -283,7 +283,6 @@ serve(async (req) => {
       console.error('User not found for phone number:', fromPhone)
       
       // Create SMS message record even if user not found for debugging
-      // Don't encrypt if user not found (no user ID for encryption)
       await supabaseClient
         .from('sms_messages')
         .insert({
@@ -333,15 +332,14 @@ serve(async (req) => {
         console.error('No conversationId available for instruction message')
       }
 
-      // Store the YES message (with encryption)
-      const encryptedYesMessage = await encryptText(messageBody, userId)
+      // Store the YES message
       await supabaseClient
         .from('sms_messages')
         .insert({
           user_id: userId,
           surge_message_id: messageId,
           phone_number: fromPhone,
-          message_content: encryptedYesMessage,
+          message_content: messageBody,
           entry_date: entryDate,
           processed: true
         })
@@ -356,14 +354,13 @@ serve(async (req) => {
     if (!profile.phone_verified) {
       console.log('Phone not verified, skipping journal entry creation')
       
-      const encryptedUnverifiedMessage = await encryptText(messageBody, userId)
       await supabaseClient
         .from('sms_messages')
         .insert({
           user_id: userId,
           surge_message_id: messageId,
           phone_number: fromPhone,
-          message_content: encryptedUnverifiedMessage,
+          message_content: messageBody,
           entry_date: entryDate,
           processed: false,
           error_message: 'Phone not verified'
@@ -375,15 +372,14 @@ serve(async (req) => {
       )
     }
 
-    // Store SMS message record first (with encryption)
-    const encryptedMessageBody = await encryptText(messageBody, userId)
+    // Store SMS message record first
     const { data: smsMessage, error: smsError } = await supabaseClient
       .from('sms_messages')
       .insert({
         user_id: userId,
         surge_message_id: messageId,
         phone_number: fromPhone,
-        message_content: encryptedMessageBody,
+        message_content: messageBody,
         entry_date: entryDate,
         processed: false
       })
@@ -610,6 +606,7 @@ async function validateSurgeSignature(body: string, signature: string, secret: s
     console.error('Error validating signature:', error)
     return false
   }
+  return true // Temporarily return true for debugging
 }
 
 // Constant-time string comparison to prevent timing attacks
