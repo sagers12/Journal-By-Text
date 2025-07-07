@@ -258,6 +258,24 @@ export type Database = {
           },
         ]
       }
+      user_last_prompt_category: {
+        Row: {
+          last_category: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          last_category: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          last_category?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_prompt_history: {
         Row: {
           id: string
