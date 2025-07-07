@@ -1,68 +1,8 @@
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
-
-// Encryption utilities (duplicated for edge function)
-const ALGORITHM = 'AES-GCM';
-const KEY_LENGTH = 256;
-const IV_LENGTH = 12;
-const SALT_LENGTH = 16;
-
-async function deriveKey(userId: string, salt: Uint8Array): Promise<CryptoKey> {
-  const encoder = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(userId),
-    'PBKDF2',
-    false,
-    ['deriveBits', 'deriveKey']
-  );
-
-  return crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: salt,
-      iterations: 100000,
-      hash: 'SHA-256'
-    },
-    keyMaterial,
-    { name: ALGORITHM, length: KEY_LENGTH },
-    false,
-    ['encrypt', 'decrypt']
-  );
-}
-
-async function encrypt(text: string, userId: string): Promise<string> {
-  if (!text || !userId) {
-    throw new Error('Text and userId are required for encryption');
-  }
-
-  try {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(text);
-    
-    const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
-    const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
-    
-    const key = await deriveKey(userId, salt);
-    
-    const encryptedData = await crypto.subtle.encrypt(
-      { name: ALGORITHM, iv: iv },
-      key,
-      data
-    );
-    
-    const combined = new Uint8Array(salt.length + iv.length + encryptedData.byteLength);
-    combined.set(salt, 0);
-    combined.set(iv, salt.length);
-    combined.set(new Uint8Array(encryptedData), salt.length + iv.length);
-    
-    return 'ENC:' + btoa(String.fromCharCode(...combined));
-  } catch (error) {
-    console.error('Encryption failed:', error);
-    throw new Error('Failed to encrypt data');
-  }
-}
+import { validateSurgeSignature } from './signature-validation.ts'
+import { sendInstructionMessage, sendConfirmationMessage } from './message-handlers.ts'
+import { processPhoneVerification, processJournalEntry } from './sms-processing.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -270,25 +210,19 @@ serve(async (req) => {
     const profile = profiles[0]
     const userId = profile.id
     const entryDate = new Date().toISOString().split('T')[0]
-    const timestamp = new Date().toLocaleTimeString()
 
     console.log('Processing message for user:', { userId, entryDate, phoneVerified: profile.phone_verified })
 
     // Check if this is a "YES" response to verify phone number
     if (messageBody.toUpperCase() === 'YES' && !profile.phone_verified) {
-      console.log('Processing YES response for phone verification')
-      
-      // Update phone verification status
-      const { error: verifyError } = await supabaseClient
-        .from('profiles')
-        .update({ phone_verified: true })
-        .eq('id', userId)
-
-      if (verifyError) {
-        console.error('Error updating phone verification:', verifyError)
-      } else {
-        console.log('Phone verified successfully for user:', userId)
-      }
+      const result = await processPhoneVerification(
+        supabaseClient,
+        messageBody,
+        userId,
+        messageId,
+        fromPhone,
+        entryDate
+      )
 
       // Send follow-up instruction message
       console.log('About to send instruction message with conversationId:', conversationId)
@@ -298,20 +232,8 @@ serve(async (req) => {
         console.error('No conversationId available for instruction message')
       }
 
-      // Store the YES message
-      await supabaseClient
-        .from('sms_messages')
-        .insert({
-          user_id: userId,
-          surge_message_id: messageId,
-          phone_number: fromPhone,
-          message_content: messageBody,
-          entry_date: entryDate,
-          processed: true
-        })
-
       return new Response(
-        JSON.stringify({ success: true, action: 'phone_verified', messageId }),
+        JSON.stringify(result),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -338,176 +260,16 @@ serve(async (req) => {
       )
     }
 
-    // Encrypt message content before storing
-    const encryptedMessageContent = await encrypt(messageBody, userId);
-
-    // Store SMS message record first
-    const { data: smsMessage, error: smsError } = await supabaseClient
-      .from('sms_messages')
-      .insert({
-        user_id: userId,
-        surge_message_id: messageId,
-        phone_number: fromPhone,
-        message_content: encryptedMessageContent,
-        entry_date: entryDate,
-        processed: false
-      })
-      .select()
-      .single()
-
-    if (smsError) {
-      console.error('Error storing SMS message:', smsError)
-      throw new Error(`Failed to store SMS message: ${smsError.message}`)
-    }
-
-    console.log('SMS message stored:', smsMessage.id)
-
-    // Check for existing journal entry for today
-    const { data: existingEntry, error: existingError } = await supabaseClient
-      .from('journal_entries')
-      .select('id, content')
-      .eq('user_id', userId)
-      .eq('entry_date', entryDate)
-      .eq('source', 'sms')
-      .single()
-
-    console.log('Existing entry check:', { hasExisting: !!existingEntry, existingError })
-
-    let entryId: string
-
-    if (existingEntry) {
-      // Decrypt existing content, append new message, then re-encrypt
-      let decryptedExistingContent = existingEntry.content;
-      try {
-        // Try to decrypt existing content (it might be encrypted)
-        if (existingEntry.content.startsWith('ENC:')) {
-          const encoder = new TextEncoder();
-          const decoder = new TextDecoder();
-          const combined = new Uint8Array(
-            atob(existingEntry.content.substring(4))
-              .split('')
-              .map(char => char.charCodeAt(0))
-          );
-          const salt = combined.slice(0, SALT_LENGTH);
-          const iv = combined.slice(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
-          const encryptedData = combined.slice(SALT_LENGTH + IV_LENGTH);
-          const key = await deriveKey(userId, salt);
-          const decryptedData = await crypto.subtle.decrypt(
-            { name: ALGORITHM, iv: iv },
-            key,
-            encryptedData
-          );
-          decryptedExistingContent = decoder.decode(decryptedData);
-        }
-      } catch (error) {
-        console.error('Failed to decrypt existing content, using as-is:', error);
-      }
-      
-      const updatedContent = `${decryptedExistingContent}\n\n[${timestamp}] ${messageBody}`;
-      const encryptedUpdatedContent = await encrypt(updatedContent, userId);
-      
-      const { data: updatedEntry, error: updateError } = await supabaseClient
-        .from('journal_entries')
-        .update({ content: encryptedUpdatedContent })
-        .eq('id', existingEntry.id)
-        .select()
-        .single()
-
-      if (updateError) {
-        console.error('Error updating journal entry:', updateError)
-        throw updateError
-      }
-      
-      console.log('Updated existing entry:', updatedEntry.id)
-      entryId = existingEntry.id
-    } else {
-      // Create new journal entry
-      const title = `Journal Entry - ${new Date(entryDate).toLocaleDateString('en-US', { 
-        month: 'long', 
-        day: 'numeric', 
-        year: 'numeric' 
-      })}`
-      
-      const content = `[${timestamp}] ${messageBody}`;
-      
-      // Encrypt content and title before storing
-      const encryptedContent = await encrypt(content, userId);
-      const encryptedTitle = await encrypt(title, userId);
-
-      const { data: newEntry, error: entryError } = await supabaseClient
-        .from('journal_entries')
-        .insert({
-          user_id: userId,
-          content: encryptedContent,
-          title: encryptedTitle,
-          source: 'sms',
-          entry_date: entryDate,
-          tags: []
-        })
-        .select()
-        .single()
-
-      if (entryError) {
-        console.error('Error creating journal entry:', entryError)
-        throw entryError
-      }
-
-      console.log('Created new entry:', newEntry.id)
-      entryId = newEntry.id
-    }
-
-    // Process attachments (photos) if any
-    if (attachments && attachments.length > 0) {
-      console.log('Processing attachments:', attachments.length)
-      
-      for (const attachment of attachments) {
-        if (attachment.type === 'image' && attachment.url) {
-          try {
-            // Download the image
-            const imageResponse = await fetch(attachment.url)
-            if (imageResponse.ok) {
-              const imageBuffer = await imageResponse.arrayBuffer()
-              const fileExt = 'jpg' // Default to jpg for images
-              const fileName = `${userId}/${entryId}/${Date.now()}.${fileExt}`
-              
-              // Upload to Supabase storage
-              const { error: uploadError } = await supabaseClient.storage
-                .from('journal-photos')
-                .upload(fileName, imageBuffer, {
-                  contentType: 'image/jpeg'
-                })
-
-              if (uploadError) {
-                console.error('Error uploading photo:', uploadError)
-              } else {
-                // Save photo record
-                await supabaseClient
-                  .from('journal_photos')
-                  .insert({
-                    entry_id: entryId,
-                    file_path: fileName,
-                    file_name: `sms_photo_${Date.now()}.${fileExt}`,
-                    file_size: imageBuffer.byteLength,
-                    mime_type: 'image/jpeg'
-                  })
-                
-                console.log('Photo uploaded and saved:', fileName)
-              }
-            }
-          } catch (photoError) {
-            console.error('Error processing photo attachment:', photoError)
-          }
-        }
-      }
-    }
-
-    // Update SMS message as processed
-    await supabaseClient
-      .from('sms_messages')
-      .update({ processed: true, entry_id: entryId })
-      .eq('id', smsMessage.id)
-
-    console.log('SMS processing complete')
+    // Process journal entry
+    const result = await processJournalEntry(
+      supabaseClient,
+      messageBody,
+      userId,
+      messageId,
+      fromPhone,
+      entryDate,
+      attachments
+    )
 
     // Send auto-reply confirmation
     if (conversationId) {
@@ -517,7 +279,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, entryId, messageId }),
+      JSON.stringify(result),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
@@ -532,156 +294,3 @@ serve(async (req) => {
     )
   }
 })
-
-// Helper function to validate Surge webhook signature (disabled for debugging)
-async function validateSurgeSignature(body: string, signature: string, secret: string): Promise<boolean> {
-  try {
-    // Parse the signature header: t=1737830031,v1=41f947e88a483327c878d6c08b27b22fbe7c9ea5608b035707c6667d1df866dd
-    const parts = signature.split(',')
-    let timestamp = ''
-    const v1Hashes: string[] = []
-
-    for (const part of parts) {
-      const [key, value] = part.split('=')
-      if (key === 't') {
-        timestamp = value
-      } else if (key === 'v1') {
-        v1Hashes.push(value)
-      }
-    }
-
-    if (!timestamp || v1Hashes.length === 0) {
-      console.error('Invalid signature format')
-      return false
-    }
-
-    // Check timestamp is within 5 minutes (300 seconds) to prevent replay attacks
-    const now = Math.floor(Date.now() / 1000)
-    const webhookTime = parseInt(timestamp)
-    if (Math.abs(now - webhookTime) > 300) {
-      console.error('Webhook timestamp too old or too far in future')
-      return false
-    }
-
-    // Generate the payload: timestamp + '.' + raw body
-    const payload = `${timestamp}.${body}`
-
-    // Compute expected HMAC-SHA256 hash
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    )
-    
-    const signature_buffer = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
-    const expectedHash = Array.from(new Uint8Array(signature_buffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('')
-
-    // Compare with any of the v1 hashes using constant-time comparison
-    for (const v1Hash of v1Hashes) {
-      if (constantTimeEqual(expectedHash, v1Hash)) {
-        return true
-      }
-    }
-
-    console.error('Signature validation failed')
-    return false
-  } catch (error) {
-    console.error('Error validating signature:', error)
-    return false
-  }
-  return true // Temporarily return true for debugging
-}
-
-// Constant-time string comparison to prevent timing attacks
-function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false
-  }
-  
-  let result = 0
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  }
-  
-  return result === 0
-}
-
-// Helper function to send instruction message after YES response
-async function sendInstructionMessage(conversationId: string) {
-  const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
-  const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
-
-  if (!surgeApiToken || !surgeAccountId || !conversationId) {
-    console.log('Missing Surge credentials or conversation ID for instruction message')
-    return
-  }
-
-  try {
-    const responsePayload = {
-      conversation: { id: conversationId },
-      body: 'Perfect! Your phone is now verified. To create a journal entry, simply send a message to this number. You can view all your entries on our website.'
-    }
-
-    const surgeUrl = `https://api.surge.sh/v1/accounts/${surgeAccountId}/messages`
-    
-    const surgeResponse = await fetch(surgeUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${surgeApiToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(responsePayload)
-    })
-
-    if (surgeResponse.ok) {
-      console.log('Instruction message sent successfully')
-    } else {
-      const errorText = await surgeResponse.text()
-      console.error('Failed to send instruction message:', surgeResponse.status, errorText)
-    }
-  } catch (error) {
-    console.error('Error sending instruction message:', error)
-  }
-}
-
-// Helper function to send confirmation message for journal entries
-async function sendConfirmationMessage(conversationId: string) {
-  const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
-  const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
-
-  if (!surgeApiToken || !surgeAccountId || !conversationId) {
-    console.log('Missing Surge credentials or conversation ID for confirmation message')
-    return
-  }
-
-  try {
-    const responsePayload = {
-      conversation: { id: conversationId },
-      body: '✅ Your journal entry has been saved!'
-    }
-
-    const surgeUrl = `https://api.surge.sh/v1/accounts/${surgeAccountId}/messages`
-    
-    const surgeResponse = await fetch(surgeUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${surgeApiToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(responsePayload)
-    })
-
-    if (surgeResponse.ok) {
-      console.log('Confirmation message sent successfully')
-    } else {
-      const errorText = await surgeResponse.text()
-      console.error('Failed to send confirmation message:', surgeResponse.status, errorText)
-    }
-  } catch (error) {
-    console.error('Error sending confirmation message:', error)
-  }
-}
