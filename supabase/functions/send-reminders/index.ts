@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
@@ -21,13 +22,9 @@ serve(async (req) => {
 
     // Get current UTC time
     const now = new Date()
-    const currentHour = now.getUTCHours()
-    const currentMinute = now.getUTCMinutes()
-    
-    console.log(`Current UTC time: ${currentHour}:${currentMinute.toString().padStart(2, '0')}`)
+    console.log(`Current UTC time: ${now.toISOString()}`)
 
     // Find users who should receive reminders at this time
-    // We'll check for times within a 15-minute window to account for cron timing
     const { data: profiles, error: profileError } = await supabaseClient
       .from('profiles')
       .select('id, phone_number, reminder_enabled, reminder_time, reminder_timezone')
@@ -55,25 +52,36 @@ serve(async (req) => {
 
     for (const profile of profiles) {
       try {
-        // Convert user's local time to UTC to see if it matches current time
-        const userTime = new Date().toLocaleString("en-US", {
-          timeZone: profile.reminder_timezone || 'America/New_York'
-        })
-        const userDate = new Date(userTime)
-        const userHour = userDate.getHours()
-        const userMinute = userDate.getMinutes()
-
-        // Parse the user's reminder time (stored as HH:MM format)
-        const [reminderHour, reminderMinute] = profile.reminder_time.split(':').map(Number)
-
-        // Check if current local time matches reminder time (within 15-minute window)
-        const timeDiff = Math.abs((userHour * 60 + userMinute) - (reminderHour * 60 + reminderMinute))
+        const userTimezone = profile.reminder_timezone || 'America/New_York'
+        const reminderTime = profile.reminder_time || '20:00'
         
+        // Parse the reminder time (stored as HH:MM format)
+        const [reminderHour, reminderMinute] = reminderTime.split(':').map(Number)
+        
+        // Get current time in user's timezone
+        const userCurrentTime = new Intl.DateTimeFormat('en-US', {
+          timeZone: userTimezone,
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit'
+        }).format(now)
+        
+        const [currentHour, currentMinute] = userCurrentTime.split(':').map(Number)
+        
+        console.log(`User ${profile.id}: Current time in ${userTimezone}: ${userCurrentTime}, Reminder time: ${reminderTime}`)
+
+        // Check if current time matches reminder time (within 15-minute window)
+        const currentMinutes = currentHour * 60 + currentMinute
+        const reminderMinutes = reminderHour * 60 + reminderMinute
+        const timeDiff = Math.abs(currentMinutes - reminderMinutes)
+        
+        // Allow for 15-minute window to account for cron timing
         if (timeDiff > 15) {
-          continue // Skip this user, not their reminder time
+          console.log(`User ${profile.id}: Not time for reminder (diff: ${timeDiff} minutes)`)
+          continue
         }
 
-        console.log(`Checking reminder for user ${profile.id} at ${userHour}:${userMinute.toString().padStart(2, '0')} (target: ${reminderHour}:${reminderMinute.toString().padStart(2, '0')})`)
+        console.log(`User ${profile.id}: Time matches, checking if already journaled...`)
 
         // Check if user has journaled in the last 23 hours
         const twentyThreeHoursAgo = new Date(Date.now() - (23 * 60 * 60 * 1000))
@@ -139,7 +147,10 @@ serve(async (req) => {
           userId: profile.id,
           phone: profile.phone_number,
           prompt: prompt.prompt_text,
-          category: prompt.category
+          category: prompt.category,
+          userTimezone: userTimezone,
+          userCurrentTime: userCurrentTime,
+          reminderTime: reminderTime
         })
 
         console.log(`Reminder sent successfully to user ${profile.id}`)
@@ -154,7 +165,8 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       message: `Sent ${remindersSent.length} reminders`,
-      remindersSent 
+      remindersSent,
+      currentUTC: now.toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
