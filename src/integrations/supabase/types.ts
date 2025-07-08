@@ -310,6 +310,10 @@ export type Database = {
           category: string
         }[]
       }
+      test_reminder_system: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       validate_password_strength: {
         Args: { password: string }
         Returns: boolean
