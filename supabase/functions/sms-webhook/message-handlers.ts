@@ -17,7 +17,7 @@ export async function sendInstructionMessage(conversationId: string) {
       body: 'Perfect! Your phone is now verified. To create a journal entry, simply send a message to this number. You can view all your entries on our website.'
     }
 
-    const surgeUrl = `https://api.surge.sh/v1/accounts/${surgeAccountId}/messages`
+    const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
     const surgeResponse = await fetch(surgeUrl, {
       method: 'POST',
@@ -54,7 +54,7 @@ export async function sendConfirmationMessage(conversationId: string) {
       body: '✅ Your journal entry has been saved!'
     }
 
-    const surgeUrl = `https://api.surge.sh/v1/accounts/${surgeAccountId}/messages`
+    const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
     const surgeResponse = await fetch(surgeUrl, {
       method: 'POST',

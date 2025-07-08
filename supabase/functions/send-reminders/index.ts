@@ -192,7 +192,7 @@ async function sendReminderSMS(phoneNumber: string, prompt: string) {
   const message = `📝 Time for your daily journal entry! Here's a prompt to get you started:\n\n${prompt}\n\nSimply reply to this message to create your journal entry.`
 
   try {
-    const response = await fetch(`https://api.surge.sh/v1/accounts/${surgeAccountId}/messages`, {
+    const response = await fetch(`https://api.surge.app/accounts/${surgeAccountId}/messages`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${surgeApiToken}`,
