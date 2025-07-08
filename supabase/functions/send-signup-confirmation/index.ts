@@ -62,7 +62,7 @@ serve(async (req) => {
     }
 
     // Updated API endpoint to match Surge documentation
-    const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
+    const surgeUrl = `https://api.surge.sh/v1/accounts/${surgeAccountId}/messages`
     
     // Updated payload structure based on cURL example
     const payload = {
