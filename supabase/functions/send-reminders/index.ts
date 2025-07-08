@@ -55,8 +55,12 @@ serve(async (req) => {
         const userTimezone = profile.reminder_timezone || 'America/New_York'
         const reminderTime = profile.reminder_time || '20:00'
         
-        // Parse the reminder time (stored as HH:MM format)
-        const [reminderHour, reminderMinute] = reminderTime.split(':').map(Number)
+        // Parse the reminder time (stored as HH:MM:SS format, we only need HH:MM)
+        const timeParts = reminderTime.split(':')
+        const reminderHour = parseInt(timeParts[0])
+        const reminderMinute = parseInt(timeParts[1])
+        
+        console.log(`User ${profile.id}: Parsed reminder time - Hour: ${reminderHour}, Minute: ${reminderMinute} from ${reminderTime}`)
         
         // Get current time in user's timezone
         const userCurrentTime = new Intl.DateTimeFormat('en-US', {
