@@ -37,6 +37,18 @@ serve(async (req) => {
   console.log('Request method:', req.method)
   console.log('Request URL:', req.url)
   console.log('Timestamp:', new Date().toISOString())
+  
+  // Parse the request body to check for force_send
+  let requestBody = {}
+  try {
+    const bodyText = await req.text()
+    if (bodyText) {
+      requestBody = JSON.parse(bodyText)
+      console.log('Request body:', requestBody)
+    }
+  } catch (e) {
+    console.log('No valid JSON body, using empty object')
+  }
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -106,21 +118,28 @@ serve(async (req) => {
         
         console.log(`User ${profile.id}: Current time in ${userTimezone}: ${userCurrentTime}, Reminder time: ${reminderTime}`)
 
-        // Check if current time matches reminder time (within 15-minute window)
+        // Check if current time matches reminder time (within 15-minute window) OR if force_send is true
         const currentMinutes = currentHour * 60 + currentMinute
         const reminderMinutes = reminderHour * 60 + reminderMinute
         const timeDiff = Math.abs(currentMinutes - reminderMinutes)
         
         console.log(`User ${profile.id}: Time comparison - Current: ${currentMinutes} min, Reminder: ${reminderMinutes} min, Diff: ${timeDiff} min`)
         
-        // Allow for 15-minute window to account for cron timing
+        const forceSend = requestBody.force_send === true
+        console.log(`Force send mode: ${forceSend}`)
+        
+        // Allow for 15-minute window to account for cron timing OR force send
         // Since cron runs every 15 minutes (at :00, :15, :30, :45), we need to check if we're within the right window
-        if (timeDiff > 15) {
+        if (!forceSend && timeDiff > 15) {
           console.log(`User ${profile.id}: Not time for reminder (diff: ${timeDiff} minutes) - outside 15-minute window`)
           continue
         }
         
-        console.log(`User ${profile.id}: ✅ Time matches! Proceeding with reminder...`)
+        if (forceSend) {
+          console.log(`User ${profile.id}: 🚀 FORCE SEND MODE - bypassing time check!`)
+        } else {
+          console.log(`User ${profile.id}: ✅ Time matches! Proceeding with reminder...`)
+        }
 
         console.log(`User ${profile.id}: Time matches, checking if already journaled...`)
 
