@@ -7,6 +7,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Function to format phone number to international format
+function formatPhoneNumber(phoneNumber: string): string {
+  // Remove any non-digit characters
+  const digitsOnly = phoneNumber.replace(/\D/g, '');
+  
+  // If it's a 10-digit US number, add +1
+  if (digitsOnly.length === 10) {
+    return `+1${digitsOnly}`;
+  }
+  
+  // If it's 11 digits starting with 1, add +
+  if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
+    return `+${digitsOnly}`;
+  }
+  
+  // If it already starts with +, return as is
+  if (phoneNumber.startsWith('+')) {
+    return phoneNumber;
+  }
+  
+  // Default: assume US number and add +1
+  return `+1${digitsOnly}`;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -119,8 +143,13 @@ serve(async (req) => {
         const prompt = promptResult[0]
         console.log(`Selected prompt for user ${profile.id}: ${prompt.category} - ${prompt.prompt_text}`)
 
+        // Format phone number to international format
+        const formattedPhoneNumber = formatPhoneNumber(profile.phone_number);
+        console.log('Original phone number:', profile.phone_number);
+        console.log('Formatted phone number:', formattedPhoneNumber);
+
         // Send SMS reminder with prompt
-        await sendReminderSMS(profile.phone_number, prompt.prompt_text)
+        await sendReminderSMS(formattedPhoneNumber, prompt.prompt_text)
 
         // Record that we sent this prompt to the user
         const { error: historyError } = await supabaseClient
@@ -187,13 +216,25 @@ serve(async (req) => {
 async function sendReminderSMS(phoneNumber: string, prompt: string) {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
   const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
-  const surgePhoneNumber = Deno.env.get('SURGE_PHONE_NUMBER')
 
-  if (!surgeApiToken || !surgeAccountId || !surgePhoneNumber) {
-    throw new Error('Missing Surge API credentials')
+  if (!surgeApiToken || !surgeAccountId) {
+    throw new Error('Surge credentials not configured')
   }
 
   const message = `📝 Time for your daily journal entry! Here's a prompt to get you started:\n\n${prompt}\n\nSimply reply to this message to create your journal entry.`
+
+  // Updated payload structure to match working signup function
+  const payload = {
+    conversation: {
+      contact: {
+        phone_number: phoneNumber
+      }
+    },
+    body: message,
+    attachments: []
+  }
+
+  console.log('Sending to Surge API:', JSON.stringify(payload, null, 2));
 
   try {
     const response = await fetch(`https://api.surge.app/accounts/${surgeAccountId}/messages`, {
@@ -202,22 +243,20 @@ async function sendReminderSMS(phoneNumber: string, prompt: string) {
         'Authorization': `Bearer ${surgeApiToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        conversation: {
-          contact: {
-            phone_number: phoneNumber
-          }
-        },
-        body: message
-      })
+      body: JSON.stringify(payload)
     })
 
+    const responseText = await response.text();
+    console.log('Surge API response status:', response.status);
+    console.log('Surge API response body:', responseText);
+
     if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Surge API error: ${response.status} ${errorText}`)
+      console.error('Surge error:', responseText)
+      throw new Error(`Failed to send SMS: ${responseText}`)
     }
 
-    console.log(`SMS sent successfully to ${phoneNumber}`)
+    const result = JSON.parse(responseText);
+    console.log('SMS sent successfully via Surge:', result)
   } catch (error) {
     console.error(`Failed to send SMS to ${phoneNumber}:`, error)
     throw error
