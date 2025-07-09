@@ -32,17 +32,25 @@ function formatPhoneNumber(phoneNumber: string): string {
 }
 
 serve(async (req) => {
+  // Log every request to ensure function is being called
+  console.log('=== SEND REMINDERS FUNCTION CALLED ===')
+  console.log('Request method:', req.method)
+  console.log('Request URL:', req.url)
+  console.log('Timestamp:', new Date().toISOString())
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    console.log('Creating Supabase client...')
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
     console.log('Starting reminder check process...')
+    console.log('Current UTC time:', new Date().toISOString())
 
     // Get current UTC time
     const now = new Date()
@@ -103,11 +111,16 @@ serve(async (req) => {
         const reminderMinutes = reminderHour * 60 + reminderMinute
         const timeDiff = Math.abs(currentMinutes - reminderMinutes)
         
+        console.log(`User ${profile.id}: Time comparison - Current: ${currentMinutes} min, Reminder: ${reminderMinutes} min, Diff: ${timeDiff} min`)
+        
         // Allow for 15-minute window to account for cron timing
+        // Since cron runs every 15 minutes (at :00, :15, :30, :45), we need to check if we're within the right window
         if (timeDiff > 15) {
-          console.log(`User ${profile.id}: Not time for reminder (diff: ${timeDiff} minutes)`)
+          console.log(`User ${profile.id}: Not time for reminder (diff: ${timeDiff} minutes) - outside 15-minute window`)
           continue
         }
+        
+        console.log(`User ${profile.id}: ✅ Time matches! Proceeding with reminder...`)
 
         console.log(`User ${profile.id}: Time matches, checking if already journaled...`)
 
