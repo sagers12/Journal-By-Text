@@ -310,6 +310,10 @@ export type Database = {
           category: string
         }[]
       }
+      test_edge_function_call: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       test_reminder_system: {
         Args: Record<PropertyKey, never>
         Returns: Json
