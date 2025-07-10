@@ -146,6 +146,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          last_reminder_sent: string | null
           phone_number: string | null
           phone_verified: boolean | null
           reminder_enabled: boolean | null
@@ -157,6 +158,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id: string
+          last_reminder_sent?: string | null
           phone_number?: string | null
           phone_verified?: boolean | null
           reminder_enabled?: boolean | null
@@ -168,6 +170,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          last_reminder_sent?: string | null
           phone_number?: string | null
           phone_verified?: boolean | null
           reminder_enabled?: boolean | null

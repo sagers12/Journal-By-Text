@@ -71,7 +71,7 @@ serve(async (req) => {
     // Find users who should receive reminders at this time
     const { data: profiles, error: profileError } = await supabaseClient
       .from('profiles')
-      .select('id, phone_number, reminder_enabled, reminder_time, reminder_timezone')
+      .select('id, phone_number, reminder_enabled, reminder_time, reminder_timezone, last_reminder_sent')
       .eq('reminder_enabled', true)
       .not('phone_number', 'is', null)
       .eq('phone_verified', true)
@@ -128,6 +128,18 @@ serve(async (req) => {
         const forceSend = requestBody.force_send === true
         console.log(`Force send mode: ${forceSend}`)
         
+        // Check if reminder was already sent today
+        const currentDate = new Intl.DateTimeFormat('en-CA', {
+          timeZone: userTimezone
+        }).format(now) // Format as YYYY-MM-DD in user's timezone
+        
+        console.log(`User ${profile.id}: Current date in ${userTimezone}: ${currentDate}, Last reminder sent: ${profile.last_reminder_sent}`)
+        
+        if (!forceSend && profile.last_reminder_sent === currentDate) {
+          console.log(`User ${profile.id}: Reminder already sent today (${currentDate}) - skipping`)
+          continue
+        }
+        
         // Allow for 15-minute window to account for cron timing OR force send
         // Since cron runs every 15 minutes (at :00, :15, :30, :45), we need to check if we're within the right window
         if (!forceSend && timeDiff > 15) {
@@ -138,10 +150,8 @@ serve(async (req) => {
         if (forceSend) {
           console.log(`User ${profile.id}: 🚀 FORCE SEND MODE - bypassing time check!`)
         } else {
-          console.log(`User ${profile.id}: ✅ Time matches! Proceeding with reminder...`)
+          console.log(`User ${profile.id}: ✅ Time matches and no reminder sent today! Proceeding with reminder...`)
         }
-
-        console.log(`User ${profile.id}: Time matches, proceeding with reminder...`)
 
         // Get a prompt for this user
         const { data: promptResult, error: promptError } = await supabaseClient
@@ -186,6 +196,16 @@ serve(async (req) => {
 
         if (categoryError) {
           console.error(`Error updating last category for user ${profile.id}:`, categoryError)
+        }
+
+        // Update last_reminder_sent date to prevent duplicate reminders today
+        const { error: updateError } = await supabaseClient
+          .from('profiles')
+          .update({ last_reminder_sent: currentDate })
+          .eq('id', profile.id)
+
+        if (updateError) {
+          console.error(`Error updating last reminder sent for user ${profile.id}:`, updateError)
         }
 
         remindersSent.push({
