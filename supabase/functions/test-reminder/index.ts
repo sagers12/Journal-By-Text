@@ -111,7 +111,7 @@ async function sendReminderSMS(phoneNumber: string, prompt: string) {
     throw new Error('Surge credentials not configured')
   }
 
-  const message = `📝 TEST: Time for your daily journal entry! Here's a prompt to get you started:\n\n${prompt}\n\nSimply reply to this message to create your journal entry.`
+  const message = `TEST: Here's a friendly reminder to journal today! Not sure what to write about? Here's a prompt: ${prompt}`
 
   // Updated payload structure to match working signup function
   const payload = {

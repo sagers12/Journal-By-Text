@@ -141,27 +141,7 @@ serve(async (req) => {
           console.log(`User ${profile.id}: ✅ Time matches! Proceeding with reminder...`)
         }
 
-        console.log(`User ${profile.id}: Time matches, checking if already journaled...`)
-
-        // Check if user has journaled in the last 23 hours
-        const twentyThreeHoursAgo = new Date(Date.now() - (23 * 60 * 60 * 1000))
-        
-        const { data: recentEntries, error: entriesError } = await supabaseClient
-          .from('journal_entries')
-          .select('id')
-          .eq('user_id', profile.id)
-          .gte('created_at', twentyThreeHoursAgo.toISOString())
-          .limit(1)
-
-        if (entriesError) {
-          console.error(`Error checking entries for user ${profile.id}:`, entriesError)
-          continue
-        }
-
-        if (recentEntries && recentEntries.length > 0) {
-          console.log(`User ${profile.id} has already journaled recently, skipping reminder`)
-          continue
-        }
+        console.log(`User ${profile.id}: Time matches, proceeding with reminder...`)
 
         // Get a prompt for this user
         const { data: promptResult, error: promptError } = await supabaseClient
@@ -253,7 +233,7 @@ async function sendReminderSMS(phoneNumber: string, prompt: string) {
     throw new Error('Surge credentials not configured')
   }
 
-  const message = `📝 Time for your daily journal entry! Here's a prompt to get you started:\n\n${prompt}\n\nSimply reply to this message to create your journal entry.`
+  const message = `Here's a friendly reminder to journal today! Not sure what to write about? Here's a prompt: ${prompt}`
 
   // Updated payload structure to match working signup function
   const payload = {
