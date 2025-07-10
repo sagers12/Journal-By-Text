@@ -71,7 +71,7 @@ serve(async (req) => {
           phone_number: formattedPhoneNumber
         }
       },
-      body: 'Thanks for signing up for Text2Journal! Please respond YES so we can message your prompts and reminders in the future.',
+      body: 'Thanks for signing up for Journal By Text! Please respond YES so we can message your prompts and reminders in the future.',
       attachments: []
     }
 

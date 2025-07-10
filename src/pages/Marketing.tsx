@@ -15,7 +15,7 @@ const Marketing = () => {
             <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
               <MessageSquare className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-slate-800">Text-2-Journal</span>
+            <span className="text-xl font-bold text-slate-800">Journal By Text</span>
           </div>
           <div className="flex items-center gap-4">
             <Link to="/sign-in">
@@ -296,7 +296,7 @@ const Marketing = () => {
         <div className="container mx-auto text-center max-w-3xl">
           <h2 className="text-4xl font-bold mb-4">Ready to Start Your Journey?</h2>
           <p className="text-xl mb-8 text-blue-100">
-            Join thousands of people who have transformed their journaling practice with SMS Journal. 
+            Join thousands of people who have transformed their journaling practice with Journal By Text. 
             Your future self will thank you.
           </p>
           <Link to="/sign-up">
@@ -314,7 +314,7 @@ const Marketing = () => {
             <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
               <MessageSquare className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg font-semibold">Text-2-Journal</span>
+            <span className="text-lg font-semibold">Journal By Text</span>
           </div>
           <p className="text-slate-400 mb-4">
             Your thoughts, one text away.
