@@ -19,7 +19,8 @@ export default function Settings() {
   const [reminderSettings, setReminderSettings] = useState({
     enabled: true,
     time: '20:00',
-    timezone: 'America/New_York'
+    timezone: 'America/New_York',
+    weeklyRecapEnabled: true
   });
 
   // Initialize form with profile data
@@ -28,7 +29,8 @@ export default function Settings() {
       setReminderSettings({
         enabled: profile.reminder_enabled ?? true,
         time: profile.reminder_time ?? '20:00',
-        timezone: profile.reminder_timezone ?? 'America/New_York'
+        timezone: profile.reminder_timezone ?? 'America/New_York',
+        weeklyRecapEnabled: profile.weekly_recap_enabled ?? true
       });
     }
   }, [profile]);
@@ -39,7 +41,8 @@ export default function Settings() {
       const hasChanges = 
         reminderSettings.enabled !== (profile.reminder_enabled ?? true) ||
         reminderSettings.time !== (profile.reminder_time ?? '20:00') ||
-        reminderSettings.timezone !== (profile.reminder_timezone ?? 'America/New_York');
+        reminderSettings.timezone !== (profile.reminder_timezone ?? 'America/New_York') ||
+        reminderSettings.weeklyRecapEnabled !== (profile.weekly_recap_enabled ?? true);
       
       setHasUnsavedChanges(hasChanges);
     }
@@ -51,7 +54,8 @@ export default function Settings() {
     await updateProfile({
       reminder_enabled: reminderSettings.enabled,
       reminder_time: reminderSettings.time,
-      reminder_timezone: reminderSettings.timezone
+      reminder_timezone: reminderSettings.timezone,
+      weekly_recap_enabled: reminderSettings.weeklyRecapEnabled
     });
     
     setHasUnsavedChanges(false);
@@ -111,12 +115,12 @@ export default function Settings() {
 
         {/* Settings Content */}
         <div className="space-y-6">
-          {/* Reminders Section */}
+          {/* Automated Messages Section */}
           <Card>
             <CardHeader>
-              <CardTitle>Reminders</CardTitle>
+              <CardTitle>Automated Messages</CardTitle>
               <CardDescription>
-                Configure daily journal reminders to help maintain your journaling habit
+                Configure automated text messages to help maintain your journaling habit
               </CardDescription>
             </CardHeader>
             <CardContent>

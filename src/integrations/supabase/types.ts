@@ -154,6 +154,7 @@ export type Database = {
           reminder_timezone: string | null
           timezone: string | null
           updated_at: string | null
+          weekly_recap_enabled: boolean | null
         }
         Insert: {
           created_at?: string | null
@@ -166,6 +167,7 @@ export type Database = {
           reminder_timezone?: string | null
           timezone?: string | null
           updated_at?: string | null
+          weekly_recap_enabled?: boolean | null
         }
         Update: {
           created_at?: string | null
@@ -178,6 +180,7 @@ export type Database = {
           reminder_timezone?: string | null
           timezone?: string | null
           updated_at?: string | null
+          weekly_recap_enabled?: boolean | null
         }
         Relationships: []
       }

@@ -19,6 +19,7 @@ export interface Profile {
   reminder_enabled?: boolean;
   reminder_time?: string;
   reminder_timezone?: string;
+  weekly_recap_enabled?: boolean;
   created_at: string;
   updated_at: string;
 }

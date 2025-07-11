@@ -7,8 +7,14 @@ interface ReminderSettingsProps {
     enabled: boolean;
     time: string;
     timezone: string;
+    weeklyRecapEnabled: boolean;
   };
-  onChange: (settings: { enabled: boolean; time: string; timezone: string }) => void;
+  onChange: (settings: { 
+    enabled: boolean; 
+    time: string; 
+    timezone: string; 
+    weeklyRecapEnabled: boolean;
+  }) => void;
 }
 
 const US_TIMEZONES = [
@@ -53,7 +59,7 @@ export function ReminderSettings({ settings, onChange }: ReminderSettingsProps) 
 
   return (
     <div className="space-y-6">
-      {/* Enable/Disable Toggle */}
+      {/* Daily Reminders Toggle */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <Label htmlFor="reminder-enabled" className="text-sm font-medium">
@@ -67,6 +73,23 @@ export function ReminderSettings({ settings, onChange }: ReminderSettingsProps) 
           id="reminder-enabled"
           checked={settings.enabled}
           onCheckedChange={(enabled) => onChange({ ...settings, enabled })}
+        />
+      </div>
+
+      {/* Weekly Recap Toggle */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <Label htmlFor="weekly-recap-enabled" className="text-sm font-medium">
+            Weekly Recap
+          </Label>
+          <p className="text-sm text-muted-foreground">
+            Receive a weekly text message on Sundays at 6pm with your journaling activity
+          </p>
+        </div>
+        <Switch
+          id="weekly-recap-enabled"
+          checked={settings.weeklyRecapEnabled}
+          onCheckedChange={(weeklyRecapEnabled) => onChange({ ...settings, weeklyRecapEnabled })}
         />
       </div>
 
