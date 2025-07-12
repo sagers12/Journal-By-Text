@@ -121,7 +121,7 @@ serve(async (req) => {
         // Check if current time matches reminder time (within 15-minute window) OR if force_send is true
         const currentMinutes = currentHour * 60 + currentMinute
         const reminderMinutes = reminderHour * 60 + reminderMinute
-        const timeDiff = Math.abs(currentMinutes - reminderMinutes)
+        const timeDiff = currentMinutes - reminderMinutes // Positive means current time is after reminder time
         
         console.log(`User ${profile.id}: Time comparison - Current: ${currentMinutes} min, Reminder: ${reminderMinutes} min, Diff: ${timeDiff} min`)
         
@@ -140,10 +140,16 @@ serve(async (req) => {
           continue
         }
         
-        // Allow for 15-minute window to account for cron timing OR force send
-        // Since cron runs every 15 minutes (at :00, :15, :30, :45), we need to check if we're within the right window
-        if (!forceSend && timeDiff > 15) {
-          console.log(`User ${profile.id}: Not time for reminder (diff: ${timeDiff} minutes) - outside 15-minute window`)
+        // Only send if:
+        // 1. It's the exact time or after the reminder time, AND
+        // 2. We're within 15 minutes of the reminder time (to account for cron intervals)
+        // Since cron runs every 15 minutes (at :00, :15, :30, :45), we check if current time is at or after reminder time but within 15 minutes
+        if (!forceSend && (timeDiff < 0 || timeDiff > 15)) {
+          if (timeDiff < 0) {
+            console.log(`User ${profile.id}: Not time for reminder yet (${Math.abs(timeDiff)} minutes early) - waiting until ${reminderTime}`)
+          } else {
+            console.log(`User ${profile.id}: Reminder window missed (${timeDiff} minutes late) - will try again tomorrow`)
+          }
           continue
         }
         
