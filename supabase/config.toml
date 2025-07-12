@@ -2,3 +2,9 @@ project_id = "zfxdjbpjxpgreymebpsr"
 
 [functions.sms-webhook]
 verify_jwt = false
+
+[functions.send-reminders]
+verify_jwt = false
+
+[functions.send-weekly-recap]
+verify_jwt = false
