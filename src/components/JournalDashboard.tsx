@@ -3,6 +3,7 @@ import { JournalHeader } from "@/components/JournalHeader";
 import { JournalControls } from "@/components/JournalControls";
 import { JournalContent } from "@/components/JournalContent";
 import { JournalModals } from "@/components/JournalModals";
+import { JournalStats } from "@/components/JournalStats";
 import { Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useJournalEntries } from "@/hooks/useJournalEntries";
@@ -131,6 +132,9 @@ export const JournalDashboard = () => {
     <div className="min-h-screen">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <JournalHeader />
+        
+        {/* Show stats if there are entries */}
+        {entries.length > 0 && <JournalStats entries={entries} />}
         
         {/* Only show search bar and export button if there are entries */}
         {entries.length > 0 && (

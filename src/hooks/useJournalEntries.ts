@@ -7,10 +7,15 @@ import {
   updateJournalEntry, 
   deleteJournalEntry 
 } from '@/services/journalService';
+import { calculateCurrentStreak, checkForMilestone, sendMilestoneMessage } from '@/services/milestoneService';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 
 export const useJournalEntries = (userId?: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { profile } = useProfile();
 
   // Fetch entries
   const { data: entries = [], isLoading, error } = useQuery({
@@ -45,8 +50,27 @@ export const useJournalEntries = (userId?: string) => {
     }) => {
       return createJournalEntry({ content, title, tags, photos, userId: userId! });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['journal-entries', userId] });
+      
+      // Check for milestone after creating entry
+      if (user && profile?.phone_verified && profile?.phone_number) {
+        try {
+          // Fetch updated entries to calculate new streak
+          const updatedEntries = await fetchJournalEntries(userId!);
+          const newStreak = calculateCurrentStreak(updatedEntries);
+          
+          // Check if this is a milestone
+          const isMilestone = await checkForMilestone(userId!, newStreak);
+          if (isMilestone) {
+            await sendMilestoneMessage(userId!, newStreak, profile.phone_number);
+          }
+        } catch (error) {
+          console.error('Error checking/sending milestone message:', error);
+          // Don't show error to user for milestone messaging failure
+        }
+      }
+      
       toast({
         title: "Entry created",
         description: "Your journal entry has been saved successfully.",

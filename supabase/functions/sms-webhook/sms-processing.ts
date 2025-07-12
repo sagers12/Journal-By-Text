@@ -4,6 +4,140 @@
 
 import { encrypt, decrypt } from './encryption.ts'
 
+// Constants for milestone functionality
+const MILESTONE_DAYS = [2, 5, 10, 15, 20, 25, 40, 50, 75, 100];
+const CELEBRATION_OPENERS = [
+  "You're doing great!",
+  "Nice work!",
+  "Keep it up!",
+  "You're on a hot streak!",
+  "Journaling is becoming second nature!",
+  "You were made to keep a journal.",
+  "Way to go!",
+  "This is awesome!",
+  "Keep the journal entries coming!",
+  "You're on a roll!"
+];
+
+const calculateCurrentStreak = async (supabase: any, userId: string): Promise<number> => {
+  try {
+    const { data: entries, error } = await supabase
+      .from('journal_entries')
+      .select('entry_date')
+      .eq('user_id', userId)
+      .order('entry_date', { ascending: false });
+
+    if (error || !entries || entries.length === 0) return 0;
+
+    // Get unique entry dates
+    const uniqueDates = [...new Set(entries.map((entry: any) => entry.entry_date))].sort((a, b) => 
+      new Date(b).getTime() - new Date(a).getTime()
+    );
+
+    if (uniqueDates.length === 0) return 0;
+
+    const today = new Date();
+    const latestEntryDate = new Date(uniqueDates[0]);
+    const daysDifference = Math.floor((today.getTime() - latestEntryDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // If the latest entry is more than 1 day old, streak is broken
+    if (daysDifference > 1) return 0;
+
+    // Calculate streak
+    let currentStreak = 1;
+    let streakDate = new Date(uniqueDates[0]);
+
+    for (let i = 1; i < uniqueDates.length; i++) {
+      const prevDate = new Date(uniqueDates[i]);
+      const expectedDate = new Date(streakDate);
+      expectedDate.setDate(expectedDate.getDate() - 1);
+
+      if (prevDate.toISOString().split('T')[0] === expectedDate.toISOString().split('T')[0]) {
+        currentStreak++;
+        streakDate = prevDate;
+      } else {
+        break;
+      }
+    }
+
+    return currentStreak;
+  } catch (error) {
+    console.error('Error calculating streak:', error);
+    return 0;
+  }
+};
+
+const checkAndSendMilestone = async (supabase: any, userId: string, streak: number, phoneNumber: string): Promise<void> => {
+  try {
+    // Check if this streak number is a milestone
+    if (!MILESTONE_DAYS.includes(streak)) return;
+
+    // Check if we've already sent a congratulatory message for this milestone
+    const { data: existingMessages } = await supabase
+      .from('sms_messages')
+      .select('id')
+      .eq('user_id', userId)
+      .ilike('message_content', `%${streak} days in a row%`)
+      .limit(1);
+
+    // If we've already sent a message for this milestone, don't send another
+    if (existingMessages && existingMessages.length > 0) return;
+
+    // Get Surge credentials
+    const surgeApiToken = Deno.env.get('SURGE_API_TOKEN');
+    const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID');
+    const surgePhoneNumber = Deno.env.get('SURGE_PHONE_NUMBER');
+
+    if (!surgeApiToken || !surgeAccountId || !surgePhoneNumber) {
+      console.error('Surge credentials not configured for milestone messaging');
+      return;
+    }
+
+    // Get a random celebration opener
+    const randomOpener = CELEBRATION_OPENERS[Math.floor(Math.random() * CELEBRATION_OPENERS.length)];
+    const message = `${randomOpener} That's ${streak} days in a row you've submitted a journal entry. Keep up the good work! Your future self will thank you.`;
+
+    console.log(`Sending milestone message for ${streak} day streak to ${phoneNumber}`);
+
+    // Send SMS via Surge API
+    const surgeResponse = await fetch('https://api.surgehq.ai/v1/message', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${surgeApiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        account_id: surgeAccountId,
+        recipient: phoneNumber,
+        message: message,
+        from: surgePhoneNumber
+      }),
+    });
+
+    if (surgeResponse.ok) {
+      const surgeResult = await surgeResponse.json();
+      console.log('Milestone message sent successfully:', surgeResult);
+
+      // Store the milestone message in our database for tracking
+      const entryDate = new Date().toISOString().split('T')[0];
+      await supabase
+        .from('sms_messages')
+        .insert({
+          user_id: userId,
+          phone_number: phoneNumber,
+          message_content: message,
+          entry_date: entryDate,
+          processed: true,
+          surge_message_id: surgeResult.id || null
+        });
+    } else {
+      console.error('Failed to send milestone message:', await surgeResponse.text());
+    }
+  } catch (error) {
+    console.error('Error in milestone messaging:', error);
+  }
+};
+
 export async function processPhoneVerification(
   supabaseClient: any,
   messageBody: string,
@@ -203,6 +337,17 @@ export async function processJournalEntry(
     .from('sms_messages')
     .update({ processed: true, entry_id: entryId })
     .eq('id', smsMessage.id)
+
+  // Check for milestone streak and send congratulatory message if needed
+  try {
+    const currentStreak = await calculateCurrentStreak(supabaseClient, userId);
+    if (currentStreak > 1) { // Only check milestones for streaks > 1
+      await checkAndSendMilestone(supabaseClient, userId, currentStreak, fromPhone);
+    }
+  } catch (error) {
+    console.error('Error checking milestone:', error);
+    // Don't fail the entry creation if milestone check fails
+  }
 
   console.log('SMS processing complete')
 
