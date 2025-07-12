@@ -320,7 +320,7 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
           className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
           onClick={() => setSelectedPhoto(null)}
         >
-          <div className="relative max-w-4xl max-h-full">
+          <div className="relative w-full h-full flex items-center justify-center">
             <img
               src={selectedPhoto}
               alt="Full size"
