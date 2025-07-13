@@ -96,8 +96,19 @@ export const createJournalEntry = async ({
   const encryptedContent = await encrypt(content.trim(), userId);
   const encryptedTitle = await encrypt(title.trim(), userId);
 
-  // Create the entry
-  const entryDate = new Date().toISOString().split('T')[0];
+  // Get user's timezone to determine the correct entry date
+  const { data: userProfile } = await supabase
+    .from('profiles')
+    .select('timezone')
+    .eq('id', userId)
+    .single();
+  
+  const userTimezone = userProfile?.timezone || 'UTC';
+  
+  // Convert current time to user's timezone to get the correct entry date
+  const now = new Date();
+  const userDate = new Date(now.toLocaleString("en-US", { timeZone: userTimezone }));
+  const entryDate = userDate.toISOString().split('T')[0];
   const { data: entry, error } = await supabase
     .from('journal_entries')
     .insert({

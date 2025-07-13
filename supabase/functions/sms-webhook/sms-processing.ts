@@ -184,6 +184,19 @@ export async function processJournalEntry(
   entryDate: string,
   attachments: any[]
 ) {
+  // Get user's timezone to determine the correct entry date
+  const { data: userProfile } = await supabaseClient
+    .from('profiles')
+    .select('timezone')
+    .eq('id', userId)
+    .single();
+  
+  const userTimezone = userProfile?.timezone || 'UTC';
+  
+  // Convert current time to user's timezone to get the correct entry date
+  const now = new Date();
+  const userDate = new Date(now.toLocaleString("en-US", { timeZone: userTimezone }));
+  const correctedEntryDate = userDate.toISOString().split('T')[0];
 
   // Encrypt message content before storing
   const encryptedMessageContent = await encrypt(messageBody, userId)
@@ -196,7 +209,7 @@ export async function processJournalEntry(
       surge_message_id: messageId,
       phone_number: fromPhone,
       message_content: encryptedMessageContent,
-      entry_date: entryDate,
+      entry_date: correctedEntryDate,
       processed: false
     })
     .select()
@@ -209,12 +222,12 @@ export async function processJournalEntry(
 
   console.log('SMS message stored:', smsMessage.id)
 
-  // Check for existing journal entry for today
+  // Check for existing journal entry for today (using corrected entry date)
   const { data: existingEntry, error: existingError } = await supabaseClient
     .from('journal_entries')
     .select('id, content')
     .eq('user_id', userId)
-    .eq('entry_date', entryDate)
+    .eq('entry_date', correctedEntryDate)
     .eq('source', 'sms')
     .single()
 
@@ -253,7 +266,7 @@ export async function processJournalEntry(
     entryId = existingEntry.id
   } else {
     // Create new journal entry
-    const title = `Journal Entry - ${new Date(entryDate).toLocaleDateString('en-US', { 
+    const title = `Journal Entry - ${new Date(correctedEntryDate).toLocaleDateString('en-US', { 
       month: 'long', 
       day: 'numeric', 
       year: 'numeric' 
@@ -272,7 +285,7 @@ export async function processJournalEntry(
         content: encryptedContent,
         title: encryptedTitle,
         source: 'sms',
-        entry_date: entryDate,
+        entry_date: correctedEntryDate,
         tags: []
       })
       .select()
