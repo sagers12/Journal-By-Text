@@ -1,11 +1,12 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Edit3, Trash2, Calendar, Smartphone, Monitor, Check, X, Tag, Image, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useTimezone } from "@/hooks/useTimezone";
+import { supabase } from "@/integrations/supabase/client";
 import type { Entry } from "@/types/entry";
 
 interface JournalEntryProps {
@@ -20,18 +21,55 @@ interface PhotoFile {
 }
 
 export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => {
-  const { formatTimeInUserTimezone } = useTimezone();
+  const { formatTimeInUserTimezone, formatDateInUserTimezone } = useTimezone();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(entry.content);
   const [editPhotos, setEditPhotos] = useState<PhotoFile[]>([]);
   const [showActions, setShowActions] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [smsMessageCount, setSmsMessageCount] = useState<number>(0);
 
   // Photo validation constants
   const MAX_PHOTOS = 10;
   const MAX_PHOTO_SIZE = 10 * 1024 * 1024; // 10MB
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+
+  // Fetch SMS message count for this entry if it's from SMS source
+  useEffect(() => {
+    const fetchSMSMessageCount = async () => {
+      if (entry.source === 'sms') {
+        try {
+          const { count } = await supabase
+            .from('sms_messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', entry.user_id)
+            .eq('entry_date', entry.entry_date);
+          
+          setSmsMessageCount(count || 0);
+        } catch (error) {
+          console.error('Error fetching SMS message count:', error);
+          setSmsMessageCount(0);
+        }
+      } else {
+        setSmsMessageCount(0);
+      }
+    };
+
+    fetchSMSMessageCount();
+  }, [entry.source, entry.user_id, entry.entry_date]);
+
+  // Format the entry title
+  const getFormattedTitle = () => {
+    const date = formatDateInUserTimezone(new Date(entry.entry_date));
+    
+    // Show count only for SMS entries with multiple messages
+    if (entry.source === 'sms' && smsMessageCount > 1) {
+      return `${date} (${smsMessageCount})`;
+    }
+    
+    return date;
+  };
 
 
   const validatePhotoFile = (file: File): string | null => {
@@ -118,12 +156,12 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
       >
-        {/* Header with title and actions */}
+         {/* Header with title and actions */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-slate-600">
+            <div className="flex items-center gap-2 text-slate-700">
               <Calendar className="w-4 h-4" />
-              <span className="font-medium text-sm">{entry.title}</span>
+              <span className="font-medium text-lg">{getFormattedTitle()}</span>
             </div>
             <div className="flex items-center gap-1 text-slate-500">
               {entry.source === 'sms' ? (
