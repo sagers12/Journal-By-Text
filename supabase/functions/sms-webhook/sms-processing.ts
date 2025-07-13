@@ -354,7 +354,7 @@ export async function processJournalEntry(
   // Check for milestone streak and send congratulatory message if needed
   try {
     const currentStreak = await calculateCurrentStreak(supabaseClient, userId);
-    if (currentStreak > 1) { // Only check milestones for streaks > 1
+    if (currentStreak >= 2) { // Check milestones for streaks of 2 or higher
       await checkAndSendMilestone(supabaseClient, userId, currentStreak, fromPhone);
     }
   } catch (error) {
