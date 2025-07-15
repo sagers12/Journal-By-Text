@@ -4,6 +4,74 @@
 
 import { encrypt, decrypt } from './encryption.ts'
 
+// Function to format phone number to international format (same as working reminders)
+function formatPhoneNumber(phoneNumber: string): string {
+  // Remove any non-digit characters
+  const digitsOnly = phoneNumber.replace(/\D/g, '');
+  
+  // If it's a 10-digit US number, add +1
+  if (digitsOnly.length === 10) {
+    return `+1${digitsOnly}`;
+  }
+  
+  // If it's 11 digits starting with 1, add +
+  if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
+    return `+${digitsOnly}`;
+  }
+  
+  // If it already starts with +, return as is
+  if (phoneNumber.startsWith('+')) {
+    return phoneNumber;
+  }
+  
+  // Default: assume US number and add +1
+  return `+1${digitsOnly}`;
+}
+
+// Function to send milestone SMS using the correct API
+async function sendMilestoneSMS(phoneNumber: string, message: string, surgeApiToken: string, surgeAccountId: string) {
+  // Use the EXACT SAME payload structure as working reminders
+  const payload = {
+    conversation: {
+      contact: {
+        phone_number: phoneNumber
+      }
+    },
+    body: message,
+    attachments: []
+  }
+
+  console.log('Sending milestone to Surge API:', JSON.stringify(payload, null, 2));
+
+  try {
+    // Use the EXACT SAME API endpoint as working reminders
+    const response = await fetch(`https://api.surge.app/accounts/${surgeAccountId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${surgeApiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    })
+
+    const responseText = await response.text();
+    console.log('Milestone Surge API response status:', response.status);
+    console.log('Milestone Surge API response body:', responseText);
+
+    if (!response.ok) {
+      console.error('Milestone Surge error:', responseText)
+      throw new Error(`Failed to send milestone SMS: ${responseText}`)
+    }
+
+    const result = JSON.parse(responseText);
+    console.log('Milestone SMS sent successfully via Surge:', result)
+    return result;
+  } catch (error) {
+    console.error(`Failed to send milestone SMS to ${phoneNumber}:`, error)
+    throw error
+  }
+}
+
 // Constants for milestone functionality
 const MILESTONE_DAYS = [2, 5, 10, 15, 20, 25, 40, 50, 75, 100];
 const CELEBRATION_OPENERS = [
@@ -69,8 +137,16 @@ const calculateCurrentStreak = async (supabase: any, userId: string): Promise<nu
 
 const checkAndSendMilestone = async (supabase: any, userId: string, streak: number, phoneNumber: string): Promise<void> => {
   try {
+    console.log(`=== MILESTONE CHECK START ===`);
+    console.log(`User ${userId}: Checking milestone for ${streak} day streak`);
+    
     // Check if this streak number is a milestone
-    if (!MILESTONE_DAYS.includes(streak)) return;
+    if (!MILESTONE_DAYS.includes(streak)) {
+      console.log(`User ${userId}: ${streak} days is not a milestone (valid: ${MILESTONE_DAYS.join(', ')})`);
+      return;
+    }
+
+    console.log(`User ${userId}: ✅ ${streak} days IS a milestone!`);
 
     // Check if we've already sent a congratulatory message for this milestone
     const { data: existingMessages } = await supabase
@@ -81,60 +157,66 @@ const checkAndSendMilestone = async (supabase: any, userId: string, streak: numb
       .limit(1);
 
     // If we've already sent a message for this milestone, don't send another
-    if (existingMessages && existingMessages.length > 0) return;
-
-    // Get Surge credentials
-    const surgeApiToken = Deno.env.get('SURGE_API_TOKEN');
-    const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID');
-    const surgePhoneNumber = Deno.env.get('SURGE_PHONE_NUMBER');
-
-    if (!surgeApiToken || !surgeAccountId || !surgePhoneNumber) {
-      console.error('Surge credentials not configured for milestone messaging');
+    if (existingMessages && existingMessages.length > 0) {
+      console.log(`User ${userId}: Already sent milestone message for ${streak} days - skipping`);
       return;
     }
 
-    // Get a random celebration opener
+    console.log(`User ${userId}: No existing milestone message found for ${streak} days - proceeding`);
+
+    // Get Surge credentials (no longer need surgePhoneNumber)
+    const surgeApiToken = Deno.env.get('SURGE_API_TOKEN');
+    const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID');
+
+    if (!surgeApiToken || !surgeAccountId) {
+      console.error('Surge credentials not configured for milestone messaging:', {
+        hasToken: !!surgeApiToken,
+        hasAccountId: !!surgeAccountId
+      });
+      return;
+    }
+
+    console.log(`User ${userId}: Surge credentials verified`);
+
+    // Create milestone message
     const randomOpener = CELEBRATION_OPENERS[Math.floor(Math.random() * CELEBRATION_OPENERS.length)];
     const message = `${randomOpener} That's ${streak} days in a row you've submitted a journal entry. Keep up the good work! Your future self will thank you.`;
 
-    console.log(`Sending milestone message for ${streak} day streak to ${phoneNumber}`);
+    console.log(`User ${userId}: Generated milestone message: "${message}"`);
+    
+    // Format phone number using the same approach as working reminders
+    const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
+    console.log(`User ${userId}: Original phone: ${phoneNumber}, Formatted: ${formattedPhoneNumber}`);
 
-    // Send SMS via Surge API
-    const surgeResponse = await fetch('https://api.surgehq.ai/v1/message', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${surgeApiToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        account_id: surgeAccountId,
-        recipient: phoneNumber,
-        message: message,
-        from: surgePhoneNumber
-      }),
-    });
+    console.log(`User ${userId}: Sending milestone message for ${streak} day streak to ${formattedPhoneNumber}`);
 
-    if (surgeResponse.ok) {
-      const surgeResult = await surgeResponse.json();
-      console.log('Milestone message sent successfully:', surgeResult);
+    // Use the EXACT SAME API approach as working reminders
+    await sendMilestoneSMS(formattedPhoneNumber, message, surgeApiToken, surgeAccountId);
 
-      // Store the milestone message in our database for tracking
-      const entryDate = new Date().toISOString().split('T')[0];
-      await supabase
-        .from('sms_messages')
-        .insert({
-          user_id: userId,
-          phone_number: phoneNumber,
-          message_content: message,
-          entry_date: entryDate,
-          processed: true,
-          surge_message_id: surgeResult.id || null
-        });
+    console.log(`User ${userId}: Milestone message sent successfully via Surge API`);
+
+    // Store the milestone message in our database for tracking
+    const entryDate = new Date().toISOString().split('T')[0];
+    const { error: dbError } = await supabase
+      .from('sms_messages')
+      .insert({
+        user_id: userId,
+        phone_number: formattedPhoneNumber,
+        message_content: message,
+        entry_date: entryDate,
+        processed: true,
+        surge_message_id: null
+      });
+
+    if (dbError) {
+      console.error(`User ${userId}: Error storing milestone message in database:`, dbError);
     } else {
-      console.error('Failed to send milestone message:', await surgeResponse.text());
+      console.log(`User ${userId}: Milestone message stored in database successfully`);
     }
+
+    console.log(`=== MILESTONE CHECK COMPLETE ===`);
   } catch (error) {
-    console.error('Error in milestone messaging:', error);
+    console.error(`User ${userId}: Error in milestone messaging:`, error);
   }
 };
 
