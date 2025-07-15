@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,19 +12,48 @@ interface Profile {
   weekly_recap_enabled: boolean;
 }
 
+// Function to format phone number to international format (same as reminders)
+function formatPhoneNumber(phoneNumber: string): string {
+  // Remove any non-digit characters
+  const digitsOnly = phoneNumber.replace(/\D/g, '');
+  
+  // If it's a 10-digit US number, add +1
+  if (digitsOnly.length === 10) {
+    return `+1${digitsOnly}`;
+  }
+  
+  // If it's 11 digits starting with 1, add +
+  if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
+    return `+${digitsOnly}`;
+  }
+  
+  // If it already starts with +, return as is
+  if (phoneNumber.startsWith('+')) {
+    return phoneNumber;
+  }
+  
+  // Default: assume US number and add +1
+  return `+1${digitsOnly}`;
+}
+
 Deno.serve(async (req) => {
+  // Log every request to ensure function is being called (same as reminders)
+  console.log('=== SEND WEEKLY RECAP FUNCTION CALLED ===')
+  console.log('Request method:', req.method)
+  console.log('Request URL:', req.url)
+  console.log('Timestamp:', new Date().toISOString())
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Starting weekly recap function...');
-
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log('Creating Supabase client...')
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
 
     // Get SMS API credentials
     const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')!;
@@ -65,26 +94,52 @@ Deno.serve(async (req) => {
       try {
         console.log(`Processing weekly recap for user ${profile.id}`);
 
-        // Check if it's Sunday 6pm in the user's timezone
+        // Check if it's Sunday 6pm in the user's timezone (using proven approach from reminders)
         const now = new Date();
         const userTimezone = profile.reminder_timezone || 'America/New_York';
         
-        // Convert current time to user's timezone
-        const userTime = new Date(now.toLocaleString("en-US", { timeZone: userTimezone }));
-        const dayOfWeek = userTime.getDay(); // 0 = Sunday
-        const hour = userTime.getHours();
+        // Get current time in user's timezone using the SAME method as working reminders
+        const userCurrentTime = new Intl.DateTimeFormat('en-US', {
+          timeZone: userTimezone,
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit'
+        }).format(now)
+        
+        const [currentHour, currentMinute] = userCurrentTime.split(':').map(Number)
+        
+        // Get current date and day of week in user's timezone
+        const userCurrentDate = new Intl.DateTimeFormat('en-CA', {
+          timeZone: userTimezone,
+          weekday: 'long'
+        }).format(now)
+        
+        const dayOfWeek = new Date().toLocaleDateString('en-US', { 
+          timeZone: userTimezone, 
+          weekday: 'long' 
+        })
 
-        console.log(`User ${profile.id} timezone: ${userTimezone}, day: ${dayOfWeek}, hour: ${hour}`);
+        console.log(`User ${profile.id}: timezone: ${userTimezone}, time: ${userCurrentTime}, day: ${dayOfWeek}, current hour: ${currentHour}`)
 
-        // Only send if it's Sunday (0) and 6pm (18)
-        if (dayOfWeek !== 0 || hour !== 18) {
-          console.log(`Skipping user ${profile.id} - not Sunday 6pm in their timezone`);
+        // Check if it's Sunday and between 6pm-7pm (allowing flexibility like reminders)
+        const isSunday = dayOfWeek === 'Sunday'
+        const isCorrectTime = currentHour >= 18 && currentHour < 19 // 6pm-7pm window
+        
+        if (!isSunday || !isCorrectTime) {
+          console.log(`User ${profile.id}: Skipping - Day: ${dayOfWeek} (need Sunday), Hour: ${currentHour} (need 18-19)`)
           continue;
         }
+        
+        console.log(`User ${profile.id}: ✅ Sunday 6pm window - proceeding with weekly recap`)
 
-        // Calculate the start and end of the week (Sunday to Saturday)
-        const startOfWeek = new Date(userTime);
-        startOfWeek.setDate(userTime.getDate() - userTime.getDay()); // Go to Sunday
+        // Calculate the start and end of the week (Sunday to Saturday) in user's timezone
+        // Create a date object in the user's timezone for proper week calculation
+        const userDate = new Date(new Intl.DateTimeFormat('en-CA', {
+          timeZone: userTimezone
+        }).format(now))
+        
+        const startOfWeek = new Date(userDate);
+        startOfWeek.setDate(userDate.getDate() - userDate.getDay()); // Go to Sunday
         startOfWeek.setHours(0, 0, 0, 0);
 
         const endOfWeek = new Date(startOfWeek);
@@ -117,38 +172,17 @@ Deno.serve(async (req) => {
         // Create the message
         const message = `Weekly Recap: You journaled ${entryCount} ${entryCount === 1 ? 'time' : 'times'} this week. To read your journal, visit journalbytext.com and login to your account.`;
 
-        // Send SMS via Surge API
-        const smsPayload = {
-          to: profile.phone_number,
-          from: surgePhoneNumber,
-          body: message
-        };
+        // Format phone number using the same approach as working reminders
+        const formattedPhoneNumber = formatPhoneNumber(profile.phone_number);
+        console.log('Original phone number:', profile.phone_number);
+        console.log('Formatted phone number:', formattedPhoneNumber);
 
-        console.log(`Sending weekly recap SMS to ${profile.phone_number}`);
+        console.log(`Sending weekly recap SMS to ${formattedPhoneNumber}`);
 
-        const smsResponse = await fetch('https://api.surge.sh/messages', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${surgeApiToken}`,
-            'Content-Type': 'application/json',
-            'X-Account-ID': surgeAccountId
-          },
-          body: JSON.stringify(smsPayload)
-        });
+        // Use the EXACT SAME API approach as working reminders
+        await sendWeeklyRecapSMS(formattedPhoneNumber, message, surgeApiToken, surgeAccountId);
 
-        if (!smsResponse.ok) {
-          const errorText = await smsResponse.text();
-          console.error(`Failed to send SMS to user ${profile.id}:`, errorText);
-          results.push({
-            user_id: profile.id,
-            success: false,
-            error: `SMS sending failed: ${errorText}`
-          });
-          continue;
-        }
-
-        const smsData = await smsResponse.json();
-        console.log(`Successfully sent weekly recap to user ${profile.id}`, smsData);
+        console.log(`Successfully sent weekly recap to user ${profile.id}`);
 
         results.push({
           user_id: profile.id,
@@ -193,4 +227,46 @@ Deno.serve(async (req) => {
       }
     );
   }
-});
+})
+
+async function sendWeeklyRecapSMS(phoneNumber: string, message: string, surgeApiToken: string, surgeAccountId: string) {
+  // Use the EXACT SAME payload structure as working reminders
+  const payload = {
+    conversation: {
+      contact: {
+        phone_number: phoneNumber
+      }
+    },
+    body: message,
+    attachments: []
+  }
+
+  console.log('Sending to Surge API:', JSON.stringify(payload, null, 2));
+
+  try {
+    // Use the EXACT SAME API endpoint as working reminders
+    const response = await fetch(`https://api.surge.app/accounts/${surgeAccountId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${surgeApiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    })
+
+    const responseText = await response.text();
+    console.log('Surge API response status:', response.status);
+    console.log('Surge API response body:', responseText);
+
+    if (!response.ok) {
+      console.error('Surge error:', responseText)
+      throw new Error(`Failed to send SMS: ${responseText}`)
+    }
+
+    const result = JSON.parse(responseText);
+    console.log('SMS sent successfully via Surge:', result)
+  } catch (error) {
+    console.error(`Failed to send SMS to ${phoneNumber}:`, error)
+    throw error
+  }
+}
