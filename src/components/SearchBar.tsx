@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Search, Filter, Calendar, Tag, X } from "lucide-react";
+import { Search, Filter, Calendar, Tag, X, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -10,6 +10,7 @@ interface SearchFilters {
   dateTo?: string;
   tags?: string[];
   source?: 'web' | 'sms' | 'all';
+  hasPhotos?: boolean;
 }
 
 interface SearchBarProps {
@@ -39,7 +40,7 @@ export const SearchBar = ({ searchTerm, onSearchChange, onFiltersChange }: Searc
     setShowAdvanced(false);
   };
 
-  const hasActiveFilters = filters.dateFrom || filters.dateTo || (filters.tags && filters.tags.length > 0) || (filters.source && filters.source !== 'all');
+  const hasActiveFilters = filters.dateFrom || filters.dateTo || (filters.tags && filters.tags.length > 0) || (filters.source && filters.source !== 'all') || filters.hasPhotos;
 
   return (
     <div className="space-y-4">
@@ -138,6 +139,22 @@ export const SearchBar = ({ searchTerm, onSearchChange, onFiltersChange }: Searc
                 </Button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Camera className="w-4 h-4 inline mr-2" />
+              Photos
+            </label>
+            <Button
+              variant={filters.hasPhotos ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleFilterChange({ hasPhotos: filters.hasPhotos ? undefined : true })}
+              className="flex items-center gap-2"
+            >
+              <Camera className="w-4 h-4" />
+              {filters.hasPhotos ? 'Show all entries' : 'Only with photos'}
+            </Button>
           </div>
         </div>
       )}

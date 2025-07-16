@@ -16,6 +16,7 @@ interface SearchFilters {
   dateTo?: string;
   tags?: string[];
   source?: 'web' | 'sms' | 'all';
+  hasPhotos?: boolean;
 }
 
 export const JournalDashboard = () => {
@@ -102,6 +103,11 @@ export const JournalDashboard = () => {
     // Source filter
     if (filters.source && filters.source !== 'all') {
       filtered = filtered.filter(entry => entry.source === filters.source);
+    }
+
+    // Photo filter
+    if (filters.hasPhotos) {
+      filtered = filtered.filter(entry => entry.photos && entry.photos.length > 0);
     }
 
     return filtered;
