@@ -59,23 +59,6 @@ export function ReminderSettings({ settings, onChange }: ReminderSettingsProps) 
 
   return (
     <div className="space-y-6">
-      {/* Daily Reminders Toggle */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <Label htmlFor="reminder-enabled" className="text-sm font-medium">
-            Daily Reminders
-          </Label>
-          <p className="text-sm text-muted-foreground">
-            Receive a daily SMS reminder to journal if you haven't written an entry
-          </p>
-        </div>
-        <Switch
-          id="reminder-enabled"
-          checked={settings.enabled}
-          onCheckedChange={(enabled) => onChange({ ...settings, enabled })}
-        />
-      </div>
-
       {/* Weekly Recap Toggle */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
@@ -90,6 +73,23 @@ export function ReminderSettings({ settings, onChange }: ReminderSettingsProps) 
           id="weekly-recap-enabled"
           checked={settings.weeklyRecapEnabled}
           onCheckedChange={(weeklyRecapEnabled) => onChange({ ...settings, weeklyRecapEnabled })}
+        />
+      </div>
+
+      {/* Daily Reminders Toggle */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <Label htmlFor="reminder-enabled" className="text-sm font-medium">
+            Daily Reminders
+          </Label>
+          <p className="text-sm text-muted-foreground">
+            Receive a daily SMS reminder to journal if you haven't written an entry
+          </p>
+        </div>
+        <Switch
+          id="reminder-enabled"
+          checked={settings.enabled}
+          onCheckedChange={(enabled) => onChange({ ...settings, enabled })}
         />
       </div>
 
