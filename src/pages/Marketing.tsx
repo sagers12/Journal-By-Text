@@ -36,7 +36,7 @@ const Marketing = () => {
             ✨ Journal anywhere, anytime
           </Badge>
           <h1 className="text-5xl md:text-6xl font-bold text-slate-800 mb-6 leading-tight">The easiest way to keep a journal</h1>
-          <p className="text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">You are here because you've always wanted to keep a journal, but you've never done it successfully. You can't find a way to be consistent. Those days are done. This is as easy as it will ever be. Just send a text. No apps, no logins, no friction. Daily reminders. Daily prompts. You've got this!</p>
+          <p className="text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">You are here because you've always wanted to keep a journal, but you've never done it successfully. You can't find a way to be consistent. Well, those days are gone. This is as easy as it will ever be. Just send a text. No apps, no logins, no friction. Daily reminders. Daily prompts. You've got this!</p>
           <div className="flex justify-center">
             <Link to="/sign-up">
               <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-3">
