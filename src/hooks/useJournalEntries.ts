@@ -40,6 +40,16 @@ export const useJournalEntries = (userId?: string) => {
     hasError: !!error 
   });
 
+  // Debug: Log actual entries for troubleshooting
+  if (entries.length > 0) {
+    console.log('Recent entries:', entries.slice(0, 5).map(e => ({
+      id: e.id,
+      entry_date: e.entry_date,
+      source: e.source,
+      timestamp: e.timestamp
+    })));
+  }
+
   // Create entry mutation
   const createEntryMutation = useMutation({
     mutationFn: async ({ content, title, tags = [], photos = [] }: {

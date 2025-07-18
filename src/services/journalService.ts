@@ -8,6 +8,8 @@ import { encrypt, decrypt } from '@/utils/encryption';
 export const fetchJournalEntries = async (userId: string): Promise<Entry[]> => {
   if (!userId) return [];
   
+  console.log('Fetching journal entries for user:', userId);
+  
   try {
     const { data, error } = await supabase
       .from('journal_entries')
@@ -21,6 +23,8 @@ export const fetchJournalEntries = async (userId: string): Promise<Entry[]> => {
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
+
+    console.log('Raw journal entries from database:', data?.length || 0);
 
     if (error) throw error;
 
