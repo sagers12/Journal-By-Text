@@ -28,13 +28,21 @@ export const fetchJournalEntries = async (userId: string): Promise<Entry[]> => {
 
     if (error) throw error;
 
+    console.log('Raw database entries:', data?.map(entry => ({
+      id: entry.id,
+      entry_date: entry.entry_date,
+      source: entry.source,
+      created_at: entry.created_at
+    })));
+
     // Transform data to match Entry interface and decrypt content
-    return Promise.all(data.map(async (entry): Promise<Entry> => {
+    const processedEntries = await Promise.all(data.map(async (entry): Promise<Entry | null> => {
       try {
+        console.log(`Processing entry ${entry.id} from ${entry.entry_date}`);
         const decryptedContent = await decrypt(entry.content, userId);
         const decryptedTitle = await decrypt(entry.title, userId);
         
-        return {
+        const processedEntry = {
           id: entry.id,
           content: decryptedContent,
           title: decryptedTitle,
@@ -50,10 +58,18 @@ export const fetchJournalEntries = async (userId: string): Promise<Entry[]> => {
             return publicUrl.publicUrl;
           }) || []
         };
+        
+        console.log(`Successfully processed entry ${entry.id}:`, {
+          entry_date: processedEntry.entry_date,
+          title: processedEntry.title.substring(0, 50) + '...',
+          content_length: processedEntry.content.length
+        });
+        
+        return processedEntry;
       } catch (error) {
-        console.error('Error decrypting entry:', error);
+        console.error(`Error processing entry ${entry.id}:`, error);
         // Return entry with original content if decryption fails
-        return {
+        const fallbackEntry = {
           id: entry.id,
           content: entry.content,
           title: entry.title,
@@ -69,8 +85,22 @@ export const fetchJournalEntries = async (userId: string): Promise<Entry[]> => {
             return publicUrl.publicUrl;
           }) || []
         };
+        
+        console.log(`Using fallback for entry ${entry.id}`);
+        return fallbackEntry;
       }
     }));
+
+    // Filter out any null entries and log final result
+    const validEntries = processedEntries.filter((entry): entry is Entry => entry !== null);
+    
+    console.log('Final processed entries:', validEntries.map(entry => ({
+      id: entry.id,
+      entry_date: entry.entry_date,
+      source: entry.source
+    })));
+    
+    return validEntries;
   } catch (error) {
     console.error('Error fetching entries:', error);
     throw error;
