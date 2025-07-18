@@ -160,7 +160,7 @@ export const updateJournalEntry = async ({
   // Upload new photos if any
   if (photos && photos.length > 0) {
     validatePhotos(photos);
-    await checkPhotoLimit(id, photos.length);
+    await checkPhotoLimit(id, photos);
     await uploadPhotos(photos, id, userId);
   }
 };

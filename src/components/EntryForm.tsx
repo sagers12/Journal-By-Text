@@ -23,16 +23,32 @@ export const EntryForm = ({ onSubmit, onClose }: EntryFormProps) => {
 
   // Input validation constants
   const MAX_CONTENT_LENGTH = 10000;
-  const MAX_PHOTOS = 10;
-  const MAX_PHOTO_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_TOTAL_PHOTO_SIZE = 10 * 1024 * 1024; // 10MB total
+  const MAX_INDIVIDUAL_PHOTO_SIZE = 10 * 1024 * 1024; // 10MB per photo
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
 
   const validatePhotoFile = (file: File): string | null => {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       return `Invalid file type. Allowed types: ${ALLOWED_IMAGE_TYPES.join(', ')}`;
     }
-    if (file.size > MAX_PHOTO_SIZE) {
-      return `File size too large. Maximum size: ${MAX_PHOTO_SIZE / (1024 * 1024)}MB`;
+    if (file.size > MAX_INDIVIDUAL_PHOTO_SIZE) {
+      return `File size too large. Maximum size: ${MAX_INDIVIDUAL_PHOTO_SIZE / (1024 * 1024)}MB`;
+    }
+    return null;
+  };
+
+  const getTotalPhotoSize = () => {
+    return photos.reduce((sum, photo) => sum + photo.file.size, 0);
+  };
+
+  const validateTotalPhotoSize = (newFiles: File[]): string | null => {
+    const currentSize = getTotalPhotoSize();
+    const newFilesSize = newFiles.reduce((sum, file) => sum + file.size, 0);
+    const totalSize = currentSize + newFilesSize;
+    
+    if (totalSize > MAX_TOTAL_PHOTO_SIZE) {
+      const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(1);
+      return `Total photo size too large: ${totalSizeMB}MB (max 10MB per entry)`;
     }
     return null;
   };
@@ -45,18 +61,28 @@ export const EntryForm = ({ onSubmit, onClose }: EntryFormProps) => {
     const files = e.target.files;
     if (!files) return;
 
-    if (photos.length + files.length > MAX_PHOTOS) {
-      alert(`Maximum ${MAX_PHOTOS} photos allowed`);
+    const fileArray = Array.from(files);
+    
+    // Check total size first
+    const totalSizeError = validateTotalPhotoSize(fileArray);
+    if (totalSizeError) {
+      alert(totalSizeError);
+      e.target.value = '';
       return;
     }
 
-    Array.from(files).forEach(file => {
+    // Validate each file individually
+    for (const file of fileArray) {
       const validationError = validatePhotoFile(file);
       if (validationError) {
         alert(validationError);
+        e.target.value = '';
         return;
       }
+    }
 
+    // Add all valid files
+    fileArray.forEach(file => {
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
@@ -184,7 +210,7 @@ export const EntryForm = ({ onSubmit, onClose }: EntryFormProps) => {
             <div className="mb-6">
               <label className="block text-sm font-medium text-slate-700 mb-3">
                 <Image className="w-4 h-4 inline mr-2" />
-                Photos (optional, max {MAX_PHOTOS})
+                Photos (optional, max 10MB total)
               </label>
               <input
                 type="file"
@@ -193,18 +219,24 @@ export const EntryForm = ({ onSubmit, onClose }: EntryFormProps) => {
                 onChange={handlePhotoUpload}
                 className="hidden"
                 id="photo-upload"
-                disabled={isSubmitting || photos.length >= MAX_PHOTOS}
+                disabled={isSubmitting}
               />
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => document.getElementById('photo-upload')?.click()}
                 className="w-full border-dashed border-slate-300 hover:border-blue-500 h-20"
-                disabled={isSubmitting || photos.length >= MAX_PHOTOS}
+                disabled={isSubmitting}
               >
                 <Image className="w-6 h-6 mr-2 text-slate-400" />
-                {photos.length >= MAX_PHOTOS ? 'Maximum photos reached' : 'Click to add photos'}
+                Click to add photos
               </Button>
+              
+              {photos.length > 0 && (
+                <div className="text-sm text-slate-500 mt-2">
+                  Total size: {(getTotalPhotoSize() / (1024 * 1024)).toFixed(1)}MB / 10MB
+                </div>
+              )}
               
               {photos.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mt-4">

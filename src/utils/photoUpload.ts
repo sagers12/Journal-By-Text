@@ -31,16 +31,23 @@ export const uploadPhotos = async (photos: File[], entryId: string, userId: stri
   return Promise.all(photoPromises);
 };
 
-export const checkPhotoLimit = async (entryId: string, newPhotosCount: number) => {
+export const checkPhotoLimit = async (entryId: string, newPhotos: File[]) => {
+  const maxTotalSize = 10 * 1024 * 1024; // 10MB total per entry
+  
+  // Get existing photos and their sizes
   const { data: existingPhotos } = await supabase
     .from('journal_photos')
-    .select('id')
+    .select('file_size')
     .eq('entry_id', entryId);
 
-  const currentPhotoCount = existingPhotos?.length || 0;
+  const currentTotalSize = existingPhotos?.reduce((sum, photo) => sum + (photo.file_size || 0), 0) || 0;
+  const newPhotosSize = newPhotos.reduce((sum, photo) => sum + photo.size, 0);
+  const totalSize = currentTotalSize + newPhotosSize;
   
-  if (currentPhotoCount + newPhotosCount > 10) {
-    throw new Error(`Cannot add ${newPhotosCount} photos. Maximum 10 photos per entry (currently ${currentPhotoCount})`);
+  if (totalSize > maxTotalSize) {
+    const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(1);
+    const currentSizeMB = (currentTotalSize / (1024 * 1024)).toFixed(1);
+    throw new Error(`Cannot add photos. Total size would be ${totalSizeMB}MB (currently ${currentSizeMB}MB, max 10MB per entry)`);
   }
 };
 

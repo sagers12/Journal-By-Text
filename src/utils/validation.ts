@@ -10,8 +10,14 @@ export const validateEntryContent = (content: string) => {
 };
 
 export const validatePhotos = (photos: File[]) => {
-  if (photos.length > 10) {
-    throw new Error('Too many photos (max 10)');
+  const maxTotalSize = 10 * 1024 * 1024; // 10MB total
+  const maxIndividualSize = 10 * 1024 * 1024; // 10MB per photo
+  
+  // Calculate total size
+  const totalSize = photos.reduce((sum, photo) => sum + photo.size, 0);
+  if (totalSize > maxTotalSize) {
+    const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(1);
+    throw new Error(`Total photo size too large: ${totalSizeMB}MB (max 10MB per entry)`);
   }
 
   photos.forEach((photo) => {
@@ -20,7 +26,7 @@ export const validatePhotos = (photos: File[]) => {
       throw new Error(`Invalid file type: ${photo.type}`);
     }
 
-    if (photo.size > 10 * 1024 * 1024) {
+    if (photo.size > maxIndividualSize) {
       throw new Error(`File too large: ${photo.name} (max 10MB)`);
     }
   });
