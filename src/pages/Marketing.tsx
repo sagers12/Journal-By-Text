@@ -1,13 +1,10 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare, Smartphone, Search, Download, Clock, Shield, Zap, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
-
 const Marketing = () => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+  return <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Header */}
       <header className="relative z-50 bg-white/70 backdrop-blur-sm border-b border-white/20">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -38,12 +35,8 @@ const Marketing = () => {
           <Badge className="mb-6 bg-blue-100 text-blue-700 hover:bg-blue-100">
             ✨ Journal anywhere, anytime
           </Badge>
-          <h1 className="text-5xl md:text-6xl font-bold text-slate-800 mb-6 leading-tight">
-            Finally, an easy way to keep a journal
-          </h1>
-          <p className="text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">
-            You want to keep a journal, but you never do. We get it. So we made it mind-blowingly simple. Just send a text. No apps, no logins, no friction.
-          </p>
+          <h1 className="text-5xl md:text-6xl font-bold text-slate-800 mb-6 leading-tight">The easiest way to keep a journal</h1>
+          <p className="text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">You are here because you've always wanted to keep a journal, but you've never done it successfully. You can't find a way to be consistent. Those days are done. This is as easy as it will ever be. Just send a text. No apps, no logins, no friction. Daily reminders. Daily prompts. You've got this!</p>
           <div className="flex justify-center">
             <Link to="/sign-up">
               <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-3">
@@ -150,9 +143,7 @@ const Marketing = () => {
                 <CardTitle>Private & Secure</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-slate-600">
-                  Your thoughts are kept safe and private. Your journal is secure and always will be.
-                </p>
+                <p className="text-slate-600">Your thoughts are kept safe, private, and encrypted. Your journal is secure and always will be.</p>
               </CardContent>
             </Card>
           </div>
@@ -213,7 +204,7 @@ const Marketing = () => {
             <Card className="border-2 border-slate-200 bg-white/70 backdrop-blur-sm">
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl">Free</CardTitle>
-                <CardDescription className="text-lg">Perfect for getting started</CardDescription>
+                <CardDescription className="text-lg">Perfect for those who'll likely give up five days into this...</CardDescription>
                 <div className="text-4xl font-bold text-slate-800 mt-4">$0</div>
                 <div className="text-slate-600">forever</div>
               </CardHeader>
@@ -248,8 +239,8 @@ const Marketing = () => {
                 Most Popular
               </Badge>
               <CardHeader className="text-center">
-                <CardTitle className="text-2xl">Pro</CardTitle>
-                <CardDescription className="text-lg">For serious journalers</CardDescription>
+                <CardTitle className="text-2xl">Committed</CardTitle>
+                <CardDescription className="text-lg">Perfect for those who are committed to changing their habits...</CardDescription>
                 <div className="text-4xl font-bold text-slate-800 mt-4">$4.99</div>
                 <div className="text-slate-600">per month</div>
               </CardHeader>
@@ -294,7 +285,7 @@ const Marketing = () => {
       {/* Final CTA */}
       <section className="py-20 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
         <div className="container mx-auto text-center max-w-3xl">
-          <h2 className="text-4xl font-bold mb-4">Ready to Start Your Journey?</h2>
+          <h2 className="text-4xl font-bold mb-4">Ready to Start Your Journal?</h2>
           <p className="text-xl mb-8 text-blue-100">
             Join thousands of people who have transformed their journaling practice with Journal By Text. 
             Your future self will thank you.
@@ -326,8 +317,6 @@ const Marketing = () => {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Marketing;
