@@ -62,7 +62,14 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
 
   // Format the entry title
   const getFormattedTitle = () => {
-    const date = formatDateInUserTimezone(new Date(entry.entry_date));
+    // entry_date is already in the correct date for the user's timezone
+    // Don't convert it through timezone conversion as it will cause date shifts
+    const entryDate = new Date(entry.entry_date + 'T12:00:00'); // Add noon time to avoid timezone shifts
+    const date = entryDate.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
     
     // Show count only for SMS entries with multiple messages
     if (entry.source === 'sms' && smsMessageCount > 1) {
