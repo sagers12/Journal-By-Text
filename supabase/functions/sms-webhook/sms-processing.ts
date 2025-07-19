@@ -277,8 +277,19 @@ export async function processJournalEntry(
   
   // Convert current time to user's timezone to get the correct entry date
   const now = new Date();
-  const userDate = new Date(now.toLocaleString("en-US", { timeZone: userTimezone }));
-  const correctedEntryDate = userDate.toISOString().split('T')[0];
+  console.log(`Original UTC time: ${now.toISOString()}`);
+  console.log(`User timezone: ${userTimezone}`);
+  
+  // Use Intl.DateTimeFormat for proper timezone conversion
+  const formatter = new Intl.DateTimeFormat('en-CA', { 
+    timeZone: userTimezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const correctedEntryDate = formatter.format(now);
+  
+  console.log(`Calculated entry date for timezone ${userTimezone}: ${correctedEntryDate}`);
 
   // Encrypt message content before storing
   const encryptedMessageContent = await encrypt(messageBody, userId)
