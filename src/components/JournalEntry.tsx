@@ -12,7 +12,7 @@ import type { Entry } from "@/types/entry";
 interface JournalEntryProps {
   entry: Entry;
   onDelete: (id: string) => void;
-  onEdit: (id: string, newContent: string, photos?: File[]) => void;
+  onEdit: (id: string, newContent: string, tags?: string[], photos?: File[]) => void;
 }
 
 interface PhotoFile {
@@ -24,6 +24,7 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
   const { formatTimeInUserTimezone, formatDateInUserTimezone } = useTimezone();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(entry.content);
+  const [editTags, setEditTags] = useState<string>((entry.tags || []).join(', '));
   const [editPhotos, setEditPhotos] = useState<PhotoFile[]>([]);
   const [showActions, setShowActions] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
@@ -120,9 +121,23 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
   };
 
   const handleSaveEdit = () => {
-    if (editContent.trim() !== entry.content || editPhotos.length > 0) {
+    const newTags = editTags.split(',')
+      .map(tag => tag.trim())
+      .filter(tag => tag && tag.length > 0)
+      .slice(0, 10); // Limit to 10 tags
+    
+    const hasContentChanged = editContent.trim() !== entry.content;
+    const hasTagsChanged = JSON.stringify(newTags) !== JSON.stringify(entry.tags || []);
+    const hasPhotosAdded = editPhotos.length > 0;
+    
+    if (hasContentChanged || hasTagsChanged || hasPhotosAdded) {
       const photoFiles = editPhotos.map(p => p.file);
-      onEdit(entry.id, editContent, photoFiles.length > 0 ? photoFiles : undefined);
+      onEdit(
+        entry.id, 
+        editContent, 
+        newTags, 
+        photoFiles.length > 0 ? photoFiles : undefined
+      );
     }
     setIsEditing(false);
     setEditPhotos([]);
@@ -130,6 +145,7 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
 
   const handleCancelEdit = () => {
     setEditContent(entry.content);
+    setEditTags((entry.tags || []).join(', '));
     setEditPhotos([]);
     setIsEditing(false);
   };
@@ -225,6 +241,20 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
               className="w-full min-h-[100px] border-slate-200 focus:border-blue-500 focus:ring-blue-500"
               autoFocus
             />
+            
+            {/* Tags editing section */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-3">
+                <Tag className="w-4 h-4 inline mr-2" />
+                Tags (optional)
+              </label>
+              <Input
+                value={editTags}
+                onChange={(e) => setEditTags(e.target.value)}
+                placeholder="mood, work, gratitude (separate with commas, max 10)"
+                className="border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
             
             {/* Photo upload section in edit mode */}
             <div>

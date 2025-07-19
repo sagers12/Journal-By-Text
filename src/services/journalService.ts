@@ -169,11 +169,13 @@ export const createJournalEntry = async ({
 export const updateJournalEntry = async ({ 
   id, 
   content, 
+  tags,
   photos, 
   userId 
 }: { 
   id: string; 
   content: string; 
+  tags?: string[];
   photos?: File[];
   userId: string;
 }) => {
@@ -182,10 +184,16 @@ export const updateJournalEntry = async ({
   // Encrypt content before updating
   const encryptedContent = await encrypt(content.trim(), userId);
 
-  // Update the entry content
+  // Prepare update data
+  const updateData: any = { content: encryptedContent };
+  if (tags !== undefined) {
+    updateData.tags = validateTags(tags);
+  }
+
+  // Update the entry content and tags
   const { error } = await supabase
     .from('journal_entries')
-    .update({ content: encryptedContent })
+    .update(updateData)
     .eq('id', id)
     .eq('user_id', userId);
 

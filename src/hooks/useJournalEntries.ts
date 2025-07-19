@@ -98,12 +98,13 @@ export const useJournalEntries = (userId?: string) => {
 
   // Update entry mutation
   const updateEntryMutation = useMutation({
-    mutationFn: async ({ id, content, photos }: { 
+    mutationFn: async ({ id, content, tags, photos }: { 
       id: string; 
       content: string; 
+      tags?: string[];
       photos?: File[];
     }) => {
-      return updateJournalEntry({ id, content, photos, userId: userId! });
+      return updateJournalEntry({ id, content, tags, photos, userId: userId! });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['journal-entries', userId] });
