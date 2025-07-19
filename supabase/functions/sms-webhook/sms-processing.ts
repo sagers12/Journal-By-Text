@@ -291,6 +291,13 @@ export async function processJournalEntry(
   
   console.log(`Calculated entry date for timezone ${userTimezone}: ${correctedEntryDate}`);
 
+  // Extract hashtags from message content
+  const hashtagRegex = /#\w+/g;
+  const hashtags = messageBody.match(hashtagRegex) || [];
+  const tags = hashtags.map(tag => tag.substring(1).toLowerCase()); // Remove # and lowercase
+  
+  console.log(`Extracted ${tags.length} tags: ${tags.join(', ')}`);
+
   // Encrypt message content before storing
   const encryptedMessageContent = await encrypt(messageBody, userId)
 
@@ -329,6 +336,16 @@ export async function processJournalEntry(
   let entryId: string
 
   if (existingEntry) {
+    // Get existing tags to merge with new ones
+    const { data: existingEntryWithTags } = await supabaseClient
+      .from('journal_entries')
+      .select('tags, content')
+      .eq('id', existingEntry.id)
+      .single();
+    
+    const existingTags = existingEntryWithTags?.tags || [];
+    const mergedTags = [...new Set([...existingTags, ...tags])]; // Merge and deduplicate
+    
     // Decrypt existing content, append new message, then re-encrypt
     let decryptedExistingContent = existingEntry.content
     try {
@@ -345,7 +362,10 @@ export async function processJournalEntry(
     
     const { data: updatedEntry, error: updateError } = await supabaseClient
       .from('journal_entries')
-      .update({ content: encryptedUpdatedContent })
+      .update({ 
+        content: encryptedUpdatedContent,
+        tags: mergedTags 
+      })
       .eq('id', existingEntry.id)
       .select()
       .single()
@@ -379,7 +399,7 @@ export async function processJournalEntry(
         title: encryptedTitle,
         source: 'sms',
         entry_date: correctedEntryDate,
-        tags: []
+        tags: tags
       })
       .select()
       .single()
