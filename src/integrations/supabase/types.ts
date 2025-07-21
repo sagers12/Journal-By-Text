@@ -303,6 +303,30 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_recap_history: {
+        Row: {
+          entry_count: number
+          id: string
+          sent_at: string
+          user_id: string
+          week_start_date: string
+        }
+        Insert: {
+          entry_count?: number
+          id?: string
+          sent_at?: string
+          user_id: string
+          week_start_date: string
+        }
+        Update: {
+          entry_count?: number
+          id?: string
+          sent_at?: string
+          user_id?: string
+          week_start_date?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -329,6 +353,10 @@ export type Database = {
         Returns: Json
       }
       trigger_reminder_system: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      trigger_weekly_recap_system: {
         Args: Record<PropertyKey, never>
         Returns: Json
       }

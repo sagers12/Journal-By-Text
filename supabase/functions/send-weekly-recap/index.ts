@@ -12,6 +12,13 @@ interface Profile {
   weekly_recap_enabled: boolean;
 }
 
+interface WeeklyRecapHistory {
+  user_id: string;
+  week_start_date: string;
+  sent_at: string;
+  entry_count: number;
+}
+
 // Function to format phone number to international format (same as reminders)
 function formatPhoneNumber(phoneNumber: string): string {
   // Remove any non-digit characters
@@ -36,8 +43,26 @@ function formatPhoneNumber(phoneNumber: string): string {
   return `+1${digitsOnly}`;
 }
 
+// Function to get start of week (Sunday) in user's timezone
+function getWeekStartDate(userTimezone: string): string {
+  const now = new Date();
+  
+  // Get current date in user's timezone
+  const userDateStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: userTimezone
+  }).format(now);
+  
+  const userDate = new Date(userDateStr + 'T12:00:00'); // Add noon to avoid timezone issues
+  
+  // Calculate start of week (Sunday)
+  const startOfWeek = new Date(userDate);
+  startOfWeek.setDate(userDate.getDate() - userDate.getDay()); // Go to Sunday
+  
+  return startOfWeek.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+}
+
 Deno.serve(async (req) => {
-  // Log every request to ensure function is being called (same as reminders)
+  // Log every request to ensure function is being called
   console.log('=== SEND WEEKLY RECAP FUNCTION CALLED ===')
   console.log('Request method:', req.method)
   console.log('Request URL:', req.url)
@@ -94,7 +119,7 @@ Deno.serve(async (req) => {
       try {
         console.log(`Processing weekly recap for user ${profile.id}`);
 
-        // Check if it's Sunday 6pm in the user's timezone (using proven approach from reminders)
+        // Use the SAME timezone approach as working reminders
         const now = new Date();
         const userTimezone = profile.reminder_timezone || 'America/New_York';
         
@@ -108,12 +133,7 @@ Deno.serve(async (req) => {
         
         const [currentHour, currentMinute] = userCurrentTime.split(':').map(Number)
         
-        // Get current date and day of week in user's timezone
-        const userCurrentDate = new Intl.DateTimeFormat('en-CA', {
-          timeZone: userTimezone,
-          weekday: 'long'
-        }).format(now)
-        
+        // Get current day of week in user's timezone
         const dayOfWeek = new Date().toLocaleDateString('en-US', { 
           timeZone: userTimezone, 
           weekday: 'long' 
@@ -121,40 +141,66 @@ Deno.serve(async (req) => {
 
         console.log(`User ${profile.id}: timezone: ${userTimezone}, time: ${userCurrentTime}, day: ${dayOfWeek}, current hour: ${currentHour}`)
 
-        // Check if it's Sunday and between 6pm-7pm (allowing flexibility like reminders)
+        // Check if it's Sunday and between 6:00pm-7:30pm (expanded window as requested)
         const isSunday = dayOfWeek === 'Sunday'
-        const isCorrectTime = currentHour >= 18 && currentHour < 19 // 6pm-7pm window
+        const isCorrectTime = (currentHour === 18) || (currentHour === 19 && currentMinute <= 30) // 6:00pm-7:30pm window
         
         if (!isSunday || !isCorrectTime) {
-          console.log(`User ${profile.id}: Skipping - Day: ${dayOfWeek} (need Sunday), Hour: ${currentHour} (need 18-19)`)
+          console.log(`User ${profile.id}: Skipping - Day: ${dayOfWeek} (need Sunday), Hour: ${currentHour}:${currentMinute} (need 18:00-19:30)`)
           continue;
         }
         
-        console.log(`User ${profile.id}: ✅ Sunday 6pm window - proceeding with weekly recap`)
+        console.log(`User ${profile.id}: ✅ Sunday 6:00pm-7:30pm window - proceeding with weekly recap`)
 
-        // Calculate the start and end of the week (Sunday to Saturday) in user's timezone
-        // Create a date object in the user's timezone for proper week calculation
-        const userDate = new Date(new Intl.DateTimeFormat('en-CA', {
+        // Get week start date for tracking
+        const weekStartDate = getWeekStartDate(userTimezone);
+        console.log(`User ${profile.id}: Week start date: ${weekStartDate}`);
+
+        // Check if we already sent a recap for this week
+        const { data: existingRecap, error: historyError } = await supabase
+          .from('weekly_recap_history')
+          .select('*')
+          .eq('user_id', profile.id)
+          .eq('week_start_date', weekStartDate)
+          .single();
+
+        if (historyError && historyError.code !== 'PGRST116') { // PGRST116 is "not found" which is expected
+          console.error(`Error checking recap history for user ${profile.id}:`, historyError);
+          continue;
+        }
+
+        if (existingRecap) {
+          console.log(`User ${profile.id}: ⏭️ Already sent weekly recap for week ${weekStartDate} on ${existingRecap.sent_at}`);
+          continue;
+        }
+
+        console.log(`User ${profile.id}: 📝 No recap sent yet for week ${weekStartDate} - proceeding`);
+
+        // Calculate the start and end of the week for entry counting
+        const userDateStr = new Intl.DateTimeFormat('en-CA', {
           timeZone: userTimezone
-        }).format(now))
+        }).format(now);
+        
+        const userDate = new Date(userDateStr + 'T12:00:00');
         
         const startOfWeek = new Date(userDate);
         startOfWeek.setDate(userDate.getDate() - userDate.getDay()); // Go to Sunday
-        startOfWeek.setHours(0, 0, 0, 0);
-
+        
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6); // Go to Saturday
-        endOfWeek.setHours(23, 59, 59, 999);
 
-        console.log(`Counting journal entries for user ${profile.id} from ${startOfWeek.toISOString()} to ${endOfWeek.toISOString()}`);
+        const startDateStr = startOfWeek.toISOString().split('T')[0];
+        const endDateStr = endOfWeek.toISOString().split('T')[0];
+
+        console.log(`User ${profile.id}: Counting journal entries from ${startDateStr} to ${endDateStr}`);
 
         // Count journal entries for this week
         const { count, error: countError } = await supabase
           .from('journal_entries')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', profile.id)
-          .gte('entry_date', startOfWeek.toISOString().split('T')[0])
-          .lte('entry_date', endOfWeek.toISOString().split('T')[0]);
+          .gte('entry_date', startDateStr)
+          .lte('entry_date', endDateStr);
 
         if (countError) {
           console.error(`Error counting entries for user ${profile.id}:`, countError);
@@ -174,20 +220,36 @@ Deno.serve(async (req) => {
 
         // Format phone number using the same approach as working reminders
         const formattedPhoneNumber = formatPhoneNumber(profile.phone_number);
-        console.log('Original phone number:', profile.phone_number);
-        console.log('Formatted phone number:', formattedPhoneNumber);
+        console.log(`User ${profile.id}: Original phone: ${profile.phone_number}, Formatted: ${formattedPhoneNumber}`);
 
-        console.log(`Sending weekly recap SMS to ${formattedPhoneNumber}`);
+        console.log(`User ${profile.id}: 📱 Sending weekly recap SMS`);
 
-        // Use the EXACT SAME API approach as working reminders
+        // Send the SMS
         await sendWeeklyRecapSMS(formattedPhoneNumber, message, surgeApiToken, surgeAccountId);
 
-        console.log(`Successfully sent weekly recap to user ${profile.id}`);
+        // Record that we sent the recap
+        const { error: insertError } = await supabase
+          .from('weekly_recap_history')
+          .insert({
+            user_id: profile.id,
+            week_start_date: weekStartDate,
+            entry_count: entryCount
+          });
+
+        if (insertError) {
+          console.error(`Error recording recap history for user ${profile.id}:`, insertError);
+          // Don't fail the whole operation, just log it
+        } else {
+          console.log(`User ${profile.id}: ✅ Recorded recap history for week ${weekStartDate}`);
+        }
+
+        console.log(`User ${profile.id}: ✅ Successfully sent weekly recap`);
 
         results.push({
           user_id: profile.id,
           success: true,
           entry_count: entryCount,
+          week_start_date: weekStartDate,
           message_sent: message
         });
 
@@ -201,15 +263,22 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('Weekly recap function completed. Results:', results);
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    console.log(`=== WEEKLY RECAP COMPLETED ===`);
+    console.log(`Total processed: ${results.length}`);
+    console.log(`Successful: ${successCount}`);
+    console.log(`Failed: ${failCount}`);
+    console.log('Results:', results);
 
     return new Response(
       JSON.stringify({
         message: 'Weekly recap processing completed',
         results: results,
         total_processed: results.length,
-        successful: results.filter(r => r.success).length,
-        failed: results.filter(r => !r.success).length
+        successful: successCount,
+        failed: failCount
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
