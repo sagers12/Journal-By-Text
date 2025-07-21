@@ -34,7 +34,7 @@ const Marketing = () => {
         <div className="container mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Left Column - Content */}
-            <div className="space-y-6 md:space-y-8 order-2 lg:order-1">
+            <div className="space-y-6 md:space-y-8">
               <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 w-fit">
                 ✨ Journal anywhere, anytime
               </Badge>
@@ -84,7 +84,7 @@ const Marketing = () => {
             </div>
             
             {/* Right Column - Phone Mockup */}
-            <div className="flex justify-center lg:justify-end order-1 lg:order-2">
+            <div className="flex justify-center lg:justify-end">
               <div className="w-64 sm:w-80 max-w-sm">
                 <img 
                   src="/lovable-uploads/cab78bea-5b0e-4707-8710-6caf5afe8188.png" 
