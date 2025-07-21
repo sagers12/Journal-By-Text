@@ -41,8 +41,8 @@ const Marketing = () => {
               
               <div className="space-y-6">
                 <h1 className="text-5xl md:text-6xl font-bold text-slate-800 leading-tight">
-                  Journal Your Life, <br />
-                  <span className="text-blue-600">One Text at a Time</span>
+                  The easiest way to <br />
+                  <span className="text-blue-600">keep a journal</span>
                 </h1>
                 
                 <p className="text-xl text-slate-600 leading-relaxed max-w-lg">
