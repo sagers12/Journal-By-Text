@@ -46,7 +46,7 @@ const Marketing = () => {
                 </h1>
                 
                 <p className="text-lg md:text-xl text-slate-600 leading-relaxed max-w-lg">
-                  The easiest way to keep a journal. No apps, no passwords, no friction. Just send a text message and capture your thoughts instantly.
+                  You've never kept a journal, but now you can. No apps, no passwords, no friction. Just send a text message and capture your thoughts instantly.
                 </p>
               </div>
 
