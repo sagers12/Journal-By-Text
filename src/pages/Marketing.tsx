@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { MessageSquare, Smartphone, Search, Download, Clock, Shield, Zap, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 const Marketing = () => {
@@ -334,6 +335,77 @@ const Marketing = () => {
               </CardContent>
             </Card>
           </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 px-4 bg-white/30">
+        <div className="container mx-auto max-w-4xl">
+          <div className="text-center mb-16">
+            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 mb-4">
+              FAQ
+            </Badge>
+            <h2 className="text-4xl font-bold text-slate-800 mb-4">Frequently Asked Questions</h2>
+            <p className="text-xl text-slate-600">
+              Everything you need to know about Journal By Text.
+            </p>
+          </div>
+          
+          <Accordion type="single" collapsible className="space-y-4">
+            <AccordionItem value="item-1" className="bg-white/70 backdrop-blur-sm rounded-lg border-0 shadow-sm px-6">
+              <AccordionTrigger className="text-left text-lg font-semibold text-slate-800 hover:no-underline">
+                How exactly does journaling by text work?
+              </AccordionTrigger>
+              <AccordionContent className="text-slate-600 text-base leading-relaxed pt-2">
+                Simply send a text message to your personal journal number and it's automatically saved as a journal entry. Multiple texts sent on the same day are grouped together into a single daily entry. You can include photos with your messages, and everything is organized chronologically for easy viewing through our web interface.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-2" className="bg-white/70 backdrop-blur-sm rounded-lg border-0 shadow-sm px-6">
+              <AccordionTrigger className="text-left text-lg font-semibold text-slate-800 hover:no-underline">
+                What if I don't want to respond to the daily prompts?
+              </AccordionTrigger>
+              <AccordionContent className="text-slate-600 text-base leading-relaxed pt-2">
+                Daily prompts are completely optional and designed to inspire you when you're not sure what to write about. You can journal about anything you want, anytime you want. The prompts are just gentle suggestions to help spark ideas when you need them.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-3" className="bg-white/70 backdrop-blur-sm rounded-lg border-0 shadow-sm px-6">
+              <AccordionTrigger className="text-left text-lg font-semibold text-slate-800 hover:no-underline">
+                Can I access my past journal entries?
+              </AccordionTrigger>
+              <AccordionContent className="text-slate-600 text-base leading-relaxed pt-2">
+                Yes! You can view, search, and manage all your journal entries through our web application. Our powerful search feature lets you find specific memories by keyword, date, or phrase across your entire journal history. You can also export your entries to PDF or text format anytime.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-4" className="bg-white/70 backdrop-blur-sm rounded-lg border-0 shadow-sm px-6">
+              <AccordionTrigger className="text-left text-lg font-semibold text-slate-800 hover:no-underline">
+                Is my journal private and secure?
+              </AccordionTrigger>
+              <AccordionContent className="text-slate-600 text-base leading-relaxed pt-2">
+                Absolutely. Your thoughts are kept safe with industry-standard encryption for data at rest and in transit. Your journal entries are completely private and only accessible by you through your secure account. We take your privacy seriously and will never share your personal thoughts with anyone.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-5" className="bg-white/70 backdrop-blur-sm rounded-lg border-0 shadow-sm px-6">
+              <AccordionTrigger className="text-left text-lg font-semibold text-slate-800 hover:no-underline">
+                Can I cancel my subscription at any time?
+              </AccordionTrigger>
+              <AccordionContent className="text-slate-600 text-base leading-relaxed pt-2">
+                Yes, you can cancel your subscription at any time with no questions asked. If you cancel, you'll still have access to your paid features until the end of your current billing period. Your journal entries will always remain accessible to you, even if you downgrade to the free plan.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-6" className="bg-white/70 backdrop-blur-sm rounded-lg border-0 shadow-sm px-6">
+              <AccordionTrigger className="text-left text-lg font-semibold text-slate-800 hover:no-underline">
+                Do I need a special app to use Journal By Text?
+              </AccordionTrigger>
+              <AccordionContent className="text-slate-600 text-base leading-relaxed pt-2">
+                No special app required! That's the beauty of Journal By Text - you use your phone's built-in messaging app to send journal entries. For viewing and managing your entries, you simply visit our website through any web browser on your computer, tablet, or phone.
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </section>
 
