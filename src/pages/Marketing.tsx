@@ -30,33 +30,69 @@ const Marketing = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="min-h-screen flex">
-        {/* Left Column - White Background */}
-        <div className="flex-1 bg-white flex items-center">
-          <div className="container mx-auto px-8 py-20 max-w-2xl">
-            <Badge className="mb-6 bg-blue-100 text-blue-700 hover:bg-blue-100">
-              ✨ Journal anywhere, anytime
-            </Badge>
-            <h1 className="text-5xl md:text-6xl font-bold text-slate-800 mb-6 leading-tight">The easiest way to keep a journal</h1>
-            <p className="text-xl text-slate-600 mb-8 leading-relaxed">You are here because you've always wanted to keep a journal, but you've never done it successfully. You can't find a way to be consistent. Well, those days are gone. This is as easy as it will ever be. Just send a text. No apps, no logins, no friction. Daily reminders. Daily prompts. You've got this!</p>
-            <div className="flex justify-start">
-              <Link to="/sign-up">
-                <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-3">
-                  Start now—it's free
+      <section className="py-20 px-4">
+        <div className="container mx-auto max-w-7xl">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Column - Content */}
+            <div className="space-y-8">
+              <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 w-fit">
+                ✨ Journal anywhere, anytime
+              </Badge>
+              
+              <div className="space-y-6">
+                <h1 className="text-5xl md:text-6xl font-bold text-slate-800 leading-tight">
+                  Journal Your Life, <br />
+                  <span className="text-blue-600">One Text at a Time</span>
+                </h1>
+                
+                <p className="text-xl text-slate-600 leading-relaxed max-w-lg">
+                  The easiest way to keep a journal. No apps, no passwords, no friction. Just send a text message and capture your thoughts instantly.
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <Link to="/sign-up">
+                  <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-3">
+                    Start Journaling
+                  </Button>
+                </Link>
+                <Button variant="outline" size="lg" className="text-blue-600 border-blue-600 hover:bg-blue-50">
+                  How It Works
                 </Button>
-              </Link>
+              </div>
+
+              <div className="space-y-3 text-slate-600">
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  </div>
+                  <span>No apps to download</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  </div>
+                  <span>Daily prompts to inspire you</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  </div>
+                  <span>Weekly recaps to track progress</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-        
-        {/* Right Column - Branded Background with iPhone */}
-        <div className="flex-1 bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center p-8">
-          <div className="max-w-md">
-            <img 
-              src="/lovable-uploads/173c04a2-c3d6-408a-b7a3-97b25ea1b56c.png" 
-              alt="iPhone showing text conversation for journaling" 
-              className="w-full h-auto drop-shadow-2xl"
-            />
+            
+            {/* Right Column - Phone Mockup */}
+            <div className="flex justify-center lg:justify-end">
+              <div className="w-80 max-w-sm">
+                <img 
+                  src="/lovable-uploads/173c04a2-c3d6-408a-b7a3-97b25ea1b56c.png" 
+                  alt="iPhone showing text conversation for journaling" 
+                  className="w-full h-auto drop-shadow-2xl"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
