@@ -53,10 +53,15 @@ const Marketing = () => {
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link to="/sign-up">
                   <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-3 w-full sm:w-auto">
-                    Start Journaling
+                    Start journaling - it's free
                   </Button>
                 </Link>
-                <Button variant="outline" size="lg" className="text-blue-600 border-blue-600 hover:bg-blue-50 w-full sm:w-auto">
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  className="text-blue-600 border-blue-600 hover:bg-blue-50 w-full sm:w-auto"
+                  onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
+                >
                   How It Works
                 </Button>
               </div>
@@ -201,7 +206,7 @@ const Marketing = () => {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 px-4 bg-white/30">
+      <section id="how-it-works" className="py-20 px-4 bg-white/30">
         <div className="container mx-auto max-w-4xl">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-slate-800 mb-4">Simple as 1-2-3</h2>
