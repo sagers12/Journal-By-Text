@@ -30,19 +30,33 @@ const Marketing = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto text-center max-w-4xl">
-          <Badge className="mb-6 bg-blue-100 text-blue-700 hover:bg-blue-100">
-            ✨ Journal anywhere, anytime
-          </Badge>
-          <h1 className="text-5xl md:text-6xl font-bold text-slate-800 mb-6 leading-tight">The easiest way to keep a journal</h1>
-          <p className="text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">You are here because you've always wanted to keep a journal, but you've never done it successfully. You can't find a way to be consistent. Well, those days are gone. This is as easy as it will ever be. Just send a text. No apps, no logins, no friction. Daily reminders. Daily prompts. You've got this!</p>
-          <div className="flex justify-center">
-            <Link to="/sign-up">
-              <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-3">
-                Start now—it's free
-              </Button>
-            </Link>
+      <section className="min-h-screen flex">
+        {/* Left Column - White Background */}
+        <div className="flex-1 bg-white flex items-center">
+          <div className="container mx-auto px-8 py-20 max-w-2xl">
+            <Badge className="mb-6 bg-blue-100 text-blue-700 hover:bg-blue-100">
+              ✨ Journal anywhere, anytime
+            </Badge>
+            <h1 className="text-5xl md:text-6xl font-bold text-slate-800 mb-6 leading-tight">The easiest way to keep a journal</h1>
+            <p className="text-xl text-slate-600 mb-8 leading-relaxed">You are here because you've always wanted to keep a journal, but you've never done it successfully. You can't find a way to be consistent. Well, those days are gone. This is as easy as it will ever be. Just send a text. No apps, no logins, no friction. Daily reminders. Daily prompts. You've got this!</p>
+            <div className="flex justify-start">
+              <Link to="/sign-up">
+                <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-3">
+                  Start now—it's free
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+        
+        {/* Right Column - Branded Background with iPhone */}
+        <div className="flex-1 bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center p-8">
+          <div className="max-w-md">
+            <img 
+              src="/lovable-uploads/173c04a2-c3d6-408a-b7a3-97b25ea1b56c.png" 
+              alt="iPhone showing text conversation for journaling" 
+              className="w-full h-auto drop-shadow-2xl"
+            />
           </div>
         </div>
       </section>
