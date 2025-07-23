@@ -153,6 +153,7 @@ export type Database = {
           reminder_time: string | null
           reminder_timezone: string | null
           timezone: string | null
+          trial_started_at: string | null
           updated_at: string | null
           weekly_recap_enabled: boolean | null
         }
@@ -166,6 +167,7 @@ export type Database = {
           reminder_time?: string | null
           reminder_timezone?: string | null
           timezone?: string | null
+          trial_started_at?: string | null
           updated_at?: string | null
           weekly_recap_enabled?: boolean | null
         }
@@ -179,6 +181,7 @@ export type Database = {
           reminder_time?: string | null
           reminder_timezone?: string | null
           timezone?: string | null
+          trial_started_at?: string | null
           updated_at?: string | null
           weekly_recap_enabled?: boolean | null
         }
@@ -263,6 +266,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscribers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_trial: boolean
+          stripe_customer_id: string | null
+          subscribed: boolean
+          subscription_end: string | null
+          subscription_tier: string | null
+          trial_end: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_trial?: boolean
+          stripe_customer_id?: string | null
+          subscribed?: boolean
+          subscription_end?: string | null
+          subscription_tier?: string | null
+          trial_end?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_trial?: boolean
+          stripe_customer_id?: string | null
+          subscribed?: boolean
+          subscription_end?: string | null
+          subscription_tier?: string | null
+          trial_end?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
       }
       user_last_prompt_category: {
         Row: {
