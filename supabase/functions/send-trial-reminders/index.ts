@@ -172,12 +172,50 @@ serve(async (req) => {
 
 async function createCheckoutUrl(email: string): Promise<string> {
   try {
-    // Use the same logic as create-checkout but generate a direct URL
-    // For now, return a generic checkout URL - this could be enhanced to create actual sessions
-    return 'https://your-app.com/upgrade' // Replace with your actual domain
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) {
+      console.error('No Stripe key found, returning fallback URL');
+      return 'https://zfxdjbpjxpgreymebpsr.supabase.co/upgrade'; 
+    }
+
+    // Import Stripe
+    const { default: Stripe } = await import("https://esm.sh/stripe@14.21.0");
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+
+    // Check if customer exists
+    const customers = await stripe.customers.list({ email, limit: 1 });
+    let customerId;
+    if (customers.data.length > 0) {
+      customerId = customers.data[0].id;
+    }
+
+    // Create checkout session for monthly plan by default
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      customer_email: customerId ? undefined : email,
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: { 
+              name: "SMS Journal Monthly Subscription",
+              description: "Journal anywhere, anytime - just send a text"
+            },
+            unit_amount: 799, // $7.99
+            recurring: { interval: "month" },
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "subscription",
+      success_url: `https://zfxdjbpjxpgreymebpsr.supabase.co/journal?success=true`,
+      cancel_url: `https://zfxdjbpjxpgreymebpsr.supabase.co/journal?canceled=true`,
+    });
+
+    return session.url || 'https://zfxdjbpjxpgreymebpsr.supabase.co/upgrade';
   } catch (error) {
-    console.error('Error creating checkout URL:', error)
-    return 'https://your-app.com/upgrade' // Fallback URL
+    console.error('Error creating checkout URL:', error);
+    return 'https://zfxdjbpjxpgreymebpsr.supabase.co/upgrade'; // Fallback URL
   }
 }
 
