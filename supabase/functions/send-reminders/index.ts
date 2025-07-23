@@ -69,9 +69,13 @@ serve(async (req) => {
     console.log(`Current UTC time: ${now.toISOString()}`)
 
     // Find users who should receive reminders at this time
+    // Only users with active trials or active subscriptions
     const { data: profiles, error: profileError } = await supabaseClient
       .from('profiles')
-      .select('id, phone_number, reminder_enabled, reminder_time, reminder_timezone, last_reminder_sent')
+      .select(`
+        id, phone_number, reminder_enabled, reminder_time, reminder_timezone, last_reminder_sent,
+        subscribers!inner(subscribed, is_trial, trial_end)
+      `)
       .eq('reminder_enabled', true)
       .not('phone_number', 'is', null)
       .eq('phone_verified', true)
@@ -96,6 +100,20 @@ serve(async (req) => {
 
     for (const profile of profiles) {
       try {
+        // Check if user has access (active trial or subscription)
+        const subscriber = profile.subscribers
+        const hasActiveSubscription = subscriber.subscribed === true
+        const hasActiveTrial = subscriber.is_trial === true && 
+          subscriber.trial_end && 
+          new Date(subscriber.trial_end) > new Date()
+        
+        if (!hasActiveSubscription && !hasActiveTrial) {
+          console.log(`User ${profile.id}: No active subscription or trial - skipping reminder`)
+          continue
+        }
+        
+        console.log(`User ${profile.id}: Has access (subscription: ${hasActiveSubscription}, active trial: ${hasActiveTrial})`)
+        
         const userTimezone = profile.reminder_timezone || 'America/New_York'
         const reminderTime = profile.reminder_time || '20:00'
         
