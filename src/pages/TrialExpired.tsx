@@ -39,7 +39,7 @@ export default function TrialExpired() {
               className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
             >
               <CreditCard className="w-4 h-4 mr-2" />
-              {isCreatingCheckout ? "Processing..." : "Upgrade to Yearly ($79.99/year)"}
+              {isCreatingCheckout ? "Processing..." : "Upgrade to Yearly ($39.99/year)"}
             </Button>
             
             <Button
@@ -49,7 +49,7 @@ export default function TrialExpired() {
               className="w-full"
             >
               <CreditCard className="w-4 h-4 mr-2" />
-              {isCreatingCheckout ? "Processing..." : "Upgrade to Monthly ($7.99/month)"}
+              {isCreatingCheckout ? "Processing..." : "Upgrade to Monthly ($4.99/month)"}
             </Button>
           </div>
 
