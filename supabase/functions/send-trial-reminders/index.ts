@@ -47,7 +47,7 @@ serve(async (req) => {
       .from('subscribers')
       .select(`
         *,
-        profiles!inner(phone_number, phone_verified)
+        profiles!inner(phone_number, phone_verified, timezone)
       `)
       .eq('is_trial', true)
       .eq('subscribed', false)
@@ -87,6 +87,25 @@ serve(async (req) => {
         // Only send reminders on days 7, 8, 9, and 10
         if (![7, 8, 9, 10].includes(daysElapsed)) {
           console.log(`User ${subscriber.user_id}: Not on reminder day (day ${daysElapsed})`)
+          continue
+        }
+
+        // Check user's timezone and current time
+        const userTimezone = subscriber.profiles.timezone || 'UTC'
+        const userCurrentTime = new Intl.DateTimeFormat('en-US', {
+          timeZone: userTimezone,
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit'
+        }).format(now)
+        
+        const [currentHour] = userCurrentTime.split(':').map(Number)
+        
+        console.log(`User ${subscriber.user_id}: Current time in ${userTimezone}: ${userCurrentTime}`)
+
+        // Only send reminders between 1pm and 4pm (13:00 - 16:00) in user's timezone
+        if (currentHour < 13 || currentHour >= 16) {
+          console.log(`User ${subscriber.user_id}: Outside reminder time window (13-16h), current hour: ${currentHour}`)
           continue
         }
 
