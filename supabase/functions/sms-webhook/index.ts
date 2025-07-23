@@ -225,12 +225,8 @@ serve(async (req) => {
       )
 
       // Send follow-up instruction message
-      console.log('About to send instruction message with conversationId:', conversationId)
-      if (conversationId) {
-        await sendInstructionMessage(conversationId)
-      } else {
-        console.error('No conversationId available for instruction message')
-      }
+      console.log('About to send instruction message to phone:', fromPhone)
+      await sendInstructionMessage(fromPhone)
 
       return new Response(
         JSON.stringify(result),
@@ -272,11 +268,8 @@ serve(async (req) => {
     )
 
     // Send auto-reply confirmation
-    if (conversationId) {
-      await sendConfirmationMessage(conversationId)
-    } else {
-      console.error('No conversationId available for confirmation message')
-    }
+    console.log('About to send confirmation message to phone:', fromPhone)
+    await sendConfirmationMessage(fromPhone)
 
     return new Response(
       JSON.stringify(result),

@@ -2,19 +2,24 @@
  * Message sending utilities for SMS responses
  */
 
-export async function sendInstructionMessage(conversationId: string) {
+export async function sendInstructionMessage(phoneNumber: string) {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
   const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
 
-  if (!surgeApiToken || !surgeAccountId || !conversationId) {
-    console.log('Missing Surge credentials or conversation ID for instruction message')
+  if (!surgeApiToken || !surgeAccountId || !phoneNumber) {
+    console.log('Missing Surge credentials or phone number for instruction message')
     return
   }
 
   try {
     const responsePayload = {
-      conversation: { id: conversationId },
-      body: 'Perfect! Your phone is now verified. To create a journal entry, simply send a message to this number. You can view all your entries on our website.'
+      conversation: {
+        contact: {
+          phone_number: phoneNumber
+        }
+      },
+      body: 'Perfect! Your phone is now verified. To create a journal entry, simply send a message to this number. You can view all your entries on our website.',
+      attachments: []
     }
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
@@ -39,19 +44,24 @@ export async function sendInstructionMessage(conversationId: string) {
   }
 }
 
-export async function sendConfirmationMessage(conversationId: string) {
+export async function sendConfirmationMessage(phoneNumber: string) {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
   const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
 
-  if (!surgeApiToken || !surgeAccountId || !conversationId) {
-    console.log('Missing Surge credentials or conversation ID for confirmation message')
+  if (!surgeApiToken || !surgeAccountId || !phoneNumber) {
+    console.log('Missing Surge credentials or phone number for confirmation message')
     return
   }
 
   try {
     const responsePayload = {
-      conversation: { id: conversationId },
-      body: '✅ Your journal entry has been saved!'
+      conversation: {
+        contact: {
+          phone_number: phoneNumber
+        }
+      },
+      body: '✅ Your journal entry has been saved!',
+      attachments: []
     }
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
