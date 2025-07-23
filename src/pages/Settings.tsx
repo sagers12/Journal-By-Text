@@ -1,16 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { ReminderSettings } from '@/components/settings/ReminderSettings';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Crown, Clock, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Settings() {
   const { user } = useAuth();
   const { profile, updateProfile, isUpdating } = useProfile(user?.id);
+  const { 
+    subscription, 
+    isTrialActive, 
+    isSubscribed, 
+    trialDaysLeft, 
+    openCustomerPortal,
+    isOpeningPortal 
+  } = useSubscription();
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
@@ -115,6 +125,73 @@ export default function Settings() {
 
         {/* Settings Content */}
         <div className="space-y-6">
+          {/* Billing Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Billing & Subscription
+              </CardTitle>
+              <CardDescription>
+                Manage your subscription and billing preferences
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {subscription && (
+                <>
+                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {isSubscribed ? (
+                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                          <Crown className="w-5 h-5 text-green-600" />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Clock className="w-5 h-5 text-blue-600" />
+                        </div>
+                      )}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium">
+                            {isSubscribed ? 'Active Subscription' : isTrialActive ? 'Free Trial' : 'No Active Subscription'}
+                          </h4>
+                          {isSubscribed && subscription.subscription_tier && (
+                            <Badge className="bg-green-100 text-green-700">
+                              {subscription.subscription_tier}
+                            </Badge>
+                          )}
+                          {isTrialActive && (
+                            <Badge className="bg-blue-100 text-blue-700">
+                              Trial
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {isSubscribed && subscription.subscription_end ? (
+                            `Next billing date: ${new Date(subscription.subscription_end).toLocaleDateString()}`
+                          ) : isTrialActive ? (
+                            `${trialDaysLeft} days remaining`
+                          ) : (
+                            'Subscribe to unlock unlimited journaling'
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    {isSubscribed && (
+                      <Button 
+                        variant="outline"
+                        onClick={() => openCustomerPortal()}
+                        disabled={isOpeningPortal}
+                      >
+                        {isOpeningPortal ? 'Opening...' : 'Manage Billing'}
+                      </Button>
+                    )}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Automated Messages Section */}
           <Card>
             <CardHeader>

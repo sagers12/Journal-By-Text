@@ -51,41 +51,9 @@ export const SubscriptionBanner = () => {
     );
   }
 
-  // Show subscription status for paid users
+  // Don't show banner for active subscribers
   if (isSubscribed) {
-    return (
-      <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 mb-6">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <Crown className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-slate-800">Active Subscription</h3>
-                  <Badge className="bg-green-100 text-green-700">
-                    {subscription.subscription_tier}
-                  </Badge>
-                </div>
-                <p className="text-sm text-slate-600">
-                  {subscription.subscription_end && 
-                    `Renews ${new Date(subscription.subscription_end).toLocaleDateString()}`
-                  }
-                </p>
-              </div>
-            </div>
-            <Button 
-              variant="outline"
-              onClick={() => openCustomerPortal()}
-              disabled={isOpeningPortal}
-            >
-              {isOpeningPortal ? 'Opening...' : 'Manage Billing'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   // Show upgrade prompt for expired trial
