@@ -259,7 +259,7 @@ serve(async (req) => {
     // Check subscription status before processing journal entry
     const { data: subscriber, error: subError } = await supabaseClient
       .from('subscribers')
-      .select('subscribed, is_trial, trial_end')
+      .select('subscribed, is_trial, trial_end, email')
       .eq('user_id', userId)
       .single()
 
@@ -287,9 +287,10 @@ serve(async (req) => {
           error_message: 'No active subscription'
         })
 
-      // Send subscription reminder message
+      // Send subscription reminder message with Stripe link
       console.log('About to send subscription reminder message to phone:', fromPhone)
-      await sendSubscriptionReminderMessage(fromPhone)
+      const userEmail = subscriber?.email || 'user@journalbytext.com' // fallback email
+      await sendSubscriptionReminderMessage(fromPhone, userEmail)
 
       return new Response(
         JSON.stringify({ error: 'No active subscription', messageId }),

@@ -2,6 +2,53 @@
  * Message sending utilities for SMS responses
  */
 
+import Stripe from 'https://esm.sh/stripe@14.21.0'
+
+// Function to create Stripe checkout URL for subscription reminder
+async function createStripeCheckoutUrl(email: string): Promise<string> {
+  try {
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
+    if (!stripeKey) {
+      console.log('Stripe secret key not configured, using fallback URL')
+      return 'https://journalbytext.com'
+    }
+
+    const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
+    
+    // Check for existing customer
+    const customers = await stripe.customers.list({ email: email, limit: 1 })
+    let customerId
+    if (customers.data.length > 0) {
+      customerId = customers.data[0].id
+    }
+
+    // Create checkout session for monthly plan
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      customer_email: customerId ? undefined : email,
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: { name: 'Monthly Subscription' },
+            unit_amount: 499, // $4.99
+            recurring: { interval: 'month' },
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'subscription',
+      success_url: 'https://journalbytext.com/success',
+      cancel_url: 'https://journalbytext.com/cancel',
+    })
+
+    return session.url || 'https://journalbytext.com'
+  } catch (error) {
+    console.error('Error creating Stripe checkout URL:', error)
+    return 'https://journalbytext.com'
+  }
+}
+
 export async function sendInstructionMessage(phoneNumber: string) {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
   const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
@@ -86,7 +133,7 @@ export async function sendConfirmationMessage(phoneNumber: string) {
   }
 }
 
-export async function sendSubscriptionReminderMessage(phoneNumber: string) {
+export async function sendSubscriptionReminderMessage(phoneNumber: string, userEmail: string) {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
   const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
 
@@ -96,13 +143,16 @@ export async function sendSubscriptionReminderMessage(phoneNumber: string) {
   }
 
   try {
+    // Generate Stripe checkout link for monthly plan
+    const checkoutUrl = await createStripeCheckoutUrl(userEmail)
+    
     const responsePayload = {
       conversation: {
         contact: {
           phone_number: phoneNumber
         }
       },
-      body: "Hey, still looking to use Journal By Text? We'd love to get you journaling again. Your free trial has already expired, but you can continue with one of our paid plans! Here's the link to subscribe: https://journalbytext.com",
+      body: `Hey, still looking to use Journal By Text? We'd love to get you journaling again. Your free trial has already expired, but you can continue with one of our paid plans! Here's the link to subscribe: ${checkoutUrl}`,
       attachments: []
     }
 
