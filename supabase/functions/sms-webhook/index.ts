@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { validateSurgeSignature } from './signature-validation.ts'
-import { sendInstructionMessage, sendConfirmationMessage } from './message-handlers.ts'
+import { sendInstructionMessage, sendConfirmationMessage, sendSubscriptionReminderMessage } from './message-handlers.ts'
 import { processPhoneVerification, processJournalEntry } from './sms-processing.ts'
 
 const corsHeaders = {
@@ -252,6 +252,47 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({ error: 'Phone not verified', messageId }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Check subscription status before processing journal entry
+    const { data: subscriber, error: subError } = await supabaseClient
+      .from('subscribers')
+      .select('subscribed, is_trial, trial_end')
+      .eq('user_id', userId)
+      .single()
+
+    console.log('Subscription check:', { subscriber, subError })
+
+    // Check if user has access (active subscription or active trial)
+    const now = new Date()
+    const trialEnd = subscriber?.trial_end ? new Date(subscriber.trial_end) : null
+    const isTrialActive = subscriber?.is_trial && trialEnd && trialEnd > now
+    const hasAccess = subscriber?.subscribed || isTrialActive
+
+    if (!hasAccess) {
+      console.log('User does not have access - expired trial or no subscription')
+      
+      // Store the message but mark as not processed due to subscription
+      await supabaseClient
+        .from('sms_messages')
+        .insert({
+          user_id: userId,
+          surge_message_id: messageId,
+          phone_number: fromPhone,
+          message_content: messageBody,
+          entry_date: entryDate,
+          processed: false,
+          error_message: 'No active subscription'
+        })
+
+      // Send subscription reminder message
+      console.log('About to send subscription reminder message to phone:', fromPhone)
+      await sendSubscriptionReminderMessage(fromPhone)
+
+      return new Response(
+        JSON.stringify({ error: 'No active subscription', messageId }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }

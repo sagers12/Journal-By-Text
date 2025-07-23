@@ -85,3 +85,45 @@ export async function sendConfirmationMessage(phoneNumber: string) {
     console.error('Error sending confirmation message:', error)
   }
 }
+
+export async function sendSubscriptionReminderMessage(phoneNumber: string) {
+  const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
+  const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
+
+  if (!surgeApiToken || !surgeAccountId || !phoneNumber) {
+    console.log('Missing Surge credentials or phone number for subscription reminder message')
+    return
+  }
+
+  try {
+    const responsePayload = {
+      conversation: {
+        contact: {
+          phone_number: phoneNumber
+        }
+      },
+      body: "Hey, still looking to use Journal By Text? We'd love to get you journaling again. Your free trial has already expired, but you can continue with one of our paid plans! Here's the link to subscribe: https://journalbytext.com",
+      attachments: []
+    }
+
+    const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
+    
+    const surgeResponse = await fetch(surgeUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${surgeApiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(responsePayload)
+    })
+
+    if (surgeResponse.ok) {
+      console.log('Subscription reminder message sent successfully')
+    } else {
+      const errorText = await surgeResponse.text()
+      console.error('Failed to send subscription reminder message:', surgeResponse.status, errorText)
+    }
+  } catch (error) {
+    console.error('Error sending subscription reminder message:', error)
+  }
+}
