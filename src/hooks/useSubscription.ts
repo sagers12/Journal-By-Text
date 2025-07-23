@@ -34,6 +34,10 @@ export const useSubscription = () => {
       return data;
     },
     onSuccess: (data) => {
+      // Store session ID for tracking
+      if (data.sessionId) {
+        localStorage.setItem('stripe_checkout_session_id', data.sessionId);
+      }
       // Open Stripe checkout in a new tab
       window.open(data.url, '_blank');
     },

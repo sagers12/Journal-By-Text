@@ -315,6 +315,7 @@ const Marketing = () => {
                 <CardDescription className="text-lg">Save $20 compared to monthly</CardDescription>
                 <div className="text-4xl font-bold text-slate-800 mt-4">$39.99</div>
                 <div className="text-slate-600">per year</div>
+                <div className="text-sm text-slate-500 line-through">$59.88 if billed monthly</div>
                 <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium mt-4 inline-block">
                   10-day free trial
                 </div>

@@ -56,17 +56,15 @@ serve(async (req) => {
           throw new Error("Customer email not found");
         }
 
-        // Determine subscription tier
-        let subscriptionTier = "Basic";
+        // Determine subscription tier based on price amount
+        let subscriptionTier = "Monthly";
         if (subscription.items.data.length > 0) {
           const price = subscription.items.data[0].price;
           const amount = price.unit_amount || 0;
-          if (amount <= 999) {
-            subscriptionTier = "Basic";
-          } else if (amount <= 1999) {
-            subscriptionTier = "Premium";
+          if (amount >= 3000) {
+            subscriptionTier = "Yearly";
           } else {
-            subscriptionTier = "Enterprise";
+            subscriptionTier = "Monthly";
           }
         }
 
