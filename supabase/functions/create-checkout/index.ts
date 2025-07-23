@@ -74,6 +74,7 @@ serve(async (req) => {
       mode: "subscription",
       success_url: `${req.headers.get("origin")}/journal?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get("origin")}/journal?canceled=true`,
+      allow_promotion_codes: true,
       // Remove trial_period_days - we handle trials in our database
     });
 
