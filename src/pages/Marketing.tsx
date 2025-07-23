@@ -256,49 +256,16 @@ const Marketing = () => {
               Start free, upgrade when you're ready for more
             </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-            <Card className="border-2 border-slate-200 bg-white/70 backdrop-blur-sm">
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <Card className="border-2 border-blue-500 bg-white/70 backdrop-blur-sm">
               <CardHeader className="text-center">
-                <CardTitle className="text-2xl">Free</CardTitle>
-                <CardDescription className="text-lg">Perfect for those who'll likely give up five days into this...</CardDescription>
-                <div className="text-4xl font-bold text-slate-800 mt-4">$0</div>
-                <div className="text-slate-600">forever</div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ul className="space-y-2 text-slate-600">
-                  <li className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    1 SMS entry per day
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    15 photos total
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    Basic search
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    30-day export history
-                  </li>
-                </ul>
-                <Link to="/sign-up" className="block">
-                  <Button className="w-full mt-6" variant="outline">
-                    Start Free
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-            <Card className="border-2 border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 relative">
-              <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white">
-                Most Popular
-              </Badge>
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl">Committed</CardTitle>
-                <CardDescription className="text-lg">Perfect for those who are committed to changing their habits...</CardDescription>
+                <CardTitle className="text-2xl">Monthly</CardTitle>
+                <CardDescription className="text-lg">Perfect for regular journaling</CardDescription>
                 <div className="text-4xl font-bold text-slate-800 mt-4">$4.99</div>
                 <div className="text-slate-600">per month</div>
+                <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium mt-4 inline-block">
+                  10-day free trial
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="space-y-2 text-slate-600">
@@ -312,15 +279,19 @@ const Marketing = () => {
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    Advanced search
+                    Advanced search & filtering
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    Full export history
+                    Full export capabilities
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    SMS reminders
+                    Custom SMS reminders
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    Weekly recap messages
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -328,8 +299,44 @@ const Marketing = () => {
                   </li>
                 </ul>
                 <Link to="/sign-up" className="block">
+                  <Button className="w-full mt-6" variant="outline">
+                    Start 10-Day Free Trial
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-2 border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 relative">
+              <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white">
+                BEST VALUE
+              </Badge>
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl">Yearly</CardTitle>
+                <CardDescription className="text-lg">Save $20 compared to monthly</CardDescription>
+                <div className="text-4xl font-bold text-slate-800 mt-4">$39.99</div>
+                <div className="text-slate-600">per year</div>
+                <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium mt-4 inline-block">
+                  10-day free trial
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ul className="space-y-2 text-slate-600">
+                  <li className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    Everything in Monthly
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    2 months free (save $20)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    Bonus features coming soon
+                  </li>
+                </ul>
+                <Link to="/sign-up" className="block">
                   <Button className="w-full mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                    Start Pro Trial
+                    Start 10-Day Free Trial
                   </Button>
                 </Link>
               </CardContent>
