@@ -50,24 +50,20 @@ serve(async (req) => {
     }
     logStep("Customer check", { customerId, exists: !!customerId });
 
-    // Create checkout session
-    const priceAmount = plan === "monthly" ? 499 : 3999; // $4.99 or $39.99
-    const interval = plan === "monthly" ? "month" : "year";
+    // Map plan types to existing Price IDs
+    const priceIdMap = {
+      monthly: "price_1Ro7MgCHbJmgVPCSaYrnNgWk",
+      yearly: "price_1Ro7O7CHbJmgVPCSoxOJkDHR"
+    };
+    const priceId = priceIdMap[plan];
+    logStep("Using Price ID", { plan, priceId });
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price_data: {
-            currency: "usd",
-            product_data: { 
-              name: `SMS Journal ${plan === "monthly" ? "Monthly" : "Yearly"} Subscription`,
-              description: "Journal anywhere, anytime - just send a text"
-            },
-            unit_amount: priceAmount,
-            recurring: { interval },
-          },
+          price: priceId,
           quantity: 1,
         },
       ],
