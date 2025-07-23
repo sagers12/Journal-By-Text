@@ -153,7 +153,6 @@ export type Database = {
           reminder_time: string | null
           reminder_timezone: string | null
           timezone: string | null
-          trial_started_at: string | null
           updated_at: string | null
           weekly_recap_enabled: boolean | null
         }
@@ -167,7 +166,6 @@ export type Database = {
           reminder_time?: string | null
           reminder_timezone?: string | null
           timezone?: string | null
-          trial_started_at?: string | null
           updated_at?: string | null
           weekly_recap_enabled?: boolean | null
         }
@@ -181,7 +179,6 @@ export type Database = {
           reminder_time?: string | null
           reminder_timezone?: string | null
           timezone?: string | null
-          trial_started_at?: string | null
           updated_at?: string | null
           weekly_recap_enabled?: boolean | null
         }

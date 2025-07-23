@@ -79,7 +79,9 @@ export const useSubscription = () => {
 
   const isSubscribed = subscription?.subscribed || false;
 
-  const hasAccess = isTrialActive || isSubscribed;
+  // User has access if they have an active subscription OR an active trial
+  // Once someone subscribes, is_trial becomes false, so no double trial
+  const hasAccess = isSubscribed || isTrialActive;
 
   const trialDaysLeft = subscription?.trial_end 
     ? Math.max(0, Math.ceil((new Date(subscription.trial_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))

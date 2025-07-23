@@ -131,7 +131,7 @@ serve(async (req) => {
       subscribed: hasActiveSub,
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
-      is_trial: false,
+      is_trial: hasActiveSub ? false : undefined, // Once subscribed, no longer on trial
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
 

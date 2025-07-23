@@ -11,7 +11,9 @@ import Journal from "./pages/Journal";
 import Privacy from "./pages/Privacy";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import TrialExpired from "./pages/TrialExpired";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { SubscriptionProtectedRoute } from "./components/SubscriptionProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -27,15 +29,16 @@ const App = () => (
           <Route path="/sign-up" element={<SignUp />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/journal" element={
-            <ProtectedRoute>
+            <SubscriptionProtectedRoute>
               <Journal />
-            </ProtectedRoute>
+            </SubscriptionProtectedRoute>
           } />
           <Route path="/settings" element={
-            <ProtectedRoute>
+            <SubscriptionProtectedRoute>
               <Settings />
-            </ProtectedRoute>
+            </SubscriptionProtectedRoute>
           } />
+          <Route path="/trial-expired" element={<TrialExpired />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
