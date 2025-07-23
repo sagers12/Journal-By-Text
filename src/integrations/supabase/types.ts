@@ -306,6 +306,30 @@ export type Database = {
         }
         Relationships: []
       }
+      trial_reminder_history: {
+        Row: {
+          created_at: string
+          id: string
+          sent_at: string
+          trial_day: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sent_at?: string
+          trial_day: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sent_at?: string
+          trial_day?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_last_prompt_category: {
         Row: {
           last_category: string
