@@ -16,8 +16,10 @@ interface SignInFormProps {
 export const SignInForm = ({ loading, setLoading }: SignInFormProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
   
-  const { signIn } = useAuth();
+  const { signIn, resetPassword } = useAuth();
   const { toast } = useToast();
   const { csrfToken, validateAndRefreshToken } = useCSRFToken();
 
@@ -88,13 +90,83 @@ export const SignInForm = ({ loading, setLoading }: SignInFormProps) => {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      if (!resetEmail) {
+        throw new Error('Email is required');
+      }
+
+      const { error } = await resetPassword(resetEmail);
+      if (error) throw error;
+      
+      toast({
+        title: "Password reset email sent",
+        description: "Check your email for password reset instructions."
+      });
+      
+      setShowForgotPassword(false);
+      setResetEmail('');
+    } catch (error: any) {
+      toast({
+        title: "Password reset failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (showForgotPassword) {
+    return (
+      <div className="space-y-4">
+        <div className="text-center">
+          <h3 className="text-lg font-semibold text-slate-800 mb-2">Reset Password</h3>
+          <p className="text-sm text-slate-600 mb-4">
+            Enter your email address and we'll send you a link to reset your password.
+          </p>
+        </div>
+        <form onSubmit={handleForgotPassword} className="space-y-4">
+          <div>
+            <Label htmlFor="reset-email">Email</Label>
+            <Input 
+              id="reset-email" 
+              type="email" 
+              value={resetEmail} 
+              onChange={e => setResetEmail(e.target.value)} 
+              placeholder="your@email.com" 
+              required 
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Sending...' : 'Send Reset Email'}
+          </Button>
+          <Button 
+            type="button" 
+            variant="ghost" 
+            className="w-full" 
+            onClick={() => {
+              setShowForgotPassword(false);
+              setResetEmail('');
+            }}
+          >
+            Back to Sign In
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSignIn} className="space-y-4">
       <input type="hidden" name="_csrf" value={csrfToken} />
       <div>
         <Label htmlFor="signin-email">Email</Label>
         <Input 
-          id="signin-email" 
+          id="signin-email"
           type="email" 
           value={email} 
           onChange={e => setEmail(e.target.value)} 
@@ -115,6 +187,18 @@ export const SignInForm = ({ loading, setLoading }: SignInFormProps) => {
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? 'Signing in...' : 'Sign In'}
       </Button>
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={() => {
+            setShowForgotPassword(true);
+            setResetEmail(email); // Pre-fill with current email if any
+          }}
+          className="text-sm text-blue-600 hover:text-blue-700 underline"
+        >
+          Forgot your password?
+        </button>
+      </div>
     </form>
   );
 };
