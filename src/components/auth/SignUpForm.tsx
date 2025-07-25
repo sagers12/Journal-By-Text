@@ -247,7 +247,7 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
             onChange={e => setPassword(e.target.value)} 
             required 
             minLength={8}
-            pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$"
+            pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$"
             title="Password must be at least 8 characters long and contain uppercase, lowercase, and at least one number"
             className="pr-10"
           />
