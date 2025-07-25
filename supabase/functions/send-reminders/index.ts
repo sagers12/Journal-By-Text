@@ -72,10 +72,7 @@ serve(async (req) => {
     // Only users with active trials or active subscriptions
     const { data: profiles, error: profileError } = await supabaseClient
       .from('profiles')
-      .select(`
-        id, phone_number, reminder_enabled, reminder_time, reminder_timezone, last_reminder_sent,
-        subscribers!inner(subscribed, is_trial, trial_end)
-      `)
+      .select('id, phone_number, reminder_enabled, reminder_time, reminder_timezone, last_reminder_sent')
       .eq('reminder_enabled', true)
       .not('phone_number', 'is', null)
       .eq('phone_verified', true)
@@ -100,8 +97,18 @@ serve(async (req) => {
 
     for (const profile of profiles) {
       try {
-        // Check if user has access (active trial or subscription)
-        const subscriber = profile.subscribers
+        // Check if user has access (active trial or subscription) 
+        const { data: subscriber, error: subscriberError } = await supabaseClient
+          .from('subscribers')
+          .select('subscribed, is_trial, trial_end')
+          .eq('user_id', profile.id)
+          .single()
+
+        if (subscriberError || !subscriber) {
+          console.log(`User ${profile.id}: No subscription record found - skipping reminder`)
+          continue
+        }
+
         const hasActiveSubscription = subscriber.subscribed === true
         const hasActiveTrial = subscriber.is_trial === true && 
           subscriber.trial_end && 
