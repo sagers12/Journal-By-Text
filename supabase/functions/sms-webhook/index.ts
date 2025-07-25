@@ -58,21 +58,42 @@ serve(async (req) => {
       return new Response('OK - Test webhook received', { status: 200, headers: corsHeaders })
     }
 
-    // Validate signature if secret is configured
-    if (webhookSecret && surgeSignature) {
-      try {
-        const isValid = await validateSurgeSignature(body, surgeSignature, webhookSecret)
-        if (!isValid) {
-          console.error('Invalid webhook signature')
-          return new Response('Unauthorized', { status: 401, headers: corsHeaders })
-        }
-        console.log('Webhook signature validated successfully')
-      } catch (sigError) {
-        console.error('Signature validation error:', sigError)
-        // Continue processing for debugging, but log the error
+    // CRITICAL: Validate signature - this is now MANDATORY for security
+    if (!webhookSecret) {
+      console.error('SECURITY: Webhook secret not configured')
+      return new Response('Server configuration error', { status: 500, headers: corsHeaders })
+    }
+
+    if (!surgeSignature) {
+      console.error('SECURITY: No webhook signature provided')
+      return new Response('Unauthorized - missing signature', { status: 401, headers: corsHeaders })
+    }
+
+    try {
+      const isValid = await validateSurgeSignature(body, surgeSignature, webhookSecret)
+      if (!isValid) {
+        console.error('SECURITY: Invalid webhook signature')
+        
+        // Log security event for invalid signature
+        await supabaseClient
+          .from('security_events')
+          .insert({
+            event_type: 'invalid_webhook_signature',
+            identifier: 'sms_webhook',
+            details: {
+              provided_signature: surgeSignature,
+              body_length: body.length,
+              timestamp: new Date().toISOString()
+            },
+            severity: 'high'
+          })
+        
+        return new Response('Unauthorized', { status: 401, headers: corsHeaders })
       }
-    } else {
-      console.log('Webhook signature validation skipped - missing secret or signature')
+      console.log('Webhook signature validated successfully')
+    } catch (sigError) {
+      console.error('Signature validation error:', sigError)
+      return new Response('Signature validation failed', { status: 401, headers: corsHeaders })
     }
 
     // Determine payload format and extract event type
@@ -145,12 +166,66 @@ serve(async (req) => {
       conversationData: data.event ? messageData.conversation : messageData.conversation
     })
 
-    if (!messageId || !messageBody || !fromPhone) {
-      console.error('Missing required message data:', { messageId, messageBody, fromPhone })
-      return new Response('Bad Request: Missing required message data', {
+    // Enhanced input validation
+    if (!messageId || typeof messageId !== 'string' || messageId.length > 100) {
+      console.error('Invalid message ID:', messageId)
+      return new Response('Bad Request: Invalid message ID', {
         status: 400,
         headers: corsHeaders
       })
+    }
+
+    if (!messageBody || typeof messageBody !== 'string') {
+      console.error('Invalid message body:', messageBody)
+      return new Response('Bad Request: Invalid message content', {
+        status: 400,
+        headers: corsHeaders
+      })
+    }
+
+    if (!fromPhone || typeof fromPhone !== 'string' || fromPhone.length > 20) {
+      console.error('Invalid phone number:', fromPhone)
+      return new Response('Bad Request: Invalid phone number', {
+        status: 400,
+        headers: corsHeaders
+      })
+    }
+
+    // Limit message content length to prevent abuse
+    if (messageBody.length > 5000) {
+      console.error('Message too long:', messageBody.length)
+      return new Response('Bad Request: Message too long', {
+        status: 400,
+        headers: corsHeaders
+      })
+    }
+
+    // Rate limiting for SMS webhook per phone number
+    const smsRateLimitIdentifier = `sms:${fromPhone}`
+    const { data: smsRateLimit } = await supabaseClient.rpc('check_rate_limit', {
+      p_identifier: smsRateLimitIdentifier,
+      p_endpoint: 'sms_webhook',
+      p_max_attempts: 10, // 10 messages per 15 minutes per phone
+      p_window_minutes: 15
+    })
+
+    if (!smsRateLimit.allowed) {
+      console.log('SMS rate limit exceeded for phone:', fromPhone)
+      
+      await supabaseClient
+        .from('security_events')
+        .insert({
+          event_type: 'sms_rate_limit_exceeded',
+          identifier: fromPhone,
+          details: {
+            message_id: messageId,
+            attempts: smsRateLimit.attempts,
+            blocked_until: smsRateLimit.blocked_until
+          },
+          severity: 'medium'
+        })
+
+      return new Response('Rate limit exceeded', { status: 429, headers: corsHeaders })
     }
 
     // Check for duplicate messages using message ID

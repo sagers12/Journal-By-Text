@@ -6,8 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useTimezone } from '@/hooks/useTimezone';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useCSRFToken } from '@/components/CSRFToken';
+import { sanitizeInput, detectSuspiciousActivity, logSecurityEvent, checkClientRateLimit } from '@/utils/securityMonitoring';
 
 interface SignUpFormProps {
   loading: boolean;
@@ -23,6 +26,8 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
   
   const { signUp } = useAuth();
   const { toast } = useToast();
+  const { userTimezone } = useTimezone();
+  const { csrfToken, validateAndRefreshToken } = useCSRFToken();
 
   const consentText = "I authorize Text-2-Journal to send journaling reminders and prompts to the provided phone number using automated means. Message/data rates apply. Message frequency varies. Text HELP for help or STOP to opt out. Consent is not a condition of purchase. See privacy policy.";
 
@@ -88,7 +93,20 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    
     try {
+      // CSRF protection
+      const validToken = validateAndRefreshToken();
+      if (!validToken) {
+        throw new Error('Security token validation failed. Please refresh the page.');
+      }
+
+      // Client-side rate limiting
+      if (!checkClientRateLimit('signup', 3)) {
+        throw new Error('Too many signup attempts. Please wait before trying again.');
+      }
+
+      // Input validation and sanitization
       if (!email) {
         throw new Error('Email is required for account creation');
       }
@@ -98,17 +116,32 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
       if (!smsConsent) {
         throw new Error('You must agree to receive SMS messages to use SMS Journal');
       }
+
+      const sanitizedEmail = sanitizeInput(email, 254);
+      const sanitizedPhone = phoneNumber ? sanitizeInput(phoneNumber, 20) : '';
+
+      // Check for suspicious activity
+      if (detectSuspiciousActivity(email) || detectSuspiciousActivity(phoneNumber)) {
+        await logSecurityEvent({
+          event_type: 'suspicious_signup_attempt',
+          identifier: email,
+          details: {
+            suspicious_email: email,
+            suspicious_phone: phoneNumber,
+            user_agent: navigator.userAgent
+          },
+          severity: 'high'
+        });
+        throw new Error('Invalid input detected. Please check your information.');
+      }
       
       // Format and validate phone number
-      const formattedPhone = formatPhoneNumber(phoneNumber);
+      const formattedPhone = formatPhoneNumber(sanitizedPhone);
       if (!formattedPhone) {
         throw new Error('Please enter a valid 10-digit US phone number');
       }
       
-      // Get user's timezone
-      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      
-      const { data, error } = await signUp(email, password, formattedPhone, userTimezone);
+      const { data, error } = await signUp(sanitizedEmail, password, formattedPhone, userTimezone);
       if (error) {
         // Handle specific error for duplicate phone number
         if (error.message.includes('duplicate key value violates unique constraint "profiles_phone_number_unique"')) {
@@ -131,6 +164,17 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
         description: "We've sent a confirmation message to your phone. Please reply YES to start journaling via SMS."
       });
     } catch (error: any) {
+      // Log failed signup attempt
+      await logSecurityEvent({
+        event_type: 'failed_signup',
+        identifier: email || 'unknown',
+        details: {
+          error: error.message,
+          user_agent: navigator.userAgent
+        },
+        severity: 'low'
+      });
+
       toast({
         title: "Sign up failed",
         description: error.message,
@@ -143,6 +187,7 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
 
   return (
     <form onSubmit={handleSignUp} className="space-y-4">
+      <input type="hidden" name="_csrf" value={csrfToken} />
       <div>
         <Label htmlFor="signup-email">Email</Label>
         <Input 

@@ -86,28 +86,33 @@ export const useAuth = () => {
   }, []);
 
   const signUp = async (email: string, password: string, phoneNumber?: string, timezone?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          ...(phoneNumber && { phone_number: phoneNumber }),
-          ...(timezone && { timezone })
-        }
+    // Use secure-auth edge function for rate limiting and enhanced security
+    const { data, error } = await supabase.functions.invoke('secure-auth', {
+      body: {
+        action: 'signup',
+        email,
+        password,
+        phoneNumber,
+        timezone
       }
     });
-    return { data, error };
+
+    if (error) return { data: null, error };
+    return { data: data.data, error: null };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
+    // Use secure-auth edge function for rate limiting and enhanced security
+    const { data, error } = await supabase.functions.invoke('secure-auth', {
+      body: {
+        action: 'signin',
+        email,
+        password
+      }
     });
-    return { data, error };
+
+    if (error) return { data: null, error };
+    return { data: data.data, error: null };
   };
 
   const signOut = async () => {

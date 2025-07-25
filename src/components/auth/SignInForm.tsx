@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useCSRFToken } from '@/components/CSRFToken';
+import { sanitizeInput, detectSuspiciousActivity, logSecurityEvent, checkClientRateLimit } from '@/utils/securityMonitoring';
 
 interface SignInFormProps {
   loading: boolean;
@@ -17,15 +19,46 @@ export const SignInForm = ({ loading, setLoading }: SignInFormProps) => {
   
   const { signIn } = useAuth();
   const { toast } = useToast();
+  const { csrfToken, validateAndRefreshToken } = useCSRFToken();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    
     try {
+      // CSRF protection
+      const validToken = validateAndRefreshToken();
+      if (!validToken) {
+        throw new Error('Security token validation failed. Please refresh the page.');
+      }
+
+      // Client-side rate limiting
+      if (!checkClientRateLimit('signin', 5)) {
+        throw new Error('Too many sign-in attempts. Please wait before trying again.');
+      }
+
+      // Input validation and sanitization
       if (!email) {
         throw new Error('Email is required for sign in');
       }
-      const { error } = await signIn(email, password);
+
+      const sanitizedEmail = sanitizeInput(email, 254);
+
+      // Check for suspicious activity
+      if (detectSuspiciousActivity(email)) {
+        await logSecurityEvent({
+          event_type: 'suspicious_signin_attempt',
+          identifier: email,
+          details: {
+            suspicious_email: email,
+            user_agent: navigator.userAgent
+          },
+          severity: 'high'
+        });
+        throw new Error('Invalid input detected. Please check your email address.');
+      }
+
+      const { error } = await signIn(sanitizedEmail, password);
       if (error) throw error;
       
       toast({
@@ -34,6 +67,17 @@ export const SignInForm = ({ loading, setLoading }: SignInFormProps) => {
       });
       // Navigation will be handled by the Auth page component
     } catch (error: any) {
+      // Log failed signin attempt
+      await logSecurityEvent({
+        event_type: 'failed_signin',
+        identifier: email || 'unknown',
+        details: {
+          error: error.message,
+          user_agent: navigator.userAgent
+        },
+        severity: 'medium'
+      });
+
       toast({
         title: "Sign in failed",
         description: error.message,
@@ -46,6 +90,7 @@ export const SignInForm = ({ loading, setLoading }: SignInFormProps) => {
 
   return (
     <form onSubmit={handleSignIn} className="space-y-4">
+      <input type="hidden" name="_csrf" value={csrfToken} />
       <div>
         <Label htmlFor="signin-email">Email</Label>
         <Input 

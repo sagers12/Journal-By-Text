@@ -7,6 +7,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function validatePhoneNumber(phone: string): boolean {
+  if (!phone || typeof phone !== 'string') return false
+  // Remove all non-digit characters
+  const cleaned = phone.replace(/\D/g, '')
+  // Should be 10-15 digits (international format)
+  return cleaned.length >= 10 && cleaned.length <= 15
+}
+
+function getClientIP(req: Request): string {
+  const xForwardedFor = req.headers.get('x-forwarded-for')
+  const xRealIP = req.headers.get('x-real-ip')
+  const cfConnectingIP = req.headers.get('cf-connecting-ip')
+  
+  if (xForwardedFor) return xForwardedFor.split(',')[0].trim()
+  if (cfConnectingIP) return cfConnectingIP
+  if (xRealIP) return xRealIP
+  return 'unknown'
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -18,10 +37,66 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { phoneNumber } = await req.json()
+    let requestData
+    try {
+      requestData = await req.json()
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const { phoneNumber } = requestData
+    const clientIP = getClientIP(req)
     
-    if (!phoneNumber) {
-      throw new Error('Phone number is required')
+    // Input validation
+    if (!phoneNumber || !validatePhoneNumber(phoneNumber)) {
+      return new Response(
+        JSON.stringify({ error: 'Valid phone number is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Limit phone number length to prevent abuse
+    if (phoneNumber.length > 20) {
+      return new Response(
+        JSON.stringify({ error: 'Phone number too long' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Check rate limits
+    const rateLimitIdentifier = `${clientIP}:phone_verification`
+    const { data: rateLimitCheck } = await supabaseClient.rpc('check_rate_limit', {
+      p_identifier: rateLimitIdentifier,
+      p_endpoint: 'phone_verification',
+      p_max_attempts: 3, // Only 3 attempts per 15 minutes
+      p_window_minutes: 15
+    })
+
+    if (!rateLimitCheck.allowed) {
+      await supabaseClient
+        .from('security_events')
+        .insert({
+          event_type: 'rate_limit_exceeded',
+          identifier: rateLimitIdentifier,
+          details: {
+            endpoint: 'phone_verification',
+            ip: clientIP,
+            phone: phoneNumber,
+            blocked_until: rateLimitCheck.blocked_until
+          },
+          severity: 'medium'
+        })
+
+      return new Response(
+        JSON.stringify({ 
+          error: 'Too many verification attempts. Please try again later.',
+          blocked_until: rateLimitCheck.blocked_until
+        }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // Generate 6-digit verification code

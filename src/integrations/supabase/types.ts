@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_lockouts: {
+        Row: {
+          created_at: string
+          email: string
+          failed_attempts: number
+          id: string
+          last_attempt: string
+          locked_until: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          failed_attempts?: number
+          id?: string
+          last_attempt?: string
+          locked_until?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          failed_attempts?: number
+          id?: string
+          last_attempt?: string
+          locked_until?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       journal_entries: {
         Row: {
           content: string
@@ -181,6 +214,69 @@ export type Database = {
           timezone?: string | null
           updated_at?: string | null
           weekly_recap_enabled?: boolean | null
+        }
+        Relationships: []
+      }
+      rate_limits: {
+        Row: {
+          attempts: number
+          blocked_until: string | null
+          created_at: string
+          endpoint: string
+          id: string
+          identifier: string
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          attempts?: number
+          blocked_until?: string | null
+          created_at?: string
+          endpoint: string
+          id?: string
+          identifier: string
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          attempts?: number
+          blocked_until?: string | null
+          created_at?: string
+          endpoint?: string
+          id?: string
+          identifier?: string
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
+      security_events: {
+        Row: {
+          created_at: string
+          details: Json | null
+          event_type: string
+          id: string
+          identifier: string
+          severity: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          id?: string
+          identifier: string
+          severity?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          id?: string
+          identifier?: string
+          severity?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -398,6 +494,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_rate_limit: {
+        Args: {
+          p_identifier: string
+          p_endpoint: string
+          p_max_attempts?: number
+          p_window_minutes?: number
+        }
+        Returns: Json
+      }
+      cleanup_old_rate_limits: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_next_prompt_for_user: {
         Args: { user_uuid: string }
         Returns: {
