@@ -72,19 +72,19 @@ const Marketing = () => {
                   <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
                     <div className="w-2 h-2 rounded-full bg-green-500"></div>
                   </div>
+                  <span className="text-sm md:text-base">No credit card required to start</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  </div>
                   <span className="text-sm md:text-base">No apps to download</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
                     <div className="w-2 h-2 rounded-full bg-green-500"></div>
                   </div>
-                  <span className="text-sm md:text-base">Daily prompts to inspire you</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                  </div>
-                  <span className="text-sm md:text-base">Weekly recaps to track progress</span>
+                  <span className="text-sm md:text-base">Daily prompts to inspire your writing</span>
                 </div>
               </div>
             </div>
