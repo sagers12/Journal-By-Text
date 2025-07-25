@@ -80,9 +80,21 @@ export const SignInForm = ({ loading, setLoading }: SignInFormProps) => {
         severity: 'medium'
       });
 
+      // Provide user-friendly error messages
+      let userMessage = "Invalid email or password. Please check your credentials and try again.";
+      
+      // Handle specific error cases with more helpful messages
+      if (error.message?.toLowerCase().includes('email')) {
+        userMessage = "Please enter a valid email address.";
+      } else if (error.message?.toLowerCase().includes('rate limit') || error.message?.toLowerCase().includes('too many')) {
+        userMessage = "Too many login attempts. Please wait a few minutes before trying again.";
+      } else if (error.message?.toLowerCase().includes('network') || error.message?.toLowerCase().includes('connection')) {
+        userMessage = "Connection error. Please check your internet connection and try again.";
+      }
+
       toast({
         title: "Sign in failed",
-        description: error.message,
+        description: userMessage,
         variant: "destructive"
       });
     } finally {
