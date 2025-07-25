@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useCSRFToken } from '@/components/CSRFToken';
 import { sanitizeInput, detectSuspiciousActivity, logSecurityEvent, checkClientRateLimit } from '@/utils/securityMonitoring';
+import { Eye, EyeOff } from 'lucide-react';
 
 interface SignUpFormProps {
   loading: boolean;
@@ -23,6 +24,7 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [smsConsent, setSmsConsent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   
   const { signUp } = useAuth();
   const { toast } = useToast();
@@ -237,18 +239,32 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
       </div>
       <div>
         <Label htmlFor="signup-password">Password</Label>
-        <Input 
-          id="signup-password" 
-          type="password" 
-          value={password} 
-          onChange={e => setPassword(e.target.value)} 
-          required 
-          minLength={12}
-          pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$"
-          title="Password must be at least 12 characters long and contain uppercase, lowercase, number, and special character"
-        />
+        <div className="relative">
+          <Input 
+            id="signup-password" 
+            type={showPassword ? "text" : "password"}
+            value={password} 
+            onChange={e => setPassword(e.target.value)} 
+            required 
+            minLength={8}
+            pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$"
+            title="Password must be at least 8 characters long and contain uppercase, lowercase, and at least one number"
+            className="pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+          >
+            {showPassword ? (
+              <EyeOff className="h-4 w-4 text-slate-400 hover:text-slate-600" />
+            ) : (
+              <Eye className="h-4 w-4 text-slate-400 hover:text-slate-600" />
+            )}
+          </button>
+        </div>
         <p className="text-xs text-slate-500 mt-1">
-          Minimum 12 characters with uppercase, lowercase, number, and special character
+          Minimum 8 characters with uppercase, lowercase, and at least one number
         </p>
       </div>
       <Button type="submit" className="w-full" disabled={loading}>
