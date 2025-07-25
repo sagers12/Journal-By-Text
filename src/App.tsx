@@ -12,6 +12,7 @@ import Privacy from "./pages/Privacy";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import TrialExpired from "./pages/TrialExpired";
+import { ResetPassword } from "./pages/ResetPassword";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { SubscriptionProtectedRoute } from "./components/SubscriptionProtectedRoute";
 
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/" element={<Marketing />} />
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/sign-up" element={<SignUp />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/journal" element={
             <SubscriptionProtectedRoute>
