@@ -177,90 +177,21 @@ serve(async (req) => {
       }
     }
 
-    let authResponse
-    let authError
-
+    // For signin, just return validation success - let client handle auth
     if (action === 'signin') {
-      // Attempt sign in
-      const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email,
-        password
-      })
-      authResponse = data
-      authError = error
-
-      if (error) {
-        // Handle failed login attempt
-        const { data: existingLockout } = await supabaseClient
-          .from('account_lockouts')
-          .select('*')
-          .eq('email', email)
-          .single()
-
-        if (existingLockout) {
-          const newFailedAttempts = existingLockout.failed_attempts + 1
-          const shouldLock = newFailedAttempts >= 5
-          
-          await supabaseClient
-            .from('account_lockouts')
-            .update({
-              failed_attempts: newFailedAttempts,
-              locked_until: shouldLock ? new Date(Date.now() + 30 * 60 * 1000).toISOString() : null, // 30 min lockout
-              last_attempt: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .eq('email', email)
-
-          if (shouldLock) {
-            // Log security event
-            await supabaseClient
-              .from('security_events')
-              .insert({
-                event_type: 'account_locked',
-                identifier: email,
-                details: {
-                  ip: clientIP,
-                  failed_attempts: newFailedAttempts,
-                  locked_until: new Date(Date.now() + 30 * 60 * 1000).toISOString()
-                },
-                severity: 'high'
-              })
+      return new Response(
+        JSON.stringify({ 
+          validation_passed: true,
+          message: 'Security validation passed',
+          rate_limit: {
+            attempts: rateLimitCheck.attempts,
+            max_attempts: rateLimitCheck.max_attempts
           }
-        } else {
-          // Create new lockout record
-          await supabaseClient
-            .from('account_lockouts')
-            .insert({
-              email,
-              user_id: '00000000-0000-0000-0000-000000000000', // Placeholder until we get actual user ID
-              failed_attempts: 1,
-              last_attempt: new Date().toISOString()
-            })
-        }
-
-        // Log failed login
-        await supabaseClient
-          .from('security_events')
-          .insert({
-            event_type: 'failed_login',
-            identifier: email,
-            details: {
-              ip: clientIP,
-              error: error.message,
-              timestamp: new Date().toISOString()
-            },
-            severity: 'medium'
-          })
-      } else if (authResponse.user) {
-        // Successful login - clear lockout record
-        await supabaseClient
-          .from('account_lockouts')
-          .delete()
-          .eq('email', email)
-      }
-
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     } else {
-      // Sign up
+      // For signup, handle the actual signup since it doesn't affect client auth state
       const redirectUrl = `${req.headers.get('origin') || 'https://journalbytext.com'}/`
       
       const { data, error } = await supabaseClient.auth.signUp({
@@ -274,10 +205,15 @@ serve(async (req) => {
           }
         }
       })
-      authResponse = data
-      authError = error
 
-      if (!error && data.user) {
+      if (error) {
+        return new Response(
+          JSON.stringify({ error: error.message }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      if (data.user) {
         // Log successful signup
         await supabaseClient
           .from('security_events')
@@ -293,25 +229,18 @@ serve(async (req) => {
             severity: 'low'
           })
       }
-    }
 
-    if (authError) {
       return new Response(
-        JSON.stringify({ error: authError.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          data,
+          rate_limit: {
+            attempts: rateLimitCheck.attempts,
+            max_attempts: rateLimitCheck.max_attempts
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-
-    return new Response(
-      JSON.stringify({ 
-        data: authResponse,
-        rate_limit: {
-          attempts: rateLimitCheck.attempts,
-          max_attempts: rateLimitCheck.max_attempts
-        }
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
 
   } catch (error) {
     console.error('Secure auth error:', error)

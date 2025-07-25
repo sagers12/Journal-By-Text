@@ -102,17 +102,44 @@ export const useAuth = () => {
   };
 
   const signIn = async (email: string, password: string) => {
-    // Use secure-auth edge function for rate limiting and enhanced security
-    const { data, error } = await supabase.functions.invoke('secure-auth', {
-      body: {
-        action: 'signin',
+    try {
+      // Step 1: Validate with security checks
+      const { data: validationData, error: validationError } = await supabase.functions.invoke('secure-auth', {
+        body: {
+          action: 'signin',
+          email,
+          password
+        }
+      });
+
+      if (validationError) {
+        return { data: null, error: validationError };
+      }
+
+      if (!validationData?.validation_passed) {
+        return { data: null, error: new Error('Security validation failed') };
+      }
+
+      // Step 2: Perform actual client-side authentication
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password
-      }
-    });
+      });
 
-    if (error) return { data: null, error };
-    return { data: data.data, error: null };
+      if (authError) {
+        // Handle failed login attempt tracking
+        await supabase.functions.invoke('track-login-failure', {
+          body: { email, error: authError.message }
+        }).catch(console.error); // Don't fail main flow if tracking fails
+
+        return { data: null, error: authError };
+      }
+
+      return { data: authData, error: null };
+    } catch (error) {
+      console.error('Sign in error:', error);
+      return { data: null, error: error instanceof Error ? error : new Error('Unknown error') };
+    }
   };
 
   const signOut = async () => {
