@@ -21,14 +21,13 @@ function validateEmail(email: string): boolean {
 }
 
 function validatePassword(password: string): boolean {
-  // Must be at least 12 characters with uppercase, lowercase, number, and special character
-  const minLength = password.length >= 12
+  // Must be at least 8 characters with uppercase, lowercase, and number
+  const minLength = password.length >= 8
   const hasUpper = /[A-Z]/.test(password)
   const hasLower = /[a-z]/.test(password)
   const hasNumber = /\d/.test(password)
-  const hasSpecial = /[@$!%*?&]/.test(password)
   
-  return minLength && hasUpper && hasLower && hasNumber && hasSpecial
+  return minLength && hasUpper && hasLower && hasNumber
 }
 
 function validatePhoneNumber(phone: string): boolean {
@@ -108,7 +107,7 @@ serve(async (req) => {
     if (action === 'signup' && !validatePassword(password)) {
       return new Response(
         JSON.stringify({ 
-          error: 'Password must be at least 12 characters long and contain uppercase, lowercase, number, and special character' 
+          error: 'Password must be at least 8 characters long and contain uppercase, lowercase, and at least one number' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
