@@ -198,8 +198,13 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
           value={password} 
           onChange={e => setPassword(e.target.value)} 
           required 
-          minLength={6} 
+          minLength={12}
+          pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$"
+          title="Password must be at least 12 characters long and contain uppercase, lowercase, number, and special character"
         />
+        <p className="text-xs text-slate-500 mt-1">
+          Minimum 12 characters with uppercase, lowercase, number, and special character
+        </p>
       </div>
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? 'Creating account...' : 'Sign Up'}
