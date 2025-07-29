@@ -91,13 +91,20 @@ Deno.serve(async (req) => {
 
     console.log('Fetching users eligible for weekly recap...');
 
-    // Get all users who have weekly recap enabled and phone verified
+    // Get all users who have weekly recap enabled, phone verified, AND active subscription/trial
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
-      .select('id, phone_number, reminder_timezone, weekly_recap_enabled')
+      .select(`
+        id, 
+        phone_number, 
+        reminder_timezone, 
+        weekly_recap_enabled,
+        subscribers!inner(subscribed, is_trial, trial_end)
+      `)
       .eq('weekly_recap_enabled', true)
       .eq('phone_verified', true)
-      .not('phone_number', 'is', null);
+      .not('phone_number', 'is', null)
+      .or('subscribed.eq.true,and(is_trial.eq.true,trial_end.gt.now())', { referencedTable: 'subscribers' });
 
     if (profileError) {
       console.error('Error fetching profiles:', profileError);

@@ -140,6 +140,28 @@ const checkAndSendMilestone = async (supabase: any, userId: string, streak: numb
     console.log(`=== MILESTONE CHECK START ===`);
     console.log(`User ${userId}: Checking milestone for ${streak} day streak`);
     
+    // First check if user has active subscription or trial
+    const { data: subscriber, error: subscriptionError } = await supabase
+      .from('subscribers')
+      .select('subscribed, is_trial, trial_end')
+      .eq('user_id', userId)
+      .single();
+
+    if (subscriptionError) {
+      console.log(`User ${userId}: No subscription record found - skipping milestone message`);
+      return;
+    }
+
+    const hasAccess = subscriber.subscribed || 
+      (subscriber.is_trial && subscriber.trial_end && new Date(subscriber.trial_end) > new Date());
+
+    if (!hasAccess) {
+      console.log(`User ${userId}: No active subscription or trial - skipping milestone message`);
+      return;
+    }
+
+    console.log(`User ${userId}: ✅ User has active subscription/trial - proceeding with milestone check`);
+    
     // Check if this streak number is a milestone
     if (!MILESTONE_DAYS.includes(streak)) {
       console.log(`User ${userId}: ${streak} days is not a milestone (valid: ${MILESTONE_DAYS.join(', ')})`);
