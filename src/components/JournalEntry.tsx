@@ -396,21 +396,34 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
         {/* Photos - Always visible (moved outside collapsible) */}
         {entry.photos && entry.photos.length > 0 && (
           <div className="mb-4">
-            <div className="flex items-center gap-2 text-slate-600 mb-3">
-              <Image className="w-4 h-4" />
-              <span className="text-sm font-medium">{entry.photos.length} photo{entry.photos.length > 1 ? 's' : ''}</span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {entry.photos.map((photo, index) => (
-                <img
-                  key={index}
-                  src={photo}
-                  alt={`Entry photo ${index + 1}`}
-                  className="w-full h-24 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => setSelectedPhoto(photo)}
-                />
-              ))}
-            </div>
+            {/* Filter out removed photos when in editing mode */}
+            {(() => {
+              const visiblePhotos = isEditing 
+                ? entry.photos.filter(photo => !removedPhotos.includes(photo))
+                : entry.photos;
+              
+              if (visiblePhotos.length === 0) return null;
+              
+              return (
+                <>
+                  <div className="flex items-center gap-2 text-slate-600 mb-3">
+                    <Image className="w-4 h-4" />
+                    <span className="text-sm font-medium">{visiblePhotos.length} photo{visiblePhotos.length > 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {visiblePhotos.map((photo, index) => (
+                      <img
+                        key={index}
+                        src={photo}
+                        alt={`Entry photo ${index + 1}`}
+                        className="w-full h-24 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setSelectedPhoto(photo)}
+                      />
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
 
