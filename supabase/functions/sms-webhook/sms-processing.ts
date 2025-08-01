@@ -170,17 +170,22 @@ const checkAndSendMilestone = async (supabase: any, userId: string, streak: numb
 
     console.log(`User ${userId}: ✅ ${streak} days IS a milestone!`);
 
-    // Check if we've already sent a congratulatory message for this milestone
+    // Check if we've already sent a congratulatory message for this milestone recently
+    // Only check for messages sent within the last [streak] days to allow multiple milestone celebrations
+    const streakDaysAgo = new Date();
+    streakDaysAgo.setDate(streakDaysAgo.getDate() - streak);
+    
     const { data: existingMessages } = await supabase
       .from('sms_messages')
       .select('id')
       .eq('user_id', userId)
       .ilike('message_content', `%${streak} days in a row%`)
+      .gte('received_at', streakDaysAgo.toISOString())
       .limit(1);
 
-    // If we've already sent a message for this milestone, don't send another
+    // If we've already sent a message for this milestone recently, don't send another
     if (existingMessages && existingMessages.length > 0) {
-      console.log(`User ${userId}: Already sent milestone message for ${streak} days - skipping`);
+      console.log(`User ${userId}: Already sent milestone message for ${streak} days recently - skipping`);
       return;
     }
 
