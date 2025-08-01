@@ -171,12 +171,14 @@ export const updateJournalEntry = async ({
   content, 
   tags,
   photos, 
+  removedPhotos,
   userId 
 }: { 
   id: string; 
   content: string; 
   tags?: string[];
   photos?: File[];
+  removedPhotos?: string[];
   userId: string;
 }) => {
   validateEntryContent(content);
@@ -198,6 +200,40 @@ export const updateJournalEntry = async ({
     .eq('user_id', userId);
 
   if (error) throw error;
+
+  // Remove photos if any
+  if (removedPhotos && removedPhotos.length > 0) {
+    for (const photoUrl of removedPhotos) {
+      try {
+        // Extract file path from URL
+        const url = new URL(photoUrl);
+        const pathParts = url.pathname.split('/');
+        const fileName = pathParts[pathParts.length - 1];
+        
+        // Delete from storage
+        const { error: storageError } = await supabase.storage
+          .from('journal-photos')
+          .remove([`${userId}/${id}/${fileName}`]);
+        
+        if (storageError) {
+          console.error('Error deleting photo from storage:', storageError);
+        }
+        
+        // Delete from database
+        const { error: dbError } = await supabase
+          .from('journal_photos')
+          .delete()
+          .eq('entry_id', id)
+          .eq('file_name', fileName);
+        
+        if (dbError) {
+          console.error('Error deleting photo from database:', dbError);
+        }
+      } catch (error) {
+        console.error('Error processing photo removal:', error);
+      }
+    }
+  }
 
   // Upload new photos if any
   if (photos && photos.length > 0) {

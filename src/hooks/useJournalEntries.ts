@@ -98,13 +98,14 @@ export const useJournalEntries = (userId?: string) => {
 
   // Update entry mutation
   const updateEntryMutation = useMutation({
-    mutationFn: async ({ id, content, tags, photos }: { 
+    mutationFn: async ({ id, content, tags, photos, removedPhotos }: { 
       id: string; 
       content: string; 
       tags?: string[];
       photos?: File[];
+      removedPhotos?: string[];
     }) => {
-      return updateJournalEntry({ id, content, tags, photos, userId: userId! });
+      return updateJournalEntry({ id, content, tags, photos, removedPhotos, userId: userId! });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['journal-entries', userId] });
@@ -150,7 +151,8 @@ export const useJournalEntries = (userId?: string) => {
     isLoading,
     error,
     createEntry: createEntryMutation.mutate,
-    updateEntry: updateEntryMutation.mutate,
+    updateEntry: (id: string, content: string, tags?: string[], photos?: File[], removedPhotos?: string[]) => 
+      updateEntryMutation.mutate({ id, content, tags, photos, removedPhotos }),
     deleteEntry: deleteEntryMutation.mutate,
     isCreating: createEntryMutation.isPending,
     isUpdating: updateEntryMutation.isPending,

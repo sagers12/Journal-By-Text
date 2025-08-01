@@ -12,7 +12,7 @@ import type { Entry } from "@/types/entry";
 interface JournalEntryProps {
   entry: Entry;
   onDelete: (id: string) => void;
-  onEdit: (id: string, newContent: string, tags?: string[], photos?: File[]) => void;
+  onEdit: (id: string, newContent: string, tags?: string[], photos?: File[], removedPhotos?: string[]) => void;
 }
 
 interface PhotoFile {
@@ -26,6 +26,7 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
   const [editContent, setEditContent] = useState(entry.content);
   const [editTags, setEditTags] = useState<string>((entry.tags || []).join(', '));
   const [editPhotos, setEditPhotos] = useState<PhotoFile[]>([]);
+  const [removedPhotos, setRemovedPhotos] = useState<string[]>([]);
   const [showActions, setShowActions] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -127,6 +128,10 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
     setEditPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
+  const removeExistingPhoto = (photoUrl: string) => {
+    setRemovedPhotos(prev => [...prev, photoUrl]);
+  };
+
   const handleSaveEdit = () => {
     const newTags = editTags.split(',')
       .map(tag => tag.trim())
@@ -136,24 +141,28 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
     const hasContentChanged = editContent.trim() !== entry.content;
     const hasTagsChanged = JSON.stringify(newTags) !== JSON.stringify(entry.tags || []);
     const hasPhotosAdded = editPhotos.length > 0;
+    const hasPhotosRemoved = removedPhotos.length > 0;
     
-    if (hasContentChanged || hasTagsChanged || hasPhotosAdded) {
+    if (hasContentChanged || hasTagsChanged || hasPhotosAdded || hasPhotosRemoved) {
       const photoFiles = editPhotos.map(p => p.file);
       onEdit(
         entry.id, 
         editContent, 
         newTags, 
-        photoFiles.length > 0 ? photoFiles : undefined
+        photoFiles.length > 0 ? photoFiles : undefined,
+        removedPhotos.length > 0 ? removedPhotos : undefined
       );
     }
     setIsEditing(false);
     setEditPhotos([]);
+    setRemovedPhotos([]);
   };
 
   const handleCancelEdit = () => {
     setEditContent(entry.content);
     setEditTags((entry.tags || []).join(', '));
     setEditPhotos([]);
+    setRemovedPhotos([]);
     setIsEditing(false);
   };
 
@@ -288,27 +297,59 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
                 {editPhotos.length + (entry.photos?.length || 0) >= MAX_PHOTOS ? 'Maximum photos reached' : 'Click to add photos'}
               </Button>
               
+              {/* Show existing photos with remove option */}
+              {entry.photos && entry.photos.length > 0 && (
+                <div className="mt-4">
+                  <div className="text-sm font-medium text-slate-700 mb-2">Current Photos:</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {entry.photos
+                      .filter(photo => !removedPhotos.includes(photo))
+                      .map((photo, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={photo}
+                            alt={`Existing photo ${index + 1}`}
+                            className="w-full h-20 object-cover rounded-lg border border-slate-200"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeExistingPhoto(photo)}
+                            className="absolute top-1 right-1 h-6 w-6 p-0 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+              
               {/* Show new photos being added */}
               {editPhotos.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mt-4">
-                  {editPhotos.map((photo, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={photo.previewUrl}
-                        alt={`New photo ${index + 1}`}
-                        className="w-full h-20 object-cover rounded-lg border border-slate-200"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeNewPhoto(index)}
-                        className="absolute top-1 right-1 h-6 w-6 p-0 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ))}
+                <div className="mt-4">
+                  <div className="text-sm font-medium text-slate-700 mb-2">New Photos:</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {editPhotos.map((photo, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={photo.previewUrl}
+                          alt={`New photo ${index + 1}`}
+                          className="w-full h-20 object-cover rounded-lg border border-slate-200"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeNewPhoto(index)}
+                          className="absolute top-1 right-1 h-6 w-6 p-0 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

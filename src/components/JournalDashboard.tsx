@@ -62,8 +62,8 @@ export const JournalDashboard = () => {
     }
   };
 
-  const handleEditEntry = (id: string, newContent: string, tags?: string[], photos?: File[]) => {
-    updateEntry({ id, content: newContent.trim(), tags, photos });
+  const handleEditEntry = (id: string, newContent: string, tags?: string[], photos?: File[], removedPhotos?: string[]) => {
+    updateEntry(id, newContent.trim(), tags, photos, removedPhotos);
   };
 
   const applyFilters = (entries: Entry[], filters: SearchFilters): Entry[] => {
