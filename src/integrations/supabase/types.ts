@@ -497,6 +497,10 @@ export type Database = {
           category: string
         }[]
       }
+      reset_rate_limit_for_phone: {
+        Args: { phone_number: string }
+        Returns: Json
+      }
       send_test_reminder: {
         Args: Record<PropertyKey, never>
         Returns: Json
