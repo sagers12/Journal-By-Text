@@ -33,7 +33,7 @@ async function deriveKey(userId: string, salt: Uint8Array): Promise<CryptoKey> {
 }
 
 export async function encrypt(text: string, userId: string): Promise<string> {
-  if (!text || !userId) {
+  if (text === null || text === undefined || !userId) {
     throw new Error('Text and userId are required for encryption');
   }
 
@@ -65,7 +65,7 @@ export async function encrypt(text: string, userId: string): Promise<string> {
 }
 
 export async function decrypt(encryptedText: string, userId: string): Promise<string> {
-  if (!encryptedText || !userId) {
+  if (encryptedText === null || encryptedText === undefined || !userId) {
     throw new Error('Encrypted text and userId are required for decryption');
   }
 
