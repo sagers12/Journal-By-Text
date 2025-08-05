@@ -203,31 +203,56 @@ export const updateJournalEntry = async ({
 
   // Remove photos if any
   if (removedPhotos && removedPhotos.length > 0) {
+    console.log('Processing photo removals:', removedPhotos);
+    
     for (const photoUrl of removedPhotos) {
       try {
-        // Extract file path from URL
-        const url = new URL(photoUrl);
-        const pathParts = url.pathname.split('/');
-        const fileName = pathParts[pathParts.length - 1];
+        // First, find the photo record in the database using the URL
+        const { data: photoRecords, error: findError } = await supabase
+          .from('journal_photos')
+          .select('id, file_path, file_name')
+          .eq('entry_id', id);
         
-        // Delete from storage
-        const { error: storageError } = await supabase.storage
-          .from('journal-photos')
-          .remove([`${userId}/${id}/${fileName}`]);
-        
-        if (storageError) {
-          console.error('Error deleting photo from storage:', storageError);
+        if (findError) {
+          console.error('Error finding photo records:', findError);
+          continue;
         }
         
-        // Delete from database
-        const { error: dbError } = await supabase
-          .from('journal_photos')
-          .delete()
-          .eq('entry_id', id)
-          .eq('file_name', fileName);
+        // Find the matching photo record by checking if the URL matches
+        const matchingPhoto = photoRecords?.find(photo => {
+          const { data: publicUrl } = supabase.storage
+            .from('journal-photos')
+            .getPublicUrl(photo.file_path);
+          return publicUrl.publicUrl === photoUrl;
+        });
         
-        if (dbError) {
-          console.error('Error deleting photo from database:', dbError);
+        if (matchingPhoto) {
+          console.log('Found matching photo to delete:', matchingPhoto);
+          
+          // Delete from storage using the file_path from database
+          const { error: storageError } = await supabase.storage
+            .from('journal-photos')
+            .remove([matchingPhoto.file_path]);
+          
+          if (storageError) {
+            console.error('Error deleting photo from storage:', storageError);
+          } else {
+            console.log('Successfully deleted from storage:', matchingPhoto.file_path);
+          }
+          
+          // Delete from database using the photo ID
+          const { error: dbError } = await supabase
+            .from('journal_photos')
+            .delete()
+            .eq('id', matchingPhoto.id);
+          
+          if (dbError) {
+            console.error('Error deleting photo from database:', dbError);
+          } else {
+            console.log('Successfully deleted from database:', matchingPhoto.id);
+          }
+        } else {
+          console.error('Could not find matching photo record for URL:', photoUrl);
         }
       } catch (error) {
         console.error('Error processing photo removal:', error);
