@@ -318,15 +318,16 @@ export async function processJournalEntry(
   
   console.log(`Calculated entry date for timezone ${userTimezone}: ${correctedEntryDate}`);
 
-  // Extract hashtags from message content
+  // Extract hashtags from message content (if any)
   const hashtagRegex = /#\w+/g;
-  const hashtags = messageBody.match(hashtagRegex) || [];
+  const hashtags = messageBody ? messageBody.match(hashtagRegex) || [] : [];
   const tags = hashtags.map(tag => tag.substring(1).toLowerCase()); // Remove # and lowercase
   
   console.log(`Extracted ${tags.length} tags: ${tags.join(', ')}`);
 
-  // Encrypt message content before storing
-  const encryptedMessageContent = await encrypt(messageBody, userId)
+  // Encrypt message content before storing (handle empty content)
+  const contentToEncrypt = messageBody || '';
+  const encryptedMessageContent = await encrypt(contentToEncrypt, userId)
 
   // Store SMS message record first
   const { data: smsMessage, error: smsError } = await supabaseClient
@@ -384,7 +385,7 @@ export async function processJournalEntry(
       console.error('Failed to decrypt existing content, using as-is:', error)
     }
     
-    const updatedContent = `${decryptedExistingContent}\n\n${messageBody}`
+    const updatedContent = messageBody ? `${decryptedExistingContent}\n\n${messageBody}` : decryptedExistingContent
     const encryptedUpdatedContent = await encrypt(updatedContent, userId)
     
     const { data: updatedEntry, error: updateError } = await supabaseClient
@@ -412,7 +413,7 @@ export async function processJournalEntry(
       year: 'numeric' 
     })}`
     
-    const content = messageBody
+    const content = messageBody || ''
     
     // Encrypt content and title before storing
     const encryptedContent = await encrypt(content, userId)

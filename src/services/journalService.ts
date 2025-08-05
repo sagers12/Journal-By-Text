@@ -123,8 +123,8 @@ export const createJournalEntry = async ({
   if (!userId) throw new Error('User not authenticated');
 
   // Validate inputs
-  validateEntryContent(content);
-  validatePhotos(photos);
+  validateEntryContent(content, photos);
+  if (photos) validatePhotos(photos);
 
   // Encrypt content and title before storing
   const encryptedContent = await encrypt(content.trim(), userId);
@@ -181,7 +181,7 @@ export const updateJournalEntry = async ({
   removedPhotos?: string[];
   userId: string;
 }) => {
-  validateEntryContent(content);
+  validateEntryContent(content, photos);
 
   // Encrypt content before updating
   const encryptedContent = await encrypt(content.trim(), userId);

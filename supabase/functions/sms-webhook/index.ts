@@ -175,8 +175,17 @@ serve(async (req) => {
       })
     }
 
-    if (!messageBody || typeof messageBody !== 'string') {
-      console.error('Invalid message body:', messageBody)
+    // Allow empty message body if attachments are present
+    if (!messageBody && (!attachments || attachments.length === 0)) {
+      console.error('Invalid message body - no content and no attachments:', messageBody)
+      return new Response('Bad Request: Invalid message content', {
+        status: 400,
+        headers: corsHeaders
+      })
+    }
+    
+    if (messageBody && typeof messageBody !== 'string') {
+      console.error('Invalid message body type:', messageBody)
       return new Response('Bad Request: Invalid message content', {
         status: 400,
         headers: corsHeaders

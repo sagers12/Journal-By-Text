@@ -1,6 +1,7 @@
 
-export const validateEntryContent = (content: string) => {
-  if (!content.trim()) {
+export const validateEntryContent = (content: string, photos?: File[]) => {
+  // Allow empty content if photos are provided
+  if (!content.trim() && (!photos || photos.length === 0)) {
     throw new Error('Content cannot be empty');
   }
 

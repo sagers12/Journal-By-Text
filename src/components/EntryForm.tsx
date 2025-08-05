@@ -111,8 +111,9 @@ export const EntryForm = ({ onSubmit, onClose }: EntryFormProps) => {
     const sanitizedContent = sanitizeInput(content);
     
     // Validation
-    if (!sanitizedContent) {
-      alert('Please enter some content for your journal entry');
+    const photoFiles = photos.map(p => p.file);
+    if (!sanitizedContent && photoFiles.length === 0) {
+      alert('Please enter some content or add photos for your journal entry');
       return;
     }
 
@@ -129,7 +130,7 @@ export const EntryForm = ({ onSubmit, onClose }: EntryFormProps) => {
         .filter(tag => tag && tag.length > 0)
         .slice(0, 10); // Limit to 10 tags
 
-      const photoFiles = photos.map(p => p.file);
+      // photoFiles already defined above in validation
       
       await onSubmit(
         sanitizedContent, 
