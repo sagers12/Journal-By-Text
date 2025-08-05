@@ -91,20 +91,13 @@ Deno.serve(async (req) => {
 
     console.log('Fetching users eligible for weekly recap...');
 
-    // Get all users who have weekly recap enabled, phone verified, AND active subscription/trial
+    // First, get all users who have weekly recap enabled and phone verified
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
-      .select(`
-        id, 
-        phone_number, 
-        reminder_timezone, 
-        weekly_recap_enabled,
-        subscribers!inner(subscribed, is_trial, trial_end)
-      `)
+      .select('id, phone_number, reminder_timezone, weekly_recap_enabled')
       .eq('weekly_recap_enabled', true)
       .eq('phone_verified', true)
-      .not('phone_number', 'is', null)
-      .or('subscribed.eq.true,and(is_trial.eq.true,trial_end.gt.now())', { referencedTable: 'subscribers' });
+      .not('phone_number', 'is', null);
 
     if (profileError) {
       console.error('Error fetching profiles:', profileError);
@@ -125,6 +118,31 @@ Deno.serve(async (req) => {
     for (const profile of profiles as Profile[]) {
       try {
         console.log(`Processing weekly recap for user ${profile.id}`);
+
+        // Check subscription status using the same pattern as working reminders
+        const { data: subscriber, error: subError } = await supabase
+          .from('subscribers')
+          .select('subscribed, is_trial, trial_end')
+          .eq('user_id', profile.id)
+          .single();
+
+        if (subError || !subscriber) {
+          console.log(`User ${profile.id}: No subscription record found - skipping`);
+          continue;
+        }
+
+        // Check if user has active subscription or trial (same logic as reminders)
+        const hasActiveSubscription = subscriber.subscribed;
+        const hasActiveTrial = subscriber.is_trial && 
+          subscriber.trial_end && 
+          new Date(subscriber.trial_end) > new Date();
+
+        if (!hasActiveSubscription && !hasActiveTrial) {
+          console.log(`User ${profile.id}: No active subscription or trial - skipping`);
+          continue;
+        }
+
+        console.log(`User ${profile.id}: ✅ Has active subscription/trial - proceeding`);
 
         // Use the SAME timezone approach as working reminders
         const now = new Date();
