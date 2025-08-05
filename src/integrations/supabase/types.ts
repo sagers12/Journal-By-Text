@@ -517,6 +517,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      trigger_trial_reminder_system: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       trigger_weekly_recap_system: {
         Args: Record<PropertyKey, never>
         Returns: Json
