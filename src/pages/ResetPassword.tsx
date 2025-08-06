@@ -11,26 +11,59 @@ export const ResetPassword = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if there's an error in the URL (expired link, etc.)
-    const error = searchParams.get('error');
-    const errorDescription = searchParams.get('error_description');
-    
-    if (error) {
-      toast({
-        title: "Reset link invalid",
-        description: errorDescription === 'Email+link+is+invalid+or+has+expired' 
-          ? "This password reset link has expired or is invalid. Please request a new one."
-          : "There was an issue with your reset link. Please request a new one.",
-        variant: "destructive"
-      });
-      // Redirect to auth page to request new reset
-      setTimeout(() => navigate('/auth?tab=signin'), 3000);
-    }
+    const checkAuthStatus = async () => {
+      try {
+        // Check if there's an error in the URL (expired link, etc.)
+        const error = searchParams.get('error');
+        const errorDescription = searchParams.get('error_description');
+        
+        if (error) {
+          toast({
+            title: "Reset link invalid",
+            description: errorDescription === 'Email+link+is+invalid+or+has+expired' 
+              ? "This password reset link has expired or is invalid. Please request a new one."
+              : "There was an issue with your reset link. Please request a new one.",
+            variant: "destructive"
+          });
+          setTimeout(() => navigate('/sign-in'), 3000);
+          return;
+        }
+
+        // Check if user is authenticated (from the reset link)
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          setIsAuthenticated(true);
+        } else {
+          // No session means invalid or expired reset link
+          toast({
+            title: "Reset link invalid",
+            description: "This password reset link has expired or is invalid. Please request a new one.",
+            variant: "destructive"
+          });
+          setTimeout(() => navigate('/sign-in'), 3000);
+        }
+      } catch (error: any) {
+        console.error('Auth check error:', error);
+        toast({
+          title: "Error",
+          description: "Unable to verify reset link. Please try again.",
+          variant: "destructive"
+        });
+        setTimeout(() => navigate('/sign-in'), 3000);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+
+    checkAuthStatus();
   }, [searchParams, toast, navigate]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
@@ -62,7 +95,7 @@ export const ResetPassword = () => {
       });
 
       // Redirect to sign in page
-      navigate('/auth?tab=signin');
+      navigate('/sign-in');
     } catch (error: any) {
       toast({
         title: "Password reset failed",
@@ -74,13 +107,29 @@ export const ResetPassword = () => {
     }
   };
 
-  // If there's an error in the URL, show error state
-  if (searchParams.get('error')) {
+  // Show loading state while checking authentication
+  if (checkingAuth) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-red-600">Reset Link Expired</CardTitle>
+            <CardTitle className="text-2xl font-bold">Verifying Reset Link</CardTitle>
+            <CardDescription>
+              Please wait while we verify your password reset link...
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  // If not authenticated, show error state
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold text-red-600">Reset Link Invalid</CardTitle>
             <CardDescription>
               This password reset link has expired or is invalid.
             </CardDescription>
@@ -90,7 +139,7 @@ export const ResetPassword = () => {
               You'll be redirected to request a new password reset link in a few seconds.
             </p>
             <Button 
-              onClick={() => navigate('/auth?tab=signin')} 
+              onClick={() => navigate('/sign-in')} 
               className="w-full"
             >
               Go to Sign In
