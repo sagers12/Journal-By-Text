@@ -161,8 +161,13 @@ export const useAuth = () => {
   };
 
   const resetPassword = async (email: string) => {
+    // Use production URL for reset emails to avoid localhost issues
+    const baseUrl = window.location.hostname === 'localhost' 
+      ? 'https://sms-journal.lovable.app'  // Replace with your actual production URL
+      : window.location.origin;
+    
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
+      redirectTo: `${baseUrl}/reset-password`
     });
     
     return { data, error };
