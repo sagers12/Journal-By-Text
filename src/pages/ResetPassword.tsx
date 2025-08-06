@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import type { Session } from '@supabase/supabase-js';
 
 export const ResetPassword = () => {
   const [password, setPassword] = useState('');
@@ -13,18 +14,24 @@ export const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    const checkAuthStatus = async () => {
+    const handlePasswordReset = async () => {
+      console.log('ResetPassword component mounted');
+      console.log('Current URL:', window.location.href);
+      console.log('Search params:', Object.fromEntries(searchParams.entries()));
+
       try {
-        // Check if there's an error in the URL (expired link, etc.)
+        // Check for explicit errors first
         const error = searchParams.get('error');
         const errorDescription = searchParams.get('error_description');
         
         if (error) {
+          console.log('URL contains error:', error, errorDescription);
           toast({
             title: "Reset link invalid",
             description: errorDescription === 'Email+link+is+invalid+or+has+expired' 
@@ -36,22 +43,61 @@ export const ResetPassword = () => {
           return;
         }
 
-        // Check if user is authenticated (from the reset link)
-        const { data: { session } } = await supabase.auth.getSession();
+        // Look for recovery tokens in URL
+        const accessToken = searchParams.get('access_token');
+        const refreshToken = searchParams.get('refresh_token');
+        const tokenType = searchParams.get('type');
         
-        if (session) {
-          setIsAuthenticated(true);
-        } else {
-          // No session means invalid or expired reset link
-          toast({
-            title: "Reset link invalid",
-            description: "This password reset link has expired or is invalid. Please request a new one.",
-            variant: "destructive"
+        console.log('Token info:', { accessToken: !!accessToken, refreshToken: !!refreshToken, tokenType });
+
+        if (accessToken && refreshToken && tokenType === 'recovery') {
+          console.log('Found recovery tokens, verifying...');
+          
+          // Verify the recovery token
+          const { data, error: verifyError } = await supabase.auth.verifyOtp({
+            token_hash: accessToken,
+            type: 'recovery'
           });
-          setTimeout(() => navigate('/sign-in'), 3000);
+
+          console.log('Verify OTP result:', { data: !!data, error: verifyError });
+
+          if (verifyError) {
+            console.error('Token verification failed:', verifyError);
+            toast({
+              title: "Reset link invalid",
+              description: "This password reset link has expired or is invalid. Please request a new one.",
+              variant: "destructive"
+            });
+            setTimeout(() => navigate('/sign-in'), 3000);
+            return;
+          }
+
+          if (data.session) {
+            console.log('Session established from recovery token');
+            setSession(data.session);
+            setIsAuthenticated(true);
+          }
+        } else {
+          // Check for existing session (fallback)
+          console.log('No recovery tokens found, checking existing session...');
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          
+          if (currentSession) {
+            console.log('Found existing session');
+            setSession(currentSession);
+            setIsAuthenticated(true);
+          } else {
+            console.log('No session found, invalid reset link');
+            toast({
+              title: "Reset link invalid",
+              description: "This password reset link has expired or is invalid. Please request a new one.",
+              variant: "destructive"
+            });
+            setTimeout(() => navigate('/sign-in'), 3000);
+          }
         }
       } catch (error: any) {
-        console.error('Auth check error:', error);
+        console.error('Password reset handling error:', error);
         toast({
           title: "Error",
           description: "Unable to verify reset link. Please try again.",
@@ -63,7 +109,22 @@ export const ResetPassword = () => {
       }
     };
 
-    checkAuthStatus();
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state change:', event, !!session);
+      if (event === 'PASSWORD_RECOVERY') {
+        console.log('Password recovery event detected');
+        setSession(session);
+        setIsAuthenticated(!!session);
+        setCheckingAuth(false);
+      }
+    });
+
+    handlePasswordReset();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [searchParams, toast, navigate]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
