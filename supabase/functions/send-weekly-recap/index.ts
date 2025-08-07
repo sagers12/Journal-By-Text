@@ -43,6 +43,11 @@ function formatPhoneNumber(phoneNumber: string): string {
   return `+1${digitsOnly}`;
 }
 
+// Mask phone for logs
+function maskPhone(phone: string): string {
+  return phone ? phone.replace(/.(?=.{4})/g, '*') : '';
+}
+
 // Function to get start of week (Sunday) in user's timezone
 function getWeekStartDate(userTimezone: string): string {
   const now = new Date();
@@ -245,7 +250,7 @@ Deno.serve(async (req) => {
 
         // Format phone number using the same approach as working reminders
         const formattedPhoneNumber = formatPhoneNumber(profile.phone_number);
-        console.log(`User ${profile.id}: Original phone: ${profile.phone_number}, Formatted: ${formattedPhoneNumber}`);
+        console.log(`User ${profile.id}: Original phone: ${maskPhone(profile.phone_number)}, Formatted: ${maskPhone(formattedPhoneNumber)}`);
 
         console.log(`User ${profile.id}: 📱 Sending weekly recap SMS`);
 

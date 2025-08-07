@@ -8,7 +8,11 @@ export const uploadPhotos = async (photos: File[], entryId: string, userId: stri
     
     const { error: uploadError } = await supabase.storage
       .from('journal-photos')
-      .upload(fileName, photo);
+      .upload(fileName, photo, {
+        contentType: photo.type,
+        cacheControl: '3600',
+        upsert: false
+      });
 
     if (uploadError) throw uploadError;
 

@@ -9,6 +9,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Mask phone for logs
+function maskPhone(phone: string): string {
+  return phone ? phone.replace(/.(?=.{4})/g, '*') : '';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -29,9 +34,6 @@ serve(async (req) => {
       hasSignature: !!surgeSignature,
       hasSecret: !!webhookSecret,
       bodyLength: body.length,
-      signature: surgeSignature,
-      headers: Object.fromEntries(req.headers.entries()),
-      rawBody: body,
       method: req.method,
       url: req.url
     })

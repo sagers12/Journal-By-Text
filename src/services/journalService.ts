@@ -51,12 +51,16 @@ export const fetchJournalEntries = async (userId: string): Promise<Entry[]> => {
           entry_date: entry.entry_date,
           user_id: entry.user_id,
           tags: entry.tags || [],
-          photos: entry.journal_photos?.map((photo: any) => {
-            const { data: publicUrl } = supabase.storage
-              .from('journal-photos')
-              .getPublicUrl(photo.file_path);
-            return publicUrl.publicUrl;
-          }) || []
+          photos: await (async () => {
+            const photosArr = entry.journal_photos || [];
+            const signed = await Promise.all(photosArr.map(async (photo: any) => {
+              const { data } = await supabase.storage
+                .from('journal-photos')
+                .createSignedUrl(photo.file_path, 3600);
+              return data?.signedUrl || '';
+            }));
+            return signed.filter(Boolean);
+          })()
         };
         
         console.log(`Successfully processed entry ${entry.id}:`, {
@@ -78,12 +82,16 @@ export const fetchJournalEntries = async (userId: string): Promise<Entry[]> => {
           entry_date: entry.entry_date,
           user_id: entry.user_id,
           tags: entry.tags || [],
-          photos: entry.journal_photos?.map((photo: any) => {
-            const { data: publicUrl } = supabase.storage
-              .from('journal-photos')
-              .getPublicUrl(photo.file_path);
-            return publicUrl.publicUrl;
-          }) || []
+          photos: await (async () => {
+            const photosArr = entry.journal_photos || [];
+            const signed = await Promise.all(photosArr.map(async (photo: any) => {
+              const { data } = await supabase.storage
+                .from('journal-photos')
+                .createSignedUrl(photo.file_path, 3600);
+              return data?.signedUrl || '';
+            }));
+            return signed.filter(Boolean);
+          })()
         };
         
         console.log(`Using fallback for entry ${entry.id}`);
@@ -218,13 +226,24 @@ export const updateJournalEntry = async ({
           continue;
         }
         
-        // Find the matching photo record by checking if the URL matches
-        const matchingPhoto = photoRecords?.find(photo => {
-          const { data: publicUrl } = supabase.storage
-            .from('journal-photos')
-            .getPublicUrl(photo.file_path);
-          return publicUrl.publicUrl === photoUrl;
-        });
+        // Determine matching photo by extracting the storage file path from the URL
+        const extractPath = (url: string) => {
+          try {
+            const u = new URL(url);
+            // Expect path like /storage/v1/object/(sign|public)/journal-photos/<file_path>
+            const afterObject = u.pathname.split('/object/')[1];
+            if (!afterObject) return null;
+            const parts = afterObject.split('/');
+            // parts[0] is 'sign' or 'public' or 'download'; next should be bucket id
+            const bucketIdx = (parts[0] === 'sign' || parts[0] === 'public' || parts[0] === 'download') ? 1 : 0;
+            const bucket = parts[bucketIdx];
+            if (bucket !== 'journal-photos') return null;
+            const filePath = parts.slice(bucketIdx + 1).join('/');
+            return decodeURIComponent(filePath);
+          } catch { return null; }
+        };
+        const targetPath = extractPath(photoUrl) || photoUrl;
+        const matchingPhoto = photoRecords?.find(photo => photo.file_path === targetPath);
         
         if (matchingPhoto) {
           console.log('Found matching photo to delete:', matchingPhoto);

@@ -4,10 +4,10 @@ project_id = "zfxdjbpjxpgreymebpsr"
 verify_jwt = false
 
 [functions.send-reminders]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-weekly-recap]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-milestone-message]
-verify_jwt = false
+verify_jwt = true

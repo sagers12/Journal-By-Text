@@ -31,6 +31,11 @@ function formatPhoneNumber(phoneNumber: string): string {
   return `+1${digitsOnly}`;
 }
 
+// Mask phone for logs
+function maskPhone(phone: string): string {
+  return phone ? phone.replace(/.(?=.{4})/g, '*') : '';
+}
+
 serve(async (req) => {
   // Log every request to ensure function is being called
   console.log('=== SEND REMINDERS FUNCTION CALLED ===')
@@ -198,8 +203,8 @@ serve(async (req) => {
 
         // Format phone number to international format
         const formattedPhoneNumber = formatPhoneNumber(profile.phone_number);
-        console.log('Original phone number:', profile.phone_number);
-        console.log('Formatted phone number:', formattedPhoneNumber);
+        console.log('Original phone number:', maskPhone(profile.phone_number));
+        console.log('Formatted phone number:', maskPhone(formattedPhoneNumber));
 
         // Send SMS reminder with prompt
         await sendReminderSMS(formattedPhoneNumber, prompt.prompt_text)
@@ -241,7 +246,7 @@ serve(async (req) => {
 
         remindersSent.push({
           userId: profile.id,
-          phone: profile.phone_number,
+          phone: maskPhone(profile.phone_number),
           prompt: prompt.prompt_text,
           category: prompt.category,
           userTimezone: userTimezone,

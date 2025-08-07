@@ -31,6 +31,11 @@ function formatPhoneNumber(phoneNumber: string): string {
   return `+1${digitsOnly}`;
 }
 
+// Mask phone for logs
+function maskPhone(phone: string): string {
+  return phone ? phone.replace(/.(?=.{4})/g, '*') : '';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -50,8 +55,8 @@ serve(async (req) => {
 
     // Format phone number to international format
     const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
-    console.log('Original phone number:', phoneNumber);
-    console.log('Formatted phone number:', formattedPhoneNumber);
+    console.log('Original phone number:', maskPhone(phoneNumber));
+    console.log('Formatted phone number:', maskPhone(formattedPhoneNumber));
 
     // Send SMS via Surge with corrected API structure
     const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')

@@ -25,6 +25,11 @@ function formatPhoneNumber(phoneNumber: string): string {
   return `+1${digitsOnly}`;
 }
 
+// Mask phone for logs
+function maskPhone(phone: string): string {
+  return phone ? phone.replace(/.(?=.{4})/g, '*') : '';
+}
+
 serve(async (req) => {
   console.log('=== SEND TRIAL REMINDERS FUNCTION CALLED ===')
   console.log('Request method:', req.method)
@@ -179,7 +184,7 @@ serve(async (req) => {
         remindersSent.push({
           userId: profile.id,
           email: subscriber.email,
-          phone: profile.phone_number,
+          phone: maskPhone(profile.phone_number),
           trialDaysRemaining: daysUntilEnd,
           message: message
         })

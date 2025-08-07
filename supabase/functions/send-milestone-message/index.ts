@@ -30,6 +30,11 @@ function formatPhoneNumber(phoneNumber: string): string {
   return `+1${digitsOnly}`;
 }
 
+// Mask phone for logs
+function maskPhone(phone: string): string {
+  return phone ? phone.replace(/.(?=.{4})/g, '*') : '';
+}
+
 serve(async (req) => {
   // Log every request to ensure function is being called (same as working reminders)
   console.log('=== SEND MILESTONE MESSAGE FUNCTION CALLED ===')
@@ -64,8 +69,8 @@ serve(async (req) => {
 
     // Format phone number using the same approach as working reminders
     const formattedPhoneNumber = formatPhoneNumber(phone_number);
-    console.log('Original phone number:', phone_number);
-    console.log('Formatted phone number:', formattedPhoneNumber);
+    console.log('Original phone number:', maskPhone(phone_number));
+    console.log('Formatted phone number:', maskPhone(formattedPhoneNumber));
 
     // Get Surge credentials from Supabase secrets
     const surgeApiToken = Deno.env.get('SURGE_API_TOKEN');
@@ -109,7 +114,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: 'Milestone message sent successfully',
-        phone_number: formattedPhoneNumber,
+        phone_number: maskPhone(formattedPhoneNumber),
         user_id: user_id
       }),
       { status: 200, headers: corsHeaders }
