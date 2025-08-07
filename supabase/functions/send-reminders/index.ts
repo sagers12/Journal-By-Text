@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
 }
 
 // Function to format phone number to international format
@@ -57,6 +57,18 @@ serve(async (req) => {
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  // Optional X-CRON-SECRET validation (for future JWT-free cron calls)
+  const providedSecret = req.headers.get('x-cron-secret')
+  const cronSecret = Deno.env.get('X_CRON_SECRET')
+  if (providedSecret) {
+    if (!cronSecret || providedSecret !== cronSecret) {
+      return new Response(JSON.stringify({ error: 'Invalid cron secret' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
   }
 
   try {
@@ -302,7 +314,8 @@ async function sendReminderSMS(phoneNumber: string, prompt: string) {
     attachments: []
   }
 
-  console.log('Sending to Surge API:', JSON.stringify(payload, null, 2));
+  const redactedPayload = { ...payload, conversation: { contact: { phone_number: maskPhone(phoneNumber) } } }
+  console.log('Sending to Surge API:', JSON.stringify(redactedPayload, null, 2));
 
   try {
     const response = await fetch(`https://api.surge.app/accounts/${surgeAccountId}/messages`, {
