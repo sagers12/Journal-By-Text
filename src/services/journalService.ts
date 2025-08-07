@@ -4,6 +4,7 @@ import type { Entry } from '@/types/entry';
 import { validateEntryContent, validatePhotos, validateTags } from '@/utils/validation';
 import { uploadPhotos, checkPhotoLimit, deleteEntryPhotos } from '@/utils/photoUpload';
 import { encrypt, decrypt } from '@/utils/encryption';
+import { sanitizeInput } from '@/utils/securityMonitoring';
 
 export const fetchJournalEntries = async (userId: string): Promise<Entry[]> => {
   if (!userId) return [];
@@ -134,9 +135,14 @@ export const createJournalEntry = async ({
   validateEntryContent(content, photos);
   if (photos) validatePhotos(photos);
 
-  // Encrypt content and title before storing
-  const encryptedContent = await encrypt(content.trim(), userId);
-  const encryptedTitle = await encrypt(title.trim(), userId);
+  // Sanitize then encrypt content and title before storing
+  const cleanContent = sanitizeInput(content, 10000);
+  const cleanTitle = sanitizeInput(title, 200);
+  const encryptedContent = await encrypt(cleanContent, userId);
+  const encryptedTitle = await encrypt(cleanTitle, userId);
+
+  // Prepare sanitized tags
+  const cleanTags = validateTags(tags).map(t => sanitizeInput(t, 50));
 
   // Get user's timezone to determine the correct entry date
   const { data: userProfile } = await supabase
@@ -144,7 +150,7 @@ export const createJournalEntry = async ({
     .select('timezone')
     .eq('id', userId)
     .single();
-  
+
   const userTimezone = userProfile?.timezone || 'UTC';
   
   // Convert current time to user's timezone to get the correct entry date
@@ -159,7 +165,7 @@ export const createJournalEntry = async ({
       title: encryptedTitle,
       source: 'web',
       entry_date: entryDate,
-      tags: validateTags(tags)
+      tags: cleanTags
     })
     .select()
     .single();
@@ -191,13 +197,14 @@ export const updateJournalEntry = async ({
 }) => {
   validateEntryContent(content, photos);
 
-  // Encrypt content before updating
-  const encryptedContent = await encrypt(content.trim(), userId);
+  // Sanitize then encrypt content before updating
+  const cleanContent = sanitizeInput(content, 10000);
+  const encryptedContent = await encrypt(cleanContent, userId);
 
   // Prepare update data
   const updateData: any = { content: encryptedContent };
   if (tags !== undefined) {
-    updateData.tags = validateTags(tags);
+    updateData.tags = validateTags(tags).map(t => sanitizeInput(t, 50));
   }
 
   // Update the entry content and tags

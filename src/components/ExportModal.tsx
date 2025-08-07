@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Entry } from "@/types/entry";
+import { checkClientRateLimit } from "@/utils/securityMonitoring";
 
 interface ExportModalProps {
   entries: Entry[];
@@ -17,6 +18,15 @@ export const ExportModal = ({ entries, onClose }: ExportModalProps) => {
   const [dateTo, setDateTo] = useState('');
   const [includePhotos, setIncludePhotos] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Escape HTML for safe PDF export
+  const escapeHtml = (str: string) =>
+    String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
 
   const getFilteredEntries = () => {
     let filtered = entries;
@@ -90,15 +100,15 @@ export const ExportModal = ({ entries, onClose }: ExportModalProps) => {
 
     filteredEntries.forEach((entry, index) => {
       htmlContent += `
-        <div class="entry">
-          <div class="entry-header">
-            <strong>${entry.title}</strong><br>
-            ${entry.timestamp.toLocaleString()} | Source: ${entry.source.toUpperCase()}
+          <div class="entry">
+            <div class="entry-header">
+              <strong>${escapeHtml(entry.title)}</strong><br>
+              ${entry.timestamp.toLocaleString()} | Source: ${entry.source.toUpperCase()}
+            </div>
+            <div class="entry-content">${escapeHtml(entry.content).replace(/\n/g, '<br/>')}</div>
+            ${entry.tags && entry.tags.length > 0 ? `<div class="entry-tags">Tags: ${escapeHtml(entry.tags.join(', '))}</div>` : ''}
+            ${entry.photos && entry.photos.length > 0 && includePhotos ? `<div class="photo-note">${entry.photos.length} photo(s) attached</div>` : ''}
           </div>
-          <div class="entry-content">${entry.content}</div>
-          ${entry.tags && entry.tags.length > 0 ? `<div class="entry-tags">Tags: ${entry.tags.join(', ')}</div>` : ''}
-          ${entry.photos && entry.photos.length > 0 && includePhotos ? `<div class="photo-note">${entry.photos.length} photo(s) attached</div>` : ''}
-        </div>
       `;
     });
 
@@ -116,6 +126,12 @@ export const ExportModal = ({ entries, onClose }: ExportModalProps) => {
   };
 
   const handleExport = async () => {
+    // Client-side rate limiting to prevent abuse
+    if (!checkClientRateLimit('export', 5)) {
+      alert('Too many export attempts. Please wait a bit and try again.');
+      return;
+    }
+
     setIsExporting(true);
     try {
       if (format === 'txt') {
