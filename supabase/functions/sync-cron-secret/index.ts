@@ -2,7 +2,7 @@
 // This function requires the caller to provide the same X-CRON-SECRET in the request header.
 // CORS enabled. No JWT required (verify_jwt = false in config.toml).
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
