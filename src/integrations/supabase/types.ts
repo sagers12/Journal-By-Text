@@ -402,6 +402,27 @@ export type Database = {
         }
         Relationships: []
       }
+      system_settings: {
+        Row: {
+          created_at: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       trial_reminder_history: {
         Row: {
           created_at: string
@@ -497,6 +518,10 @@ export type Database = {
           category: string
         }[]
       }
+      get_setting: {
+        Args: { p_key: string }
+        Returns: string
+      }
       reset_rate_limit_for_phone: {
         Args: { phone_number: string }
         Returns: Json
@@ -504,6 +529,10 @@ export type Database = {
       send_test_reminder: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      set_setting: {
+        Args: { p_key: string; p_value: string }
+        Returns: undefined
       }
       test_edge_function_call: {
         Args: Record<PropertyKey, never>
