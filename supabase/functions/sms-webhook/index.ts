@@ -202,9 +202,21 @@ serve(async (req) => {
       })
     }
 
-    // Limit message content length to prevent abuse
-    if (messageBody.length > 5000) {
-      console.error('Message too long:', messageBody.length)
+    // Limit message content length to prevent abuse (raise to 10k chars)
+    if (messageBody.length > 10000) {
+      console.error('Message too long:', { length: messageBody.length });
+      // Store for debugging even if too long
+      await supabaseClient
+        .from('sms_messages')
+        .insert({
+          surge_message_id: messageId,
+          phone_number: fromPhone,
+          message_content: messageBody.substring(0, 10000),
+          entry_date: new Date().toISOString().split('T')[0],
+          processed: false,
+          error_message: 'Message too long (>10000 chars)',
+          user_id: '00000000-0000-0000-0000-000000000000'
+        })
       return new Response('Bad Request: Message too long', {
         status: 400,
         headers: corsHeaders
@@ -223,6 +235,7 @@ serve(async (req) => {
     if (!smsRateLimit.allowed) {
       console.log('SMS rate limit exceeded for phone:', fromPhone)
       
+      // Log security event
       await supabaseClient
         .from('security_events')
         .insert({
@@ -234,6 +247,19 @@ serve(async (req) => {
             blocked_until: smsRateLimit.blocked_until
           },
           severity: 'medium'
+        })
+
+      // Also store the message for debugging/visibility
+      await supabaseClient
+        .from('sms_messages')
+        .insert({
+          surge_message_id: messageId,
+          phone_number: fromPhone,
+          message_content: messageBody,
+          entry_date: new Date().toISOString().split('T')[0],
+          processed: false,
+          error_message: 'Rate limit exceeded',
+          user_id: '00000000-0000-0000-0000-000000000000'
         })
 
       return new Response('Rate limit exceeded', { status: 429, headers: corsHeaders })

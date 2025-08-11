@@ -23,10 +23,10 @@ export async function validateSurgeSignature(body: string, signature: string, se
       return false
     }
 
-    // Check timestamp is within 5 minutes (300 seconds) to prevent replay attacks
+    // Check timestamp is within 15 minutes (900 seconds) to prevent replay attacks
     const now = Math.floor(Date.now() / 1000)
     const webhookTime = parseInt(timestamp)
-    if (Math.abs(now - webhookTime) > 300) {
+    if (Math.abs(now - webhookTime) > 900) {
       console.error('Webhook timestamp too old or too far in future')
       return false
     }
