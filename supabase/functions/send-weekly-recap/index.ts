@@ -9,6 +9,7 @@ interface Profile {
   id: string;
   phone_number: string;
   reminder_timezone: string;
+  timezone: string;
   weekly_recap_enabled: boolean;
 }
 
@@ -48,22 +49,27 @@ function maskPhone(phone: string): string {
   return phone ? phone.replace(/.(?=.{4})/g, '*') : '';
 }
 
-// Function to get start of week (Sunday) in user's timezone
-function getWeekStartDate(userTimezone: string): string {
+// Function to get previous week's Sunday-Saturday range in a given timezone
+function getPreviousWeekRange(countTimezone: string) {
   const now = new Date();
-  
-  // Get current date in user's timezone
-  const userDateStr = new Intl.DateTimeFormat('en-CA', {
-    timeZone: userTimezone
-  }).format(now);
-  
-  const userDate = new Date(userDateStr + 'T12:00:00'); // Add noon to avoid timezone issues
-  
-  // Calculate start of week (Sunday)
-  const startOfWeek = new Date(userDate);
-  startOfWeek.setDate(userDate.getDate() - userDate.getDay()); // Go to Sunday
-  
-  return startOfWeek.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+  const userDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: countTimezone }).format(now);
+  const userDate = new Date(userDateStr + 'T12:00:00');
+
+  // Sunday of the current week (in user's tz)
+  const currentSunday = new Date(userDate);
+  currentSunday.setDate(userDate.getDate() - userDate.getDay());
+
+  // Previous week's Sunday and Saturday
+  const prevSunday = new Date(currentSunday);
+  prevSunday.setDate(currentSunday.getDate() - 7);
+
+  const prevSaturday = new Date(prevSunday);
+  prevSaturday.setDate(prevSunday.getDate() + 6);
+
+  const startDate = prevSunday.toISOString().split('T')[0];
+  const endDate = prevSaturday.toISOString().split('T')[0];
+
+  return { startDate, endDate, weekStartDate: startDate };
 }
 
 Deno.serve(async (req) => {
@@ -90,13 +96,19 @@ Deno.serve(async (req) => {
     }
   }
 
-  try {
-    console.log('Creating Supabase client...')
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+try {
+  const body = await req.json().catch(() => ({}));
+  const preview = Boolean(body?.preview);
+  const force = Boolean(body?.force);
+  const targetUserId = typeof body?.user_id === 'string' ? body.user_id : undefined;
 
+  console.log('Creating Supabase client...');
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  console.log('Request params:', { preview, force, targetUserId });
     // Get SMS API credentials
     const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')!;
     const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')!;
@@ -111,7 +123,7 @@ Deno.serve(async (req) => {
     // First, get all users who have weekly recap enabled and phone verified
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
-      .select('id, phone_number, reminder_timezone, weekly_recap_enabled')
+      .select('id, phone_number, reminder_timezone, timezone, weekly_recap_enabled')
       .eq('weekly_recap_enabled', true)
       .eq('phone_verified', true)
       .not('phone_number', 'is', null);
@@ -123,16 +135,18 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${profiles?.length || 0} users eligible for weekly recap`);
 
-    if (!profiles || profiles.length === 0) {
+    const filteredProfiles = (profiles || []).filter((p: any) => !targetUserId || p.id === targetUserId);
+
+    if (filteredProfiles.length === 0) {
       return new Response(
-        JSON.stringify({ message: 'No users eligible for weekly recap' }),
+        JSON.stringify({ message: 'No users eligible for weekly recap', targetUserId }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const results = [];
 
-    for (const profile of profiles as Profile[]) {
+    for (const profile of filteredProfiles as Profile[]) {
       try {
         console.log(`Processing weekly recap for user ${profile.id}`);
 
@@ -183,22 +197,25 @@ Deno.serve(async (req) => {
 
         console.log(`User ${profile.id}: timezone: ${userTimezone}, time: ${userCurrentTime}, day: ${dayOfWeek}, current hour: ${currentHour}`)
 
-        // Check if it's Sunday and between 6:00pm-7:30pm (expanded window as requested)
-        const isSunday = dayOfWeek === 'Sunday'
-        const isCorrectTime = (currentHour === 18) || (currentHour === 19 && currentMinute <= 30) // 6:00pm-7:30pm window
-        
-        if (!isSunday || !isCorrectTime) {
-          console.log(`User ${profile.id}: Skipping - Day: ${dayOfWeek} (need Sunday), Hour: ${currentHour}:${currentMinute} (need 18:00-19:30)`)
-          continue;
+        if (!force) {
+          const isSunday = dayOfWeek === 'Sunday';
+          const isCorrectTime = (currentHour === 18) || (currentHour === 19 && currentMinute <= 30); // 6:00pm-7:30pm
+          if (!isSunday || !isCorrectTime) {
+            console.log(`User ${profile.id}: Skipping - Day: ${dayOfWeek} (need Sunday), Hour: ${currentHour}:${currentMinute} (need 18:00-19:30)`)
+            continue;
+          }
+          console.log(`User ${profile.id}: ✅ Sunday 6:00pm-7:30pm window - proceeding with weekly recap`)
+        } else {
+          console.log(`User ${profile.id}: ⚙️ Force enabled - bypassing day/time checks`)
         }
-        
-        console.log(`User ${profile.id}: ✅ Sunday 6:00pm-7:30pm window - proceeding with weekly recap`)
 
-        // Get week start date for tracking
-        const weekStartDate = getWeekStartDate(userTimezone);
-        console.log(`User ${profile.id}: Week start date: ${weekStartDate}`);
+        // Determine previous week's range using counting timezone (profile.timezone)
+        const countingTimezone = (profile as any).timezone || userTimezone || 'UTC';
+        const { startDate, endDate, weekStartDate } = getPreviousWeekRange(countingTimezone);
+        console.log(`User ${profile.id}: reminder_timezone=${userTimezone}, counting_timezone=${countingTimezone}`);
+        console.log(`User ${profile.id}: Previous week range: ${startDate} to ${endDate} (week_start_date=${weekStartDate})`);
 
-        // Check if we already sent a recap for this week
+        // Check if we already sent a recap for this previous week
         const { data: existingRecap, error: historyError } = await supabase
           .from('weekly_recap_history')
           .select('*')
@@ -206,7 +223,7 @@ Deno.serve(async (req) => {
           .eq('week_start_date', weekStartDate)
           .single();
 
-        if (historyError && historyError.code !== 'PGRST116') { // PGRST116 is "not found" which is expected
+        if (historyError && historyError.code !== 'PGRST116') { // PGRST116 is "not found"
           console.error(`Error checking recap history for user ${profile.id}:`, historyError);
           continue;
         }
@@ -218,31 +235,13 @@ Deno.serve(async (req) => {
 
         console.log(`User ${profile.id}: 📝 No recap sent yet for week ${weekStartDate} - proceeding`);
 
-        // Calculate the start and end of the week for entry counting
-        const userDateStr = new Intl.DateTimeFormat('en-CA', {
-          timeZone: userTimezone
-        }).format(now);
-        
-        const userDate = new Date(userDateStr + 'T12:00:00');
-        
-        const startOfWeek = new Date(userDate);
-        startOfWeek.setDate(userDate.getDate() - userDate.getDay()); // Go to Sunday
-        
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6); // Go to Saturday
-
-        const startDateStr = startOfWeek.toISOString().split('T')[0];
-        const endDateStr = endOfWeek.toISOString().split('T')[0];
-
-        console.log(`User ${profile.id}: Counting journal entries from ${startDateStr} to ${endDateStr}`);
-
-        // Count journal entries for this week
+        // Count journal entries for the previous week (inclusive)
         const { count, error: countError } = await supabase
           .from('journal_entries')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', profile.id)
-          .gte('entry_date', startDateStr)
-          .lte('entry_date', endDateStr);
+          .gte('entry_date', startDate)
+          .lte('entry_date', endDate);
 
         if (countError) {
           console.error(`Error counting entries for user ${profile.id}:`, countError);
@@ -255,7 +254,7 @@ Deno.serve(async (req) => {
         }
 
         const entryCount = count || 0;
-        console.log(`User ${profile.id} has ${entryCount} journal entries this week`);
+        console.log(`User ${profile.id} has ${entryCount} journal entries in previous week`);
 
         // Create the message
         const message = `Weekly Recap: You journaled ${entryCount} ${entryCount === 1 ? 'time' : 'times'} this week. To read your journal, visit journalbytext.com and login to your account.`;
@@ -264,35 +263,40 @@ Deno.serve(async (req) => {
         const formattedPhoneNumber = formatPhoneNumber(profile.phone_number);
         console.log(`User ${profile.id}: Original phone: ${maskPhone(profile.phone_number)}, Formatted: ${maskPhone(formattedPhoneNumber)}`);
 
-        console.log(`User ${profile.id}: 📱 Sending weekly recap SMS`);
-
-        // Send the SMS
-        await sendWeeklyRecapSMS(formattedPhoneNumber, message, surgeApiToken, surgeAccountId);
-
-        // Record that we sent the recap
-        const { error: insertError } = await supabase
-          .from('weekly_recap_history')
-          .insert({
-            user_id: profile.id,
-            week_start_date: weekStartDate,
-            entry_count: entryCount
-          });
-
-        if (insertError) {
-          console.error(`Error recording recap history for user ${profile.id}:`, insertError);
-          // Don't fail the whole operation, just log it
+        if (preview) {
+          console.log(`User ${profile.id}: Preview mode - not sending SMS or recording history`);
         } else {
-          console.log(`User ${profile.id}: ✅ Recorded recap history for week ${weekStartDate}`);
-        }
+          console.log(`User ${profile.id}: 📱 Sending weekly recap SMS`);
+          // Send the SMS
+          await sendWeeklyRecapSMS(formattedPhoneNumber, message, surgeApiToken, surgeAccountId);
 
-        console.log(`User ${profile.id}: ✅ Successfully sent weekly recap`);
+          // Record that we sent the recap
+          const { error: insertError } = await supabase
+            .from('weekly_recap_history')
+            .insert({
+              user_id: profile.id,
+              week_start_date: weekStartDate,
+              entry_count: entryCount
+            });
+
+          if (insertError) {
+            console.error(`Error recording recap history for user ${profile.id}:`, insertError);
+            // Don't fail the whole operation, just log it
+          } else {
+            console.log(`User ${profile.id}: ✅ Recorded recap history for week ${weekStartDate}`);
+          }
+
+          console.log(`User ${profile.id}: ✅ Successfully sent weekly recap`);
+        }
 
         results.push({
           user_id: profile.id,
           success: true,
           entry_count: entryCount,
           week_start_date: weekStartDate,
-          message_sent: message
+          range: { start: startDate, end: endDate },
+          message_sent: preview ? null : message,
+          preview
         });
 
       } catch (error) {
