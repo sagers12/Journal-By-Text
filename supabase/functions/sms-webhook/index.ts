@@ -150,6 +150,59 @@ serve(async (req) => {
       attachments = messageData.attachments || []
     }
 
+    // Fallback extraction for providers that segment or reshape long messages
+    if (!messageBody || messageBody.length === 0) {
+      try {
+        const md: any = messageData
+        const candidates: string[] = []
+        const pushIfString = (v: any) => {
+          if (typeof v === 'string' && v.trim().length > 0) candidates.push(v.trim())
+        }
+        // Common alternate paths
+        pushIfString(md.text)
+        pushIfString(md.content)
+        pushIfString(md.body)
+        pushIfString(md.message?.text)
+        pushIfString(md.message?.content)
+        pushIfString(md.message?.body)
+        // Segment arrays (various shapes)
+        if (Array.isArray(md.segments)) {
+          const segBody = md.segments
+            .slice()
+            .sort((a: any, b: any) => (a.index ?? a.segment_index ?? 0) - (b.index ?? b.segment_index ?? 0))
+            .map((s: any) => (s.body ?? s.content ?? s.text ?? ''))
+            .join('')
+          pushIfString(segBody)
+        }
+        if (Array.isArray(md.parts)) {
+          const partsBody = md.parts
+            .slice()
+            .sort((a: any, b: any) => (a.index ?? a.part_index ?? 0) - (b.index ?? b.part_index ?? 0))
+            .map((p: any) => (p.body ?? p.content ?? p.text ?? ''))
+            .join('')
+          pushIfString(partsBody)
+        }
+        // Sometimes long text can come as a text attachment
+        if ((!candidates.length) && Array.isArray(attachments)) {
+          const textFromAttachments = attachments
+            .filter((att: any) => att?.type === 'text' || att?.content_type === 'text/plain' || att?.mime_type === 'text/plain')
+            .map((att: any) => (att.content ?? att.body ?? att.text ?? ''))
+            .join('')
+          pushIfString(textFromAttachments)
+        }
+        if (candidates.length > 0) {
+          // Choose the longest candidate (most complete)
+          candidates.sort((a, b) => b.length - a.length)
+          messageBody = candidates[0]
+          console.log('Fallback body extraction succeeded', { candidatesCount: candidates.length, chosenLength: messageBody.length })
+        } else {
+          console.warn('Fallback body extraction failed: no alternate body found')
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback body extraction error:', fallbackErr)
+      }
+    }
+
     console.log('DEBUG: conversationId extraction:', {
       conversationId,
       hasConversationId: !!conversationId,
@@ -177,13 +230,33 @@ serve(async (req) => {
       })
     }
 
-    // Allow empty message body if attachments are present
+    // Allow empty message body if attachments are present; otherwise store for diagnostics and return 200
     if (!messageBody && (!attachments || attachments.length === 0)) {
-      console.error('Invalid message body - no content and no attachments:', messageBody)
-      return new Response('Bad Request: Invalid message content', {
-        status: 400,
-        headers: corsHeaders
-      })
+      console.error('No message content after extraction and no attachments present')
+      try {
+        const payloadSnippet = JSON.stringify({
+          eventType,
+          messageId,
+          fromPhone,
+          hasAttachments: Array.isArray(attachments) && attachments.length > 0,
+          messageDataKeys: Object.keys(messageData || {})
+        }).slice(0, 500)
+        await supabaseClient
+          .from('sms_messages')
+          .insert({
+            surge_message_id: messageId || null,
+            phone_number: fromPhone || 'unknown',
+            message_content: '',
+            entry_date: new Date().toISOString().split('T')[0],
+            processed: false,
+            error_message: `Empty message after extraction. payload=${payloadSnippet}`,
+            user_id: '00000000-0000-0000-0000-000000000000'
+          })
+      } catch (logErr) {
+        console.error('Failed to record empty-body webhook for diagnostics:', logErr)
+      }
+      // Return 200 to prevent provider retries; we'll analyze the stored record
+      return new Response('OK - No message content', { status: 200, headers: corsHeaders })
     }
     
     if (messageBody && typeof messageBody !== 'string') {
