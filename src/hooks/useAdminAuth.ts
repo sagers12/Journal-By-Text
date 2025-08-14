@@ -1,7 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react'
 import { useToast } from '@/hooks/use-toast'
-import { supabase } from '@/integrations/supabase/client'
-import type { User, Session } from '@supabase/supabase-js'
 
 interface AdminUser {
   id: string
@@ -13,7 +11,7 @@ interface AdminUser {
 
 interface AdminAuthContextType {
   user: AdminUser | null
-  session: Session | null
+  session: string | null
   loading: boolean
   login: (email: string, password: string) => Promise<boolean>
   logout: () => Promise<void>
@@ -32,108 +30,70 @@ export const useAdminAuth = () => {
 
 export const useAdminAuthState = () => {
   const [user, setUser] = useState<AdminUser | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
+  const [session, setSession] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
   // Check for existing session on load
   useEffect(() => {
     const initializeAuth = async () => {
-      // Get the current Supabase session
-      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      const storedSession = localStorage.getItem('admin_session_token')
+      const storedUser = localStorage.getItem('admin_user')
       
-      if (currentSession) {
-        // Check if this user is an admin
-        const { data: adminUser, error } = await supabase
-          .from('admin_users')
-          .select('*')
-          .eq('id', currentSession.user.id)
-          .eq('is_active', true)
-          .single()
-        
-        if (adminUser && !error) {
-          setSession(currentSession)
-          setUser(adminUser)
+      if (storedSession && storedUser) {
+        try {
+          const isValid = await verifySession(storedSession)
+          if (isValid) {
+            setSession(storedSession)
+            setUser(JSON.parse(storedUser))
+          } else {
+            // Clear invalid session
+            localStorage.removeItem('admin_session_token')
+            localStorage.removeItem('admin_user')
+          }
+        } catch (error) {
+          console.error('Session verification error:', error)
+          localStorage.removeItem('admin_session_token')
+          localStorage.removeItem('admin_user')
         }
       }
       setLoading(false)
     }
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session && event === 'SIGNED_IN') {
-          // Check if this user is an admin
-          const { data: adminUser, error } = await supabase
-            .from('admin_users')
-            .select('*')
-            .eq('id', session.user.id)
-            .eq('is_active', true)
-            .single()
-          
-          if (adminUser && !error) {
-            setSession(session)
-            setUser(adminUser)
-          } else {
-            setSession(null)
-            setUser(null)
-          }
-        } else if (event === 'SIGNED_OUT') {
-          setSession(null)
-          setUser(null)
-        }
-      }
-    )
-
     initializeAuth()
-
-    return () => subscription.unsubscribe()
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setLoading(true)
       
-      // Use regular Supabase auth
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const response = await fetch('https://zfxdjbpjxpgreymebpsr.supabase.co/functions/v1/admin-auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       })
 
-      if (error) {
+      const data = await response.json()
+
+      if (!response.ok) {
         toast({
           title: "Login Failed",
-          description: error.message,
+          description: data.error || "Invalid credentials",
           variant: "destructive"
         })
         return false
       }
 
-      if (data.session) {
-        // Check if this user is an admin
-        const { data: adminUser, error: adminError } = await supabase
-          .from('admin_users')
-          .select('*')
-          .eq('id', data.session.user.id)
-          .eq('is_active', true)
-          .single()
+      if (data.success) {
+        setUser(data.user)
+        setSession(data.session_token)
         
-        if (adminError || !adminUser) {
-          await supabase.auth.signOut()
-          toast({
-            title: "Access Denied",
-            description: "You do not have admin access to this dashboard.",
-            variant: "destructive"
-          })
-          return false
-        }
-
-        // Update last login
-        await supabase
-          .from('admin_users')
-          .update({ last_login_at: new Date().toISOString() })
-          .eq('id', adminUser.id)
-
+        // Store in localStorage
+        localStorage.setItem('admin_session_token', data.session_token)
+        localStorage.setItem('admin_user', JSON.stringify(data.user))
+        
         toast({
           title: "Welcome back!",
           description: "You have successfully logged in to the admin dashboard."
@@ -157,13 +117,26 @@ export const useAdminAuthState = () => {
 
   const logout = async (): Promise<void> => {
     try {
-      await supabase.auth.signOut()
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out."
-      })
+      const sessionToken = localStorage.getItem('admin_session_token')
+      
+      if (sessionToken) {
+        await fetch('https://zfxdjbpjxpgreymebpsr.supabase.co/functions/v1/admin-auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${sessionToken}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      }
     } catch (error) {
       console.error('Logout error:', error)
+    } finally {
+      // Clear local state regardless of API call success
+      setUser(null)
+      setSession(null)
+      localStorage.removeItem('admin_session_token')
+      localStorage.removeItem('admin_user')
+      
       toast({
         title: "Logged out",
         description: "You have been successfully logged out."
@@ -172,19 +145,10 @@ export const useAdminAuthState = () => {
   }
 
   const verifySessionMethod = async (): Promise<boolean> => {
-    const { data: { session } } = await supabase.auth.getSession()
+    const sessionToken = localStorage.getItem('admin_session_token')
+    if (!sessionToken) return false
     
-    if (!session) return false
-    
-    // Check if user is still an admin
-    const { data: adminUser, error } = await supabase
-      .from('admin_users')
-      .select('*')
-      .eq('id', session.user.id)
-      .eq('is_active', true)
-      .single()
-    
-    return !error && !!adminUser
+    return await verifySession(sessionToken)
   }
 
   return {
@@ -197,5 +161,23 @@ export const useAdminAuthState = () => {
   }
 }
 
+// Helper function to verify session with API
+const verifySession = async (sessionToken: string): Promise<boolean> => {
+  try {
+    const response = await fetch('https://zfxdjbpjxpgreymebpsr.supabase.co/functions/v1/admin-auth/verify', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sessionToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const data = await response.json()
+    return response.ok && data.success
+  } catch (error) {
+    console.error('Session verification error:', error)
+    return false
+  }
+}
 
 export { AdminAuthContext }
