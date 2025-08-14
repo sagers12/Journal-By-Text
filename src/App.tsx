@@ -15,6 +15,10 @@ import TrialExpired from "./pages/TrialExpired";
 import { ResetPassword } from "./pages/ResetPassword";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { SubscriptionProtectedRoute } from "./components/SubscriptionProtectedRoute";
+import { AdminAuthProvider } from "./components/AdminAuthProvider";
+import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
+import AdminLogin from "./pages/admin/AdminLogin";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +45,21 @@ const App = () => (
             </SubscriptionProtectedRoute>
           } />
           <Route path="/trial-expired" element={<TrialExpired />} />
+          
+          {/* Admin Routes - Wrapped in separate AdminAuthProvider */}
+          <Route path="/admin/*" element={
+            <AdminAuthProvider>
+              <Routes>
+                <Route path="login" element={<AdminLogin />} />
+                <Route path="dashboard" element={
+                  <AdminProtectedRoute>
+                    <AdminDashboard />
+                  </AdminProtectedRoute>
+                } />
+              </Routes>
+            </AdminAuthProvider>
+          } />
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
