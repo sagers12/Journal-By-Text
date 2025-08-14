@@ -33,7 +33,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Verify admin session
+    // Verify admin access using Supabase auth
     const authHeader = req.headers.get('authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(
@@ -42,18 +42,32 @@ serve(async (req) => {
       )
     }
 
-    const sessionToken = authHeader.substring(7)
-    const { data: session, error: sessionError } = await supabaseClient
-      .from('admin_sessions')
-      .select('admin_user_id')
-      .eq('session_token', sessionToken)
-      .gt('expires_at', new Date().toISOString())
+    const token = authHeader.substring(7)
+
+    // Get user from Supabase auth
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token)
+
+    if (userError || !user) {
+      console.log('User verification failed:', userError)
+      return new Response(
+        JSON.stringify({ error: 'Invalid credentials' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Check if user is admin
+    const { data: adminUser, error: adminError } = await supabaseClient
+      .from('admin_users')
+      .select('*')
+      .eq('email', user.email)
+      .eq('is_active', true)
       .single()
 
-    if (sessionError || !session) {
+    if (adminError || !adminUser) {
+      console.log('Admin user not found:', adminError)
       return new Response(
-        JSON.stringify({ error: 'Invalid or expired session' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Access denied - not an admin user' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 

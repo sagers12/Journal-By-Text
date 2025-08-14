@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
+import { supabase } from '@/integrations/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -56,12 +57,13 @@ export default function AdminDashboard() {
 
   const fetchMetrics = async (period = 'today') => {
     try {
-      const sessionToken = localStorage.getItem('admin_session_token')
-      if (!sessionToken) return
+      // Use current Supabase session
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
 
       const response = await fetch(`https://zfxdjbpjxpgreymebpsr.supabase.co/functions/v1/admin-dashboard/metrics?period=${period}`, {
         headers: {
-          'Authorization': `Bearer ${sessionToken}`,
+          'Authorization': `Bearer ${session.access_token}`,
         },
       })
 
@@ -91,14 +93,15 @@ export default function AdminDashboard() {
   const refreshMetrics = async () => {
     setRefreshing(true)
     try {
-      const sessionToken = localStorage.getItem('admin_session_token')
-      if (!sessionToken) return
+      // Use current Supabase session
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
 
       // Refresh cache
       await fetch('https://zfxdjbpjxpgreymebpsr.supabase.co/functions/v1/admin-dashboard/refresh-cache', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${sessionToken}`,
+          'Authorization': `Bearer ${session.access_token}`,
         },
       })
 
