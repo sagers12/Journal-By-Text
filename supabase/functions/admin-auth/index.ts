@@ -36,8 +36,11 @@ serve(async (req) => {
     if (action === 'login') {
       const { email, password }: AdminLoginRequest = await req.json()
 
+      console.log('Login attempt:', { email, passwordLength: password?.length })
+
       // Validate input
       if (!email || !password) {
+        console.log('Missing email or password')
         return new Response(
           JSON.stringify({ error: 'Email and password are required' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -52,7 +55,13 @@ serve(async (req) => {
         .eq('is_active', true)
         .single()
 
+      console.log('Admin user query result:', { 
+        adminUser: adminUser ? { id: adminUser.id, email: adminUser.email } : null, 
+        error: adminError 
+      })
+
       if (adminError || !adminUser) {
+        console.log('Admin user not found or error:', adminError)
         return new Response(
           JSON.stringify({ error: 'Invalid credentials' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
