@@ -35,8 +35,8 @@ const Marketing = () => {
         <div className="container mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Left Column - Content */}
-            <div className="space-y-6 md:space-y-8">
-              <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 w-fit">
+            <div className="space-y-6 md:space-y-8 text-center lg:text-left">
+              <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 w-fit mx-auto lg:mx-0">
                 ✨ Journal anywhere, anytime
               </Badge>
               
@@ -46,12 +46,12 @@ const Marketing = () => {
                   <span className="text-blue-600">to keep a journal</span>
                 </h1>
                 
-                <p className="text-lg md:text-xl text-slate-600 leading-relaxed max-w-lg">
+                <p className="text-lg md:text-xl text-slate-600 leading-relaxed max-w-lg mx-auto lg:mx-0">
                   You've never kept a journal, but now you can. No apps, no passwords, no friction. Just send a text message and capture your thoughts instantly.
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Link to="/sign-up">
                   <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-3 w-full sm:w-auto">
                     Start journaling - it's free
