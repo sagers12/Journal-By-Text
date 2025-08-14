@@ -119,12 +119,9 @@ export default function AdminLogin() {
             </Button>
           </form>
 
-          <div className="mt-6 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-yellow-800">
-              <strong>Temporary credentials:</strong><br />
-              Email: admin@journalbytext.com<br />
-              Password: admin123<br />
-              <em>Please change these immediately after first login.</em>
+          <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> Use your regular Journal by Text account credentials to access the admin dashboard.
             </p>
           </div>
         </CardContent>

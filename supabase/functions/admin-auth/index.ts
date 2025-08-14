@@ -1,15 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-interface AdminLoginRequest {
-  email: string
-  password: string
 }
 
 interface AdminUser {
@@ -34,74 +28,42 @@ serve(async (req) => {
     const url = new URL(req.url)
     const action = url.pathname.split('/').pop()
 
-    if (action === 'login') {
-      const { email, password }: AdminLoginRequest = await req.json()
-
-      console.log('Login attempt:', { email, passwordLength: password?.length })
-
-      // Validate input
-      if (!email || !password) {
-        console.log('Missing email or password')
+    if (action === 'check-admin') {
+      // Verify JWT and check if user is admin
+      const authHeader = req.headers.get('authorization')
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return new Response(
-          JSON.stringify({ error: 'Email and password are required' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'Missing or invalid authorization header' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
-      // Get admin user
+      const token = authHeader.substring(7)
+
+      // Get user from Supabase auth
+      const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token)
+
+      if (userError || !user) {
+        console.log('User verification failed:', userError)
+        return new Response(
+          JSON.stringify({ error: 'Invalid credentials' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Check if user is in admin_users table
       const { data: adminUser, error: adminError } = await supabaseClient
         .from('admin_users')
         .select('*')
-        .eq('email', email.toLowerCase())
+        .eq('email', user.email)
         .eq('is_active', true)
         .single()
 
-      console.log('Admin user query result:', { 
-        adminUser: adminUser ? { id: adminUser.id, email: adminUser.email } : null, 
-        error: adminError 
-      })
-
       if (adminError || !adminUser) {
-        console.log('Admin user not found or error:', adminError)
+        console.log('Admin user not found:', adminError)
         return new Response(
-          JSON.stringify({ error: 'Invalid credentials' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-
-      // Verify bcrypt password
-      console.log('Attempting bcrypt verification with stored hash:', adminUser.password_hash)
-      const isValidPassword = await bcrypt.compare(password, adminUser.password_hash)
-
-      if (!isValidPassword) {
-        console.log('Password verification failed')
-        return new Response(
-          JSON.stringify({ error: 'Invalid credentials' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-      
-      console.log('Password verification successful')
-
-      // Create session
-      const sessionToken = crypto.randomUUID()
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-
-      const { error: sessionError } = await supabaseClient
-        .from('admin_sessions')
-        .insert({
-          admin_user_id: adminUser.id,
-          session_token: sessionToken,
-          expires_at: expiresAt.toISOString(),
-          ip_address: req.headers.get('x-forwarded-for') || '0.0.0.0',
-          user_agent: req.headers.get('user-agent') || ''
-        })
-
-      if (sessionError) {
-        console.error('Session creation error:', sessionError)
-        return new Response(
-          JSON.stringify({ error: 'Failed to create session' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'Access denied - not an admin user' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
@@ -111,86 +73,23 @@ serve(async (req) => {
         .update({ last_login_at: new Date().toISOString() })
         .eq('id', adminUser.id)
 
-      const user: AdminUser = {
+      const adminUserData: AdminUser = {
         id: adminUser.id,
         email: adminUser.email,
         full_name: adminUser.full_name,
         is_active: adminUser.is_active,
-        last_login_at: adminUser.last_login_at
+        last_login_at: new Date().toISOString()
       }
 
       return new Response(
         JSON.stringify({ 
           success: true, 
-          user,
-          session_token: sessionToken,
-          expires_at: expiresAt.toISOString()
+          user: adminUserData
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    if (action === 'verify') {
-      const authHeader = req.headers.get('authorization')
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return new Response(
-          JSON.stringify({ error: 'Missing or invalid authorization header' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-
-      const sessionToken = authHeader.substring(7)
-
-      // Verify session
-      const { data: session, error: sessionError } = await supabaseClient
-        .from('admin_sessions')
-        .select(`
-          *,
-          admin_users (
-            id,
-            email,
-            full_name,
-            is_active,
-            last_login_at
-          )
-        `)
-        .eq('session_token', sessionToken)
-        .gt('expires_at', new Date().toISOString())
-        .single()
-
-      if (sessionError || !session || !session.admin_users.is_active) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid or expired session' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          user: session.admin_users 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    if (action === 'logout') {
-      const authHeader = req.headers.get('authorization')
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const sessionToken = authHeader.substring(7)
-        
-        // Delete session
-        await supabaseClient
-          .from('admin_sessions')
-          .delete()
-          .eq('session_token', sessionToken)
-      }
-
-      return new Response(
-        JSON.stringify({ success: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
 
     return new Response(
       JSON.stringify({ error: 'Invalid action' }),
