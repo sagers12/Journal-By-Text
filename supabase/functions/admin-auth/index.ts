@@ -61,8 +61,7 @@ serve(async (req) => {
 
       // For now, using a simple password check (in production, use bcrypt)
       // This is the temporary admin password: "admin123"
-      const isValidPassword = password === 'admin123' || 
-        await verifyPassword(password, adminUser.password_hash)
+      const isValidPassword = password === 'admin123'
 
       if (!isValidPassword) {
         return new Response(
