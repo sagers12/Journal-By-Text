@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -68,16 +69,19 @@ serve(async (req) => {
         )
       }
 
-      // For now, using a simple password check (in production, use bcrypt)
-      // This is the temporary admin password: "admin123"
-      const isValidPassword = password === 'admin123'
+      // Verify bcrypt password
+      console.log('Attempting bcrypt verification with stored hash:', adminUser.password_hash)
+      const isValidPassword = await bcrypt.compare(password, adminUser.password_hash)
 
       if (!isValidPassword) {
+        console.log('Password verification failed')
         return new Response(
           JSON.stringify({ error: 'Invalid credentials' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+      
+      console.log('Password verification successful')
 
       // Create session
       const sessionToken = crypto.randomUUID()
@@ -201,9 +205,3 @@ serve(async (req) => {
     )
   }
 })
-
-// Simple password verification function (replace with bcrypt in production)
-async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  // This is a placeholder - in production, use bcrypt
-  return password === hash
-}
