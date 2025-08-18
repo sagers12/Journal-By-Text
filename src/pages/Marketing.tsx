@@ -107,8 +107,8 @@ const Marketing = () => {
       <section className="py-20 px-4 bg-white/30">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-6">
-              You've tried journaling. You've never stuck with it. Until now.
+            <h2 className="text-4xl font-bold text-slate-800 mb-6">
+              "I wish I journaled more." - Everyone
             </h2>
             <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
               When it comes to journaling, it's more important to be consistent than perfect. You already send dozens of texts every day. Just send one more to your journal.
