@@ -201,12 +201,14 @@ try {
 
         if (!force) {
           const isSunday = dayOfWeek === 'Sunday';
-          const isCorrectTime = (currentHour === 18) || (currentHour === 19 && currentMinute <= 30); // 6:00pm-7:30pm
+          const isCorrectTime = (currentHour === 17 && currentMinute >= 59) || 
+                                currentHour === 18 || 
+                                (currentHour === 19 && currentMinute <= 31); // 5:59pm-7:31pm
           if (!isSunday || !isCorrectTime) {
-            console.log(`User ${profile.id}: Skipping - Day: ${dayOfWeek} (need Sunday), Hour: ${currentHour}:${currentMinute} (need 18:00-19:30)`)
+            console.log(`User ${profile.id}: Skipping - Day: ${dayOfWeek} (need Sunday), Hour: ${currentHour}:${currentMinute} (need 17:59-19:31)`)
             continue;
           }
-          console.log(`User ${profile.id}: ✅ Sunday 6:00pm-7:30pm window - proceeding with weekly recap`)
+          console.log(`User ${profile.id}: ✅ Sunday 5:59pm-7:31pm window - proceeding with weekly recap`)
         } else {
           console.log(`User ${profile.id}: ⚙️ Force enabled - bypassing day/time checks`)
         }
