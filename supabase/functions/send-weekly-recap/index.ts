@@ -179,6 +179,8 @@ try {
         const now = new Date();
         const userTimezone = profile.reminder_timezone || 'America/New_York';
         
+        console.log(`User ${profile.id}: Using timestamp: ${now.toISOString()} for both time and day calculations`);
+        
         // Get current time in user's timezone using the SAME method as working reminders
         const userCurrentTime = new Intl.DateTimeFormat('en-US', {
           timeZone: userTimezone,
@@ -189,8 +191,8 @@ try {
         
         const [currentHour, currentMinute] = userCurrentTime.split(':').map(Number)
         
-        // Get current day of week in user's timezone
-        const dayOfWeek = new Date().toLocaleDateString('en-US', { 
+        // Get current day of week in user's timezone - CRITICAL: Use same 'now' timestamp
+        const dayOfWeek = now.toLocaleDateString('en-US', { 
           timeZone: userTimezone, 
           weekday: 'long' 
         })
