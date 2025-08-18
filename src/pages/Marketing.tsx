@@ -103,46 +103,59 @@ const Marketing = () => {
         </div>
       </section>
 
-      {/* Why Journal Section */}
+      {/* Problem Section */}
       <section className="py-20 px-4 bg-white/30">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-800 mb-4">Why Journal?</h2>
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-              Journaling isn't just writing—it's a pathway to better mental health, clearer thinking, and personal growth.
+            <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-6">
+              You've tried journaling. You've never stuck with it. Until now.
+            </h2>
+            <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
+              When it comes to journaling, it's more important to be consistent than perfect. You already send dozens of texts every day. Just send one more to your journal.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm">
-              <CardHeader>
-                <Heart className="w-8 h-8 text-red-500 mb-2" />
-                <CardTitle>Mental Clarity</CardTitle>
+            <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center">
+              <CardHeader className="space-y-4">
+                <div className="flex justify-center">
+                  <Smartphone className="w-16 h-16 text-slate-700" />
+                </div>
+                <CardTitle className="text-xl font-semibold text-slate-800">Apps get forgotten</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-slate-600">
-                  Reduce stress and anxiety by processing your thoughts. Studies show journaling improves emotional regulation and mental well-being.
+                  Downloaded with good intentions, buried in your phone after a week
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm">
-              <CardHeader>
-                <Zap className="w-8 h-8 text-yellow-500 mb-2" />
-                <CardTitle>Better Decisions</CardTitle>
+            <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center">
+              <CardHeader className="space-y-4">
+                <div className="flex justify-center">
+                  <div className="w-16 h-16 flex items-center justify-center">
+                    <div className="w-12 h-14 bg-slate-700 rounded-sm flex items-center justify-center relative">
+                      <div className="w-8 h-1 bg-white rounded-full"></div>
+                      <div className="absolute top-1 left-1 right-1 h-8 border border-white/30 rounded-sm"></div>
+                    </div>
+                  </div>
+                </div>
+                <CardTitle className="text-xl font-semibold text-slate-800">Notebooks get lost</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-slate-600">
-                  Gain perspective on your life patterns. Regular reflection helps you make more thoughtful choices and learn from experiences.
+                  Left at home, forgotten in your bag, or filled with random notes
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm">
-              <CardHeader>
-                <Clock className="w-8 h-8 text-blue-500 mb-2" />
-                <CardTitle>Track Growth</CardTitle>
+            <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center">
+              <CardHeader className="space-y-4">
+                <div className="flex justify-center">
+                  <Clock className="w-16 h-16 text-red-500" />
+                </div>
+                <CardTitle className="text-xl font-semibold text-slate-800">Life gets busy</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-slate-600">
-                  Look back and see how far you've come. Your journal becomes a personal timeline of growth, achievements, and memories.
+                  Good habits break when you need them most
                 </p>
               </CardContent>
             </Card>
