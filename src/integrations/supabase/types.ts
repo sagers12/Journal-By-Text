@@ -793,6 +793,10 @@ export type Database = {
         Args: { p_key: string }
         Returns: string
       }
+      is_verified_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       reset_rate_limit_for_phone: {
         Args: { phone_number: string }
         Returns: Json
