@@ -20,8 +20,28 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Enhanced logging function
+  async function logEvent(supabaseClient: any, eventType: string, data: any) {
+    try {
+      await supabaseClient
+        .from('sms_processing_events')
+        .insert({
+          event_type: eventType,
+          surge_message_id: data.surgeMessageId,
+          phone_number: data.phoneNumber,
+          user_id: data.userId,
+          entry_id: data.entryId,
+          processing_time_ms: data.processingTime,
+          details: data.details
+        })
+    } catch (error) {
+      console.log('Failed to log event:', error.message)
+    }
+  }
+
   // Background processing function for heavy work
   async function processMessageAsync(webhookData: any, supabaseClient: any) {
+    const processingStart = Date.now()
     try {
       console.log('Starting background message processing...')
       

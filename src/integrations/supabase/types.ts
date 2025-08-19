@@ -162,6 +162,36 @@ export type Database = {
         }
         Relationships: []
       }
+      health_check_logs: {
+        Row: {
+          checks_failed: number
+          checks_passed: number
+          checks_warned: number
+          created_at: string
+          details: Json | null
+          id: string
+          overall_status: string
+        }
+        Insert: {
+          checks_failed?: number
+          checks_passed?: number
+          checks_warned?: number
+          created_at?: string
+          details?: Json | null
+          id?: string
+          overall_status: string
+        }
+        Update: {
+          checks_failed?: number
+          checks_passed?: number
+          checks_warned?: number
+          created_at?: string
+          details?: Json | null
+          id?: string
+          overall_status?: string
+        }
+        Relationships: []
+      }
       journal_entries: {
         Row: {
           content: string
@@ -522,6 +552,84 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sms_processing_events: {
+        Row: {
+          created_at: string
+          details: Json | null
+          entry_id: string | null
+          event_type: string
+          id: string
+          phone_number: string
+          processing_time_ms: number | null
+          surge_message_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          entry_id?: string | null
+          event_type: string
+          id?: string
+          phone_number: string
+          processing_time_ms?: number | null
+          surge_message_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          entry_id?: string | null
+          event_type?: string
+          id?: string
+          phone_number?: string
+          processing_time_ms?: number | null
+          surge_message_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      sms_test_logs: {
+        Row: {
+          byte_count: number
+          character_count: number
+          created_at: string
+          id: string
+          message_content: string
+          payload: Json | null
+          phone_number: string
+          success: boolean | null
+          test_type: string
+          webhook_response: string | null
+          webhook_status: number | null
+        }
+        Insert: {
+          byte_count?: number
+          character_count?: number
+          created_at?: string
+          id?: string
+          message_content: string
+          payload?: Json | null
+          phone_number: string
+          success?: boolean | null
+          test_type: string
+          webhook_response?: string | null
+          webhook_status?: number | null
+        }
+        Update: {
+          byte_count?: number
+          character_count?: number
+          created_at?: string
+          id?: string
+          message_content?: string
+          payload?: Json | null
+          phone_number?: string
+          success?: boolean | null
+          test_type?: string
+          webhook_response?: string | null
+          webhook_status?: number | null
+        }
+        Relationships: []
       }
       subscribers: {
         Row: {

@@ -1,5 +1,17 @@
 project_id = "zfxdjbpjxpgreymebpsr"
 
+[functions.sms-test-suite]
+verify_jwt = false
+
+[functions.sms-monitoring-dashboard]
+verify_jwt = false
+
+[functions.sms-health-check]
+verify_jwt = false
+
+[functions.sms-test-interface]
+verify_jwt = false
+
 [functions.sms-webhook]
 verify_jwt = false
 
