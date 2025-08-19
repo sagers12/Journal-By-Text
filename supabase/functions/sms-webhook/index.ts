@@ -20,6 +20,221 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Background processing function for heavy work
+  async function processMessageAsync(webhookData: any, supabaseClient: any) {
+    try {
+      console.log('Starting background message processing...')
+      
+      // Extract message details from webhook data
+      let messageId = ''
+      let messageBody = ''
+      let fromPhone = ''
+      let conversationId = ''
+      let attachments: any[] = []
+      
+      // Handle both new and old format
+      if (webhookData?.data) {
+        messageId = webhookData.data.id || ''
+        messageBody = webhookData.data.body?.trim() || ''
+        fromPhone = webhookData.data.conversation?.contact?.phone_number || ''
+        conversationId = webhookData.data.conversation?.id || ''
+        attachments = (webhookData.data.attachments || []).filter((att: any) => 
+          ['file', 'image', 'link', 'video'].includes(att.type)
+        )
+      } else if (webhookData?.properties) {
+        messageId = webhookData.properties.id || ''
+        messageBody = webhookData.properties.content?.trim() || ''
+        fromPhone = webhookData.properties.contact?.phone_number || ''
+        conversationId = webhookData.properties.conversation?.id || ''
+        attachments = (webhookData.properties.attachments || []).filter((att: any) => 
+          ['file', 'image', 'link', 'video'].includes(att.type)
+        )
+      }
+
+      // If message body is empty, log and exit early
+      if (!messageBody) {
+        console.warn('Empty body from Surge message.received', { 
+          eventType: webhookData?.type || webhookData?.event,
+          id: messageId,
+          hasData: !!webhookData?.data,
+          hasProperties: !!webhookData?.properties,
+          bodyType: typeof (webhookData?.data?.body || webhookData?.properties?.content)
+        })
+        return
+      }
+
+      // Enhanced message length validation with grapheme-aware counting
+      const splitter = new GraphemeSplitter()
+      const graphemes = splitter.splitGraphemes(messageBody)
+      const charCount = graphemes.length
+      const byteCount = new TextEncoder().encode(messageBody).length
+      
+      const CHAR_LIMIT = 10_000
+      let finalMessageBody = messageBody
+      let truncated = false
+      
+      if (charCount > CHAR_LIMIT) {
+        finalMessageBody = graphemes.slice(0, CHAR_LIMIT).join('')
+        truncated = true
+        
+        console.warn('Message truncated to limit', { 
+          messageId, 
+          charCount, 
+          byteCount, 
+          originalLength: messageBody.length,
+          truncatedLength: finalMessageBody.length
+        })
+      }
+
+      // Find user by phone number
+      const normalizedPhone = fromPhone.replace(/[\s\-\+\(\)]/g, '')
+      const phoneFormats = [
+        fromPhone,
+        normalizedPhone,
+        `+1${normalizedPhone}`,
+        `1${normalizedPhone}`,
+        `+${normalizedPhone}`
+      ]
+
+      const { data: profiles, error: profileError } = await supabaseClient
+        .from('profiles')
+        .select('id, phone_number, phone_verified')
+        .or(phoneFormats.map(format => `phone_number.eq.${format}`).join(','))
+
+      if (profileError || !profiles || profiles.length === 0) {
+        console.error('User not found for phone number:', maskPhone(fromPhone))
+        
+        // Store message for unknown user using upsert for idempotency
+        await supabaseClient
+          .from('sms_messages')
+          .upsert({
+            surge_message_id: messageId,
+            phone_number: fromPhone,
+            message_content: messageBody,
+            entry_date: new Date().toISOString().split('T')[0],
+            processed: false,
+            error_message: 'User not found',
+            user_id: '00000000-0000-0000-0000-000000000000',
+            char_count: charCount,
+            byte_count: byteCount,
+            truncated: false
+          }, { onConflict: 'surge_message_id' })
+        return
+      }
+
+      const profile = profiles[0]
+      const userId = profile.id
+      const entryDate = new Date().toISOString().split('T')[0]
+
+      console.log('Processing message for user:', { userId, entryDate, phoneVerified: profile.phone_verified })
+
+      // Store oversized message for audit if truncated
+      if (truncated) {
+        await supabaseClient
+          .from('oversized_messages')
+          .insert({
+            surge_message_id: messageId,
+            phone_number: fromPhone,
+            original_content: messageBody,
+            char_count: charCount,
+            byte_count: byteCount,
+            user_id: userId,
+            entry_date: entryDate
+          })
+          .then(({ error: auditError }) => {
+            if (auditError) {
+              console.error('Failed to store oversized message for audit:', auditError)
+            }
+          })
+      }
+
+      // Handle phone verification
+      if (finalMessageBody.toUpperCase() === 'YES' && !profile.phone_verified) {
+        await processPhoneVerification(
+          supabaseClient,
+          finalMessageBody,
+          userId,
+          messageId,
+          fromPhone,
+          entryDate
+        )
+        await sendInstructionMessage(fromPhone)
+        return
+      }
+
+      // Skip processing if phone not verified
+      if (!profile.phone_verified) {
+        console.log('Phone not verified, storing message only')
+        await supabaseClient
+          .from('sms_messages')
+          .upsert({
+            user_id: userId,
+            surge_message_id: messageId,
+            phone_number: fromPhone,
+            message_content: finalMessageBody,
+            entry_date: entryDate,
+            processed: false,
+            error_message: 'Phone not verified',
+            char_count: charCount,
+            byte_count: byteCount,
+            truncated: truncated
+          }, { onConflict: 'surge_message_id' })
+        return
+      }
+
+      // Check subscription status
+      const { data: subscriber } = await supabaseClient
+        .from('subscribers')
+        .select('subscribed, is_trial, trial_end, email')
+        .eq('user_id', userId)
+        .single()
+
+      const now = new Date()
+      const trialEnd = subscriber?.trial_end ? new Date(subscriber.trial_end) : null
+      const isTrialActive = subscriber?.is_trial && trialEnd && trialEnd > now
+      const hasAccess = subscriber?.subscribed || isTrialActive
+
+      if (!hasAccess) {
+        console.log('User does not have access - expired trial or no subscription')
+        await supabaseClient
+          .from('sms_messages')
+          .upsert({
+            user_id: userId,
+            surge_message_id: messageId,
+            phone_number: fromPhone,
+            message_content: finalMessageBody,
+            entry_date: entryDate,
+            processed: false,
+            error_message: 'No active subscription',
+            char_count: charCount,
+            byte_count: byteCount,
+            truncated: truncated
+          }, { onConflict: 'surge_message_id' })
+        
+        await sendSubscriptionReminderMessage(fromPhone)
+        return
+      }
+
+      // Process journal entry
+      await processJournalEntry(
+        supabaseClient,
+        finalMessageBody,
+        userId,
+        messageId,
+        fromPhone,
+        entryDate,
+        attachments,
+        { charCount, byteCount, truncated }
+      )
+
+      await sendConfirmationMessage(fromPhone)
+      
+      console.log('Background message processing completed successfully')
+    } catch (error) {
+      console.error('Error in background message processing:', error)
+    }
+  }
+
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -39,7 +254,7 @@ serve(async (req) => {
       url: req.url
     })
 
-    // Parse the webhook data first to see what we're dealing with
+    // Parse the webhook data first
     let data
     try {
       data = JSON.parse(body)
@@ -49,19 +264,19 @@ serve(async (req) => {
       return new Response('Invalid JSON', { status: 400, headers: corsHeaders })
     }
 
-    // Handle different webhook formats from Surge
+    // Handle different webhook formats
     if (!data || typeof data !== 'object') {
       console.log('Invalid webhook data structure:', data)
       return new Response('Invalid data structure', { status: 400, headers: corsHeaders })
     }
 
-    // Check if this is a test webhook (like {"name": "Functions"})
+    // Check if this is a test webhook
     if (data.name === "Functions" || (!data.type && !data.event)) {
       console.log('Received test webhook or webhook without type/event field:', data)
       return new Response('OK - Test webhook received', { status: 200, headers: corsHeaders })
     }
 
-    // CRITICAL: Validate signature - this is now MANDATORY for security
+    // CRITICAL: Validate signature
     if (!webhookSecret) {
       console.error('SECURITY: Webhook secret not configured')
       return new Response('Server configuration error', { status: 500, headers: corsHeaders })
@@ -77,7 +292,6 @@ serve(async (req) => {
       if (!isValid) {
         console.error('SECURITY: Invalid webhook signature')
         
-        // Log security event for invalid signature
         await supabaseClient
           .from('security_events')
           .insert({
@@ -101,21 +315,12 @@ serve(async (req) => {
 
     // Determine payload format and extract event type
     let eventType = null
-    let messageData = null
     
-    // Try new format first (payload.event and payload.properties)
     if (data.event && data.properties) {
-      console.log('Using new payload format (event/properties)')
       eventType = data.event
-      messageData = data.properties
-    }
-    // Fall back to old format (payload.type and payload.data)
-    else if (data.type && data.data) {
-      console.log('Using old payload format (type/data)')
+    } else if (data.type && data.data) {
       eventType = data.type
-      messageData = data.data
-    }
-    else {
+    } else {
       console.error('Unknown payload format:', data)
       return new Response('Bad Request: Unknown payload format', { status: 400, headers: corsHeaders })
     }
@@ -126,397 +331,22 @@ serve(async (req) => {
       return new Response('OK', { status: 200, headers: corsHeaders })
     }
 
-    if (!messageData) {
-      console.error('No message data field in webhook:', data)
-      return new Response('Bad Request: No message data field', { status: 400, headers: corsHeaders })
+    // Basic validation of message ID for idempotency
+    const messageId = data.data?.id || data.properties?.id
+    if (!messageId || typeof messageId !== 'string') {
+      console.error('Invalid or missing message ID')
+      return new Response('Bad Request: Invalid message ID', { status: 400, headers: corsHeaders })
     }
 
-    // Extract message details - handle both formats
-    let messageId, messageBody, fromPhone, conversationId, attachments
-    
-    // New format extraction
-    if (data.event) {
-      messageId = messageData.id
-      messageBody = messageData.content?.trim() || ''
-      fromPhone = messageData.contact?.phone_number
-      conversationId = messageData.conversation?.id
-      attachments = messageData.attachments || []
-    }
-    // Old format extraction
-    else {
-      messageId = messageData.id
-      messageBody = messageData.body?.trim() || ''
-      fromPhone = messageData.conversation?.contact?.phone_number
-      conversationId = messageData.conversation?.id
-      attachments = messageData.attachments || []
-    }
+    // Start background processing without waiting
+    // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+    EdgeRuntime.waitUntil(processMessageAsync(data, supabaseClient))
 
-    // If message body is still empty after initial extraction, log and store for investigation
-    // Do NOT attempt generic stitching for Surge - trust data.body as source of truth
-    if (!messageBody) {
-      console.warn('Empty body from Surge message.received', { 
-        eventType: eventType,
-        id: messageId,
-        hasMessageData: !!messageData,
-        bodyType: typeof messageData?.body,
-        contentType: typeof messageData?.content,
-        messageDataKeys: messageData ? Object.keys(messageData) : []
-      });
-    }
-
-    console.log('DEBUG: conversationId extraction:', {
-      conversationId,
-      hasConversationId: !!conversationId,
-      conversationPath: data.event ? 'messageData.conversation?.id' : 'messageData.conversation?.id',
-      conversationObject: data.event ? messageData.conversation : messageData.conversation
-    })
-
-    console.log('Extracted message data:', {
-      messageId,
-      messageBody,
-      fromPhone,
-      attachmentsCount: attachments.length,
-      conversationId,
-      format: data.event ? 'new' : 'old',
-      rawAttachments: attachments,
-      conversationData: data.event ? messageData.conversation : messageData.conversation
-    })
-
-    // Enhanced input validation
-    if (!messageId || typeof messageId !== 'string' || messageId.length > 100) {
-      console.error('Invalid message ID:', messageId)
-      return new Response('Bad Request: Invalid message ID', {
-        status: 400,
-        headers: corsHeaders
-      })
-    }
-
-    // Allow empty message body if attachments are present; otherwise store for diagnostics and return 200
-    if (!messageBody && (!attachments || attachments.length === 0)) {
-      console.error('No message content after extraction and no attachments present')
-      try {
-        const payloadSnippet = JSON.stringify({
-          eventType,
-          messageId,
-          fromPhone,
-          hasAttachments: Array.isArray(attachments) && attachments.length > 0,
-          messageDataKeys: Object.keys(messageData || {})
-        }).slice(0, 500)
-        await supabaseClient
-          .from('sms_messages')
-          .insert({
-            surge_message_id: messageId || null,
-            phone_number: fromPhone || 'unknown',
-            message_content: '',
-            entry_date: new Date().toISOString().split('T')[0],
-            processed: false,
-            error_message: `Empty message after extraction. payload=${payloadSnippet}`,
-            user_id: '00000000-0000-0000-0000-000000000000',
-            char_count: 0,
-            byte_count: 0,
-            truncated: false
-          })
-      } catch (logErr) {
-        console.error('Failed to record empty-body webhook for diagnostics:', logErr)
-      }
-      // Return 200 to prevent provider retries; we'll analyze the stored record
-      return new Response('OK - No message content', { status: 200, headers: corsHeaders })
-    }
-    
-    if (messageBody && typeof messageBody !== 'string') {
-      console.error('Invalid message body type:', messageBody)
-      return new Response('Bad Request: Invalid message content', {
-        status: 400,
-        headers: corsHeaders
-      })
-    }
-
-    if (!fromPhone || typeof fromPhone !== 'string' || fromPhone.length > 20) {
-      console.error('Invalid phone number:', fromPhone)
-      return new Response('Bad Request: Invalid phone number', {
-        status: 400,
-        headers: corsHeaders
-      })
-    }
-
-    // Rate limiting for SMS webhook per phone number
-    const smsRateLimitIdentifier = `sms:${fromPhone}`
-    const { data: smsRateLimit } = await supabaseClient.rpc('check_rate_limit', {
-      p_identifier: smsRateLimitIdentifier,
-      p_endpoint: 'sms_webhook',
-      p_max_attempts: 10, // 10 messages per 15 minutes per phone
-      p_window_minutes: 15
-    })
-
-    if (!smsRateLimit.allowed) {
-      console.log('SMS rate limit exceeded for phone:', fromPhone)
-      
-      // Log security event
-      await supabaseClient
-        .from('security_events')
-        .insert({
-          event_type: 'sms_rate_limit_exceeded',
-          identifier: fromPhone,
-          details: {
-            message_id: messageId,
-            attempts: smsRateLimit.attempts,
-            blocked_until: smsRateLimit.blocked_until
-          },
-          severity: 'medium'
-        })
-
-      // Also store the message for debugging/visibility
-      await supabaseClient
-        .from('sms_messages')
-        .insert({
-          surge_message_id: messageId,
-          phone_number: fromPhone,
-          message_content: messageBody,
-          entry_date: new Date().toISOString().split('T')[0],
-          processed: false,
-          error_message: 'Rate limit exceeded',
-          user_id: '00000000-0000-0000-0000-000000000000',
-          char_count: messageBody ? new GraphemeSplitter().splitGraphemes(messageBody).length : 0,
-          byte_count: messageBody ? new TextEncoder().encode(messageBody).length : 0,
-          truncated: false
-        })
-
-      return new Response('Rate limit exceeded', { status: 429, headers: corsHeaders })
-    }
-
-    // Check for duplicate messages using message ID
-    const { data: existingMessage } = await supabaseClient
-      .from('sms_messages')
-      .select('id')
-      .eq('surge_message_id', messageId)
-      .single()
-
-    if (existingMessage) {
-      console.log('Duplicate message ignored:', messageId)
-      return new Response('OK - Duplicate', { status: 200, headers: corsHeaders })
-    }
-
-    // Normalize phone number for matching - try multiple formats
-    const normalizedPhone = fromPhone.replace(/[\s\-\+\(\)]/g, '')
-    const phoneFormats = [
-      fromPhone,
-      normalizedPhone,
-      `+1${normalizedPhone}`,
-      `1${normalizedPhone}`,
-      `+${normalizedPhone}`
-    ]
-
-    console.log('Looking for user with phone formats:', phoneFormats)
-
-    // Find user by phone number with multiple format attempts
-    const { data: profiles, error: profileError } = await supabaseClient
-      .from('profiles')
-      .select('id, phone_number, phone_verified')
-      .or(phoneFormats.map(format => `phone_number.eq.${format}`).join(','))
-
-    console.log('Profile lookup result:', { profiles, profileError, count: profiles?.length })
-
-    if (profileError || !profiles || profiles.length === 0) {
-      console.error('User not found for phone number:', fromPhone)
-      
-      // Create SMS message record even if user not found for debugging
-      await supabaseClient
-        .from('sms_messages')
-        .insert({
-          surge_message_id: messageId,
-          phone_number: fromPhone,
-          message_content: messageBody,
-          entry_date: new Date().toISOString().split('T')[0],
-          processed: false,
-          error_message: 'User not found',
-          user_id: '00000000-0000-0000-0000-000000000000', // Placeholder UUID
-          char_count: messageBody ? new GraphemeSplitter().splitGraphemes(messageBody).length : 0,
-          byte_count: messageBody ? new TextEncoder().encode(messageBody).length : 0,
-          truncated: false
-        })
-
-      return new Response(
-        JSON.stringify({ error: 'User not found', phone: fromPhone, messageId }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const profile = profiles[0]
-    const userId = profile.id
-    const entryDate = new Date().toISOString().split('T')[0]
-
-    console.log('Processing message for user:', { userId, entryDate, phoneVerified: profile.phone_verified })
-
-    // Enhanced message length validation with grapheme-aware counting
-    const splitter = new GraphemeSplitter()
-    const graphemes = splitter.splitGraphemes(messageBody)
-    const charCount = graphemes.length
-    const byteCount = new TextEncoder().encode(messageBody).length
-    
-    const CHAR_LIMIT = 10_000
-    let finalMessageBody = messageBody
-    let truncated = false
-    
-    if (charCount > CHAR_LIMIT) {
-      // Truncate to limit using grapheme-aware slicing
-      finalMessageBody = graphemes.slice(0, CHAR_LIMIT).join('')
-      truncated = true
-      
-      console.warn('Message truncated to limit', { 
-        messageId, 
-        charCount, 
-        byteCount, 
-        originalLength: messageBody.length,
-        truncatedLength: finalMessageBody.length
-      })
-      
-      // Store original oversized message for audit
-      await supabaseClient
-        .from('oversized_messages')
-        .insert({
-          surge_message_id: messageId,
-          phone_number: fromPhone,
-          original_content: messageBody,
-          char_count: charCount,
-          byte_count: byteCount,
-          user_id: userId,
-          entry_date: entryDate
-        })
-        .then(({ error: auditError }) => {
-          if (auditError) {
-            console.error('Failed to store oversized message for audit:', auditError)
-          }
-        })
-    }
-
-    console.log('Message length analysis:', {
-      messageId,
-      charCount,
-      byteCount,
-      truncated,
-      finalLength: finalMessageBody.length
-    })
-
-    // Check if this is a "YES" response to verify phone number
-    if (messageBody.toUpperCase() === 'YES' && !profile.phone_verified) {
-      const result = await processPhoneVerification(
-        supabaseClient,
-        messageBody,
-        userId,
-        messageId,
-        fromPhone,
-        entryDate
-      )
-
-      // Send follow-up instruction message
-      console.log('About to send instruction message to phone:', fromPhone)
-      await sendInstructionMessage(fromPhone)
-
-      return new Response(
-        JSON.stringify(result),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Only process journal entries for verified phone numbers
-    if (!profile.phone_verified) {
-      console.log('Phone not verified, skipping journal entry creation')
-      
-      await supabaseClient
-        .from('sms_messages')
-        .insert({
-          user_id: userId,
-          surge_message_id: messageId,
-          phone_number: fromPhone,
-          message_content: messageBody,
-          entry_date: entryDate,
-          processed: false,
-          error_message: 'Phone not verified',
-          char_count: charCount,
-          byte_count: byteCount,
-          truncated: false
-        })
-
-      return new Response(
-        JSON.stringify({ error: 'Phone not verified', messageId }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Check subscription status before processing journal entry
-    const { data: subscriber, error: subError } = await supabaseClient
-      .from('subscribers')
-      .select('subscribed, is_trial, trial_end, email')
-      .eq('user_id', userId)
-      .single()
-
-    console.log('Subscription check:', { subscriber, subError })
-
-    // Check if user has access (active subscription or active trial)
-    const now = new Date()
-    const trialEnd = subscriber?.trial_end ? new Date(subscriber.trial_end) : null
-    const isTrialActive = subscriber?.is_trial && trialEnd && trialEnd > now
-    const hasAccess = subscriber?.subscribed || isTrialActive
-
-    if (!hasAccess) {
-      console.log('User does not have access - expired trial or no subscription')
-      
-      // Store the message but mark as not processed due to subscription
-      await supabaseClient
-        .from('sms_messages')
-        .insert({
-          user_id: userId,
-          surge_message_id: messageId,
-          phone_number: fromPhone,
-          message_content: messageBody,
-          entry_date: entryDate,
-          processed: false,
-          error_message: 'No active subscription',
-          char_count: charCount,
-          byte_count: byteCount,
-          truncated: false
-        })
-
-      // Send subscription reminder message with Stripe link
-      console.log('About to send subscription reminder message to phone:', fromPhone)
-      const userEmail = subscriber?.email || 'user@journalbytext.com' // fallback email
-      await sendSubscriptionReminderMessage(fromPhone, userEmail)
-
-      return new Response(
-        JSON.stringify({ error: 'No active subscription', messageId }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Process journal entry using truncated message body
-    const result = await processJournalEntry(
-      supabaseClient,
-      finalMessageBody, // Use truncated message body instead of original
-      userId,
-      messageId,
-      fromPhone,
-      entryDate,
-      attachments,
-      { charCount, byteCount, truncated } // Pass length metrics
-    )
-
-    // Send auto-reply confirmation
-    console.log('About to send confirmation message to phone:', fromPhone)
-    await sendConfirmationMessage(fromPhone)
-
-    return new Response(
-      JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    // Return 200 immediately for fast response
+    return new Response('OK', { status: 200, headers: corsHeaders })
 
   } catch (error) {
     console.error('SMS webhook error:', error)
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+    return new Response('Internal Server Error', { status: 500, headers: corsHeaders })
   }
 })
