@@ -150,57 +150,17 @@ serve(async (req) => {
       attachments = messageData.attachments || []
     }
 
-    // Fallback extraction for providers that segment or reshape long messages
-    if (!messageBody || messageBody.length === 0) {
-      try {
-        const md: any = messageData
-        const candidates: string[] = []
-        const pushIfString = (v: any) => {
-          if (typeof v === 'string' && v.trim().length > 0) candidates.push(v.trim())
-        }
-        // Common alternate paths
-        pushIfString(md.text)
-        pushIfString(md.content)
-        pushIfString(md.body)
-        pushIfString(md.message?.text)
-        pushIfString(md.message?.content)
-        pushIfString(md.message?.body)
-        // Segment arrays (various shapes)
-        if (Array.isArray(md.segments)) {
-          const segBody = md.segments
-            .slice()
-            .sort((a: any, b: any) => (a.index ?? a.segment_index ?? 0) - (b.index ?? b.segment_index ?? 0))
-            .map((s: any) => (s.body ?? s.content ?? s.text ?? ''))
-            .join('')
-          pushIfString(segBody)
-        }
-        if (Array.isArray(md.parts)) {
-          const partsBody = md.parts
-            .slice()
-            .sort((a: any, b: any) => (a.index ?? a.part_index ?? 0) - (b.index ?? b.part_index ?? 0))
-            .map((p: any) => (p.body ?? p.content ?? p.text ?? ''))
-            .join('')
-          pushIfString(partsBody)
-        }
-        // Sometimes long text can come as a text attachment
-        if ((!candidates.length) && Array.isArray(attachments)) {
-          const textFromAttachments = attachments
-            .filter((att: any) => att?.type === 'text' || att?.content_type === 'text/plain' || att?.mime_type === 'text/plain')
-            .map((att: any) => (att.content ?? att.body ?? att.text ?? ''))
-            .join('')
-          pushIfString(textFromAttachments)
-        }
-        if (candidates.length > 0) {
-          // Choose the longest candidate (most complete)
-          candidates.sort((a, b) => b.length - a.length)
-          messageBody = candidates[0]
-          console.log('Fallback body extraction succeeded', { candidatesCount: candidates.length, chosenLength: messageBody.length })
-        } else {
-          console.warn('Fallback body extraction failed: no alternate body found')
-        }
-      } catch (fallbackErr) {
-        console.error('Fallback body extraction error:', fallbackErr)
-      }
+    // If message body is still empty after initial extraction, log and store for investigation
+    // Do NOT attempt generic stitching for Surge - trust data.body as source of truth
+    if (!messageBody) {
+      console.warn('Empty body from Surge message.received', { 
+        eventType: eventType,
+        id: messageId,
+        hasMessageData: !!messageData,
+        bodyType: typeof messageData?.body,
+        contentType: typeof messageData?.content,
+        messageDataKeys: messageData ? Object.keys(messageData) : []
+      });
     }
 
     console.log('DEBUG: conversationId extraction:', {
