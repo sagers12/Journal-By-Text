@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import GraphemeSplitter from 'https://esm.sh/grapheme-splitter@1.0.4'
 import { validateSurgeSignature } from './signature-validation.ts'
 import { sendInstructionMessage, sendConfirmationMessage, sendSubscriptionReminderMessage } from './message-handlers.ts'
 import { processPhoneVerification, processJournalEntry } from './sms-processing.ts'
@@ -210,7 +211,10 @@ serve(async (req) => {
             entry_date: new Date().toISOString().split('T')[0],
             processed: false,
             error_message: `Empty message after extraction. payload=${payloadSnippet}`,
-            user_id: '00000000-0000-0000-0000-000000000000'
+            user_id: '00000000-0000-0000-0000-000000000000',
+            char_count: 0,
+            byte_count: 0,
+            truncated: false
           })
       } catch (logErr) {
         console.error('Failed to record empty-body webhook for diagnostics:', logErr)
@@ -230,27 +234,6 @@ serve(async (req) => {
     if (!fromPhone || typeof fromPhone !== 'string' || fromPhone.length > 20) {
       console.error('Invalid phone number:', fromPhone)
       return new Response('Bad Request: Invalid phone number', {
-        status: 400,
-        headers: corsHeaders
-      })
-    }
-
-    // Limit message content length to prevent abuse (raise to 10k chars)
-    if (messageBody.length > 10000) {
-      console.error('Message too long:', { length: messageBody.length });
-      // Store for debugging even if too long
-      await supabaseClient
-        .from('sms_messages')
-        .insert({
-          surge_message_id: messageId,
-          phone_number: fromPhone,
-          message_content: messageBody.substring(0, 10000),
-          entry_date: new Date().toISOString().split('T')[0],
-          processed: false,
-          error_message: 'Message too long (>10000 chars)',
-          user_id: '00000000-0000-0000-0000-000000000000'
-        })
-      return new Response('Bad Request: Message too long', {
         status: 400,
         headers: corsHeaders
       })
@@ -292,7 +275,10 @@ serve(async (req) => {
           entry_date: new Date().toISOString().split('T')[0],
           processed: false,
           error_message: 'Rate limit exceeded',
-          user_id: '00000000-0000-0000-0000-000000000000'
+          user_id: '00000000-0000-0000-0000-000000000000',
+          char_count: messageBody ? new GraphemeSplitter().splitGraphemes(messageBody).length : 0,
+          byte_count: messageBody ? new TextEncoder().encode(messageBody).length : 0,
+          truncated: false
         })
 
       return new Response('Rate limit exceeded', { status: 429, headers: corsHeaders })
@@ -343,7 +329,10 @@ serve(async (req) => {
           entry_date: new Date().toISOString().split('T')[0],
           processed: false,
           error_message: 'User not found',
-          user_id: '00000000-0000-0000-0000-000000000000' // Placeholder UUID
+          user_id: '00000000-0000-0000-0000-000000000000', // Placeholder UUID
+          char_count: messageBody ? new GraphemeSplitter().splitGraphemes(messageBody).length : 0,
+          byte_count: messageBody ? new TextEncoder().encode(messageBody).length : 0,
+          truncated: false
         })
 
       return new Response(
@@ -357,6 +346,56 @@ serve(async (req) => {
     const entryDate = new Date().toISOString().split('T')[0]
 
     console.log('Processing message for user:', { userId, entryDate, phoneVerified: profile.phone_verified })
+
+    // Enhanced message length validation with grapheme-aware counting
+    const splitter = new GraphemeSplitter()
+    const graphemes = splitter.splitGraphemes(messageBody)
+    const charCount = graphemes.length
+    const byteCount = new TextEncoder().encode(messageBody).length
+    
+    const CHAR_LIMIT = 10_000
+    let finalMessageBody = messageBody
+    let truncated = false
+    
+    if (charCount > CHAR_LIMIT) {
+      // Truncate to limit using grapheme-aware slicing
+      finalMessageBody = graphemes.slice(0, CHAR_LIMIT).join('')
+      truncated = true
+      
+      console.warn('Message truncated to limit', { 
+        messageId, 
+        charCount, 
+        byteCount, 
+        originalLength: messageBody.length,
+        truncatedLength: finalMessageBody.length
+      })
+      
+      // Store original oversized message for audit
+      await supabaseClient
+        .from('oversized_messages')
+        .insert({
+          surge_message_id: messageId,
+          phone_number: fromPhone,
+          original_content: messageBody,
+          char_count: charCount,
+          byte_count: byteCount,
+          user_id: userId,
+          entry_date: entryDate
+        })
+        .then(({ error: auditError }) => {
+          if (auditError) {
+            console.error('Failed to store oversized message for audit:', auditError)
+          }
+        })
+    }
+
+    console.log('Message length analysis:', {
+      messageId,
+      charCount,
+      byteCount,
+      truncated,
+      finalLength: finalMessageBody.length
+    })
 
     // Check if this is a "YES" response to verify phone number
     if (messageBody.toUpperCase() === 'YES' && !profile.phone_verified) {
@@ -392,7 +431,10 @@ serve(async (req) => {
           message_content: messageBody,
           entry_date: entryDate,
           processed: false,
-          error_message: 'Phone not verified'
+          error_message: 'Phone not verified',
+          char_count: charCount,
+          byte_count: byteCount,
+          truncated: false
         })
 
       return new Response(
@@ -429,7 +471,10 @@ serve(async (req) => {
           message_content: messageBody,
           entry_date: entryDate,
           processed: false,
-          error_message: 'No active subscription'
+          error_message: 'No active subscription',
+          char_count: charCount,
+          byte_count: byteCount,
+          truncated: false
         })
 
       // Send subscription reminder message with Stripe link
@@ -443,15 +488,16 @@ serve(async (req) => {
       )
     }
 
-    // Process journal entry
+    // Process journal entry using truncated message body
     const result = await processJournalEntry(
       supabaseClient,
-      messageBody,
+      finalMessageBody, // Use truncated message body instead of original
       userId,
       messageId,
       fromPhone,
       entryDate,
-      attachments
+      attachments,
+      { charCount, byteCount, truncated } // Pass length metrics
     )
 
     // Send auto-reply confirmation

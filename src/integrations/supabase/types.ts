@@ -94,7 +94,7 @@ export type Database = {
           id: string
           is_active: boolean
           last_login_at: string | null
-          password_hash: string
+          password_hash: string | null
           updated_at: string
         }
         Insert: {
@@ -105,7 +105,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_login_at?: string | null
-          password_hash: string
+          password_hash?: string | null
           updated_at?: string
         }
         Update: {
@@ -116,7 +116,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_login_at?: string | null
-          password_hash?: string
+          password_hash?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -260,6 +260,45 @@ export type Database = {
           is_active?: boolean | null
           prompt_text?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      oversized_messages: {
+        Row: {
+          byte_count: number
+          char_count: number
+          created_at: string
+          entry_date: string
+          id: string
+          original_content: string
+          phone_number: string
+          received_at: string | null
+          surge_message_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          byte_count: number
+          char_count: number
+          created_at?: string
+          entry_date: string
+          id?: string
+          original_content: string
+          phone_number: string
+          received_at?: string | null
+          surge_message_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          byte_count?: number
+          char_count?: number
+          created_at?: string
+          entry_date?: string
+          id?: string
+          original_content?: string
+          phone_number?: string
+          received_at?: string | null
+          surge_message_id?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -430,6 +469,8 @@ export type Database = {
       }
       sms_messages: {
         Row: {
+          byte_count: number | null
+          char_count: number | null
           entry_date: string
           entry_id: string | null
           error_message: string | null
@@ -439,9 +480,12 @@ export type Database = {
           processed: boolean | null
           received_at: string | null
           surge_message_id: string | null
+          truncated: boolean | null
           user_id: string
         }
         Insert: {
+          byte_count?: number | null
+          char_count?: number | null
           entry_date: string
           entry_id?: string | null
           error_message?: string | null
@@ -451,9 +495,12 @@ export type Database = {
           processed?: boolean | null
           received_at?: string | null
           surge_message_id?: string | null
+          truncated?: boolean | null
           user_id: string
         }
         Update: {
+          byte_count?: number | null
+          char_count?: number | null
           entry_date?: string
           entry_id?: string | null
           error_message?: string | null
@@ -463,6 +510,7 @@ export type Database = {
           processed?: boolean | null
           received_at?: string | null
           surge_message_id?: string | null
+          truncated?: boolean | null
           user_id?: string
         }
         Relationships: [

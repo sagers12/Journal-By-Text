@@ -232,7 +232,10 @@ const checkAndSendMilestone = async (supabase: any, userId: string, streak: numb
         message_content: message,
         entry_date: entryDate,
         processed: true,
-        surge_message_id: null
+        surge_message_id: null,
+        char_count: message.length,
+        byte_count: new TextEncoder().encode(message).length,
+        truncated: false
       });
 
     if (dbError) {
@@ -278,7 +281,10 @@ export async function processPhoneVerification(
       phone_number: fromPhone,
       message_content: messageBody,
       entry_date: entryDate,
-      processed: true
+      processed: true,
+      char_count: messageBody ? messageBody.length : 0,
+      byte_count: messageBody ? new TextEncoder().encode(messageBody).length : 0,
+      truncated: false
     })
 
   return { success: true, action: 'phone_verified', messageId }
@@ -291,7 +297,8 @@ export async function processJournalEntry(
   messageId: string,
   fromPhone: string,
   entryDate: string,
-  attachments: any[]
+  attachments: any[] = [],
+  lengthMetrics?: { charCount: number; byteCount: number; truncated: boolean }
 ) {
   // Get user's timezone to determine the correct entry date
   const { data: userProfile } = await supabaseClient
@@ -338,7 +345,10 @@ export async function processJournalEntry(
       phone_number: fromPhone,
       message_content: encryptedMessageContent,
       entry_date: correctedEntryDate,
-      processed: false
+      processed: false,
+      char_count: lengthMetrics?.charCount || 0,
+      byte_count: lengthMetrics?.byteCount || 0,
+      truncated: lengthMetrics?.truncated || false
     })
     .select()
     .single()
