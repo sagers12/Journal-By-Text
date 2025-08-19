@@ -19,6 +19,7 @@ import { AdminAuthProvider } from "./components/AdminAuthProvider";
 import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import SMSTesting from "./pages/admin/SMSTesting";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,11 @@ const App = () => (
                 <Route path="dashboard" element={
                   <AdminProtectedRoute>
                     <AdminDashboard />
+                  </AdminProtectedRoute>
+                } />
+                <Route path="sms-testing" element={
+                  <AdminProtectedRoute>
+                    <SMSTesting />
                   </AdminProtectedRoute>
                 } />
               </Routes>

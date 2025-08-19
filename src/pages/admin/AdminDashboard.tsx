@@ -158,6 +158,14 @@ export default function AdminDashboard() {
             
             <div className="flex items-center space-x-4">
               <Button
+                onClick={() => window.open('/admin/sms-testing', '_blank')}
+                variant="outline"
+                size="sm"
+              >
+                SMS Testing
+              </Button>
+              
+              <Button
                 onClick={refreshMetrics}
                 disabled={refreshing}
                 variant="outline"
