@@ -18,6 +18,8 @@ interface SMSTestResult {
   message_content: string
   success: boolean
   webhook_status: number | null
+  webhook_response: string | null
+  payload: any
   created_at: string
 }
 
@@ -55,7 +57,7 @@ export default function SMSTesting() {
     try {
       const { data, error } = await supabase
         .from('sms_test_logs')
-        .select('*')
+        .select('id, test_type, phone_number, message_content, success, webhook_status, webhook_response, payload, created_at')
         .order('created_at', { ascending: false })
         .limit(20)
 
@@ -111,7 +113,7 @@ export default function SMSTesting() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.access_token) return
 
-      const response = await fetch('https://zfxdjbpjxpgreymebpsr.supabase.co/functions/v1/sms-test-suite', {
+      const response = await fetch('https://zfxdjbpjxpgreymebpsr.supabase.co/functions/v1/sms-comprehensive-test', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -119,26 +121,32 @@ export default function SMSTesting() {
         },
         body: JSON.stringify({
           testType,
-          phoneNumber: testPhone
+          phoneNumber: testPhone,
+          messageContent: TEST_MESSAGES[testType]
         })
       })
 
       const result = await response.json()
       
       if (result.success) {
+        const passedSteps = result.summary?.passedSteps || 0
+        const totalSteps = result.summary?.totalSteps || 0
+        
         toast({
-          title: "Test Sent Successfully",
-          description: `${testType} message test completed`
+          title: "Comprehensive Test Complete",
+          description: `${passedSteps}/${totalSteps} steps passed. ${result.summary?.entryCreated ? 'Journal entry created!' : 'Entry creation failed.'}`
         })
-        await fetchTestResults()
-        await fetchSMSStats()
       } else {
+        const failedStep = result.steps?.find((step: any) => !step.success)
         toast({
           title: "Test Failed",
-          description: result.error || "Unknown error occurred",
+          description: failedStep?.message || result.error || "Unknown error occurred",
           variant: "destructive"
         })
       }
+      
+      await fetchTestResults()
+      await fetchSMSStats()
     } catch (error) {
       console.error('Test error:', error)
       toast({
@@ -289,7 +297,7 @@ export default function SMSTesting() {
             <Card>
               <CardHeader>
                 <CardTitle>Test Configuration</CardTitle>
-                <CardDescription>Configure test parameters before running tests</CardDescription>
+                <CardDescription>Configure test parameters before running tests. Use a registered user's phone number for full testing.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -301,6 +309,9 @@ export default function SMSTesting() {
                     placeholder="+1234567890"
                     className="max-w-sm"
                   />
+                  <div className="text-xs text-muted-foreground">
+                    Sample registered numbers: +18016021934, +16613642624
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -308,8 +319,11 @@ export default function SMSTesting() {
             {/* Test Buttons */}
             <Card>
               <CardHeader>
-                <CardTitle>Message Tests</CardTitle>
-                <CardDescription>Run different types of message tests to verify SMS processing</CardDescription>
+                <CardTitle>Comprehensive Message Tests</CardTitle>
+                <CardDescription>
+                  End-to-end testing of the complete SMS processing pipeline: user lookup → phone verification → subscription check → journal entry creation → milestone calculation. 
+                  Each test validates every step of the process and shows exactly where failures occur.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -348,32 +362,78 @@ export default function SMSTesting() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {testResults.map((result) => (
-                    <div key={result.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <Badge variant={result.success ? "default" : "destructive"}>
-                            {result.test_type}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">{result.phone_number}</span>
-                          <Badge variant="outline">
-                            {result.webhook_status || 'N/A'}
-                          </Badge>
+                  {testResults.map((result) => {
+                    let comprehensiveResult = null
+                    try {
+                      comprehensiveResult = result.webhook_response ? JSON.parse(result.webhook_response) : null
+                    } catch (e) {
+                      // Not a comprehensive test result
+                    }
+                    
+                    const isComprehensive = result.test_type.startsWith('comprehensive_')
+                    
+                    return (
+                      <div key={result.id} className="border rounded-lg p-4 space-y-3">
+                        {/* Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Badge variant={result.success ? "default" : "destructive"}>
+                              {result.test_type.replace('comprehensive_', '')}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">{result.phone_number}</span>
+                            {isComprehensive && comprehensiveResult && (
+                              <Badge variant="outline">
+                                {comprehensiveResult.summary?.passedSteps || 0}/{comprehensiveResult.summary?.totalSteps || 0} steps
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-right space-y-1">
+                            <div className={`text-sm font-medium ${result.success ? 'text-green-600' : 'text-red-600'}`}>
+                              {result.success ? 'Success' : 'Failed'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(result.created_at).toLocaleString()}
+                            </div>
+                          </div>
                         </div>
+                        
+                        {/* Message Content */}
                         <p className="text-sm text-muted-foreground line-clamp-1">
-                          {result.message_content.slice(0, 100)}...
+                          {result.message_content.slice(0, 100)}{result.message_content.length > 100 ? '...' : ''}
                         </p>
+                        
+                        {/* Comprehensive Test Details */}
+                        {isComprehensive && comprehensiveResult && (
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium">Test Pipeline Results:</div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                              <div className="flex items-center space-x-1 text-xs">
+                                <div className={`w-2 h-2 rounded-full ${comprehensiveResult.summary?.userFound ? 'bg-green-500' : 'bg-red-500'}`} />
+                                <span>User Found</span>
+                              </div>
+                              <div className="flex items-center space-x-1 text-xs">
+                                <div className={`w-2 h-2 rounded-full ${comprehensiveResult.summary?.userVerified ? 'bg-green-500' : 'bg-red-500'}`} />
+                                <span>Phone Verified</span>
+                              </div>
+                              <div className="flex items-center space-x-1 text-xs">
+                                <div className={`w-2 h-2 rounded-full ${comprehensiveResult.summary?.hasActiveSubscription ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                                <span>Active Sub</span>
+                              </div>
+                              <div className="flex items-center space-x-1 text-xs">
+                                <div className={`w-2 h-2 rounded-full ${comprehensiveResult.summary?.entryCreated ? 'bg-green-500' : 'bg-red-500'}`} />
+                                <span>Entry Created</span>
+                              </div>
+                            </div>
+                            
+                            {/* Processing Time */}
+                            <div className="text-xs text-muted-foreground">
+                              Processing time: {comprehensiveResult.timing?.durationMs || 0}ms
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-right space-y-1">
-                        <div className={`text-sm font-medium ${result.success ? 'text-green-600' : 'text-red-600'}`}>
-                          {result.success ? 'Success' : 'Failed'}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(result.created_at).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   
                   {testResults.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">

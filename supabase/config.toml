@@ -3,6 +3,9 @@ project_id = "zfxdjbpjxpgreymebpsr"
 [functions.sms-test-suite]
 verify_jwt = false
 
+[functions.sms-comprehensive-test]
+verify_jwt = true
+
 [functions.sms-monitoring-dashboard]
 verify_jwt = false
 
