@@ -358,7 +358,7 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
           <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
             <div className="prose prose-slate max-w-none">
               {/* Preview or full content */}
-              <p className="text-slate-700 leading-relaxed whitespace-pre-wrap text-base mb-2">
+              <p className="text-slate-700 leading-relaxed whitespace-pre-wrap text-base mb-2 break-words overflow-wrap-anywhere">
                 {isExpanded ? entry.content : previewText}
               </p>
               
