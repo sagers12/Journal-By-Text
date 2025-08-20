@@ -140,8 +140,24 @@ serve(async (req) => {
             truncated: false
           }, { onConflict: 'surge_message_id' })
         
-        // Send welcome message to unknown user
-        await sendWelcomeMessage(fromPhone)
+        // Check rate limit for unknown user welcome messages (5 per lifetime)
+        const rateLimitResult = await supabaseClient.rpc('check_rate_limit', {
+          p_identifier: fromPhone,
+          p_endpoint: 'sms_welcome_unknown',
+          p_max_attempts: 5,
+          p_window_minutes: 525600 // 1 year = effectively lifetime limit
+        })
+        
+        if (rateLimitResult.error) {
+          console.error('Rate limit check error for unknown user:', rateLimitResult.error)
+        } else if (rateLimitResult.data?.allowed) {
+          // Send welcome message to unknown user
+          await sendWelcomeMessage(fromPhone)
+          console.log(`Welcome message sent to unknown user: ${maskPhone(fromPhone)} (attempt ${rateLimitResult.data.attempts}/5)`)
+        } else {
+          console.log(`Rate limit exceeded for unknown user: ${maskPhone(fromPhone)} - no welcome message sent`)
+        }
+        
         return
       }
 
