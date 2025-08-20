@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import GraphemeSplitter from 'https://esm.sh/grapheme-splitter@1.0.4'
 import { validateSurgeSignature } from './signature-validation.ts'
-import { sendInstructionMessage, sendConfirmationMessage, sendSubscriptionReminderMessage } from './message-handlers.ts'
+import { sendInstructionMessage, sendConfirmationMessage, sendSubscriptionReminderMessage, sendWelcomeMessage } from './message-handlers.ts'
 import { processPhoneVerification, processJournalEntry } from './sms-processing.ts'
 
 const corsHeaders = {
@@ -139,6 +139,9 @@ serve(async (req) => {
             byte_count: byteCount,
             truncated: false
           }, { onConflict: 'surge_message_id' })
+        
+        // Send welcome message to unknown user
+        await sendWelcomeMessage(fromPhone)
         return
       }
 

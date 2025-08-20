@@ -177,3 +177,49 @@ export async function sendSubscriptionReminderMessage(phoneNumber: string, userE
     console.error('Error sending subscription reminder message:', error)
   }
 }
+
+export async function sendWelcomeMessage(phoneNumber: string) {
+  const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
+  const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
+
+  if (!surgeApiToken || !surgeAccountId || !phoneNumber) {
+    console.log('Missing Surge credentials or phone number for welcome message')
+    return
+  }
+
+  try {
+    // Get the app URL from environment variable, defaulting to production URL
+    const appUrl = Deno.env.get('APP_URL') || 'https://journalbytext.com'
+    const signUpUrl = `${appUrl}/sign-up`
+    
+    const responsePayload = {
+      conversation: {
+        contact: {
+          phone_number: phoneNumber
+        }
+      },
+      body: `Welcome to Journal By Text! You just took the first step to building a lasting journaling habit. Every message you send here will become part of your private journal. Tap this link to finish the sign-up process and get journaling 👉 ${signUpUrl}`,
+      attachments: []
+    }
+
+    const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
+    
+    const surgeResponse = await fetch(surgeUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${surgeApiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(responsePayload)
+    })
+
+    if (surgeResponse.ok) {
+      console.log('Welcome message sent successfully to:', phoneNumber.replace(/.(?=.{4})/g, '*'))
+    } else {
+      const errorText = await surgeResponse.text()
+      console.error('Failed to send welcome message:', surgeResponse.status, errorText)
+    }
+  } catch (error) {
+    console.error('Error sending welcome message:', error)
+  }
+}
