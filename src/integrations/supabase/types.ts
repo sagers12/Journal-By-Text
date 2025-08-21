@@ -332,33 +332,6 @@ export type Database = {
         }
         Relationships: []
       }
-      phone_verifications: {
-        Row: {
-          created_at: string | null
-          expires_at: string
-          id: string
-          phone_number: string
-          verification_code: string
-          verified: boolean | null
-        }
-        Insert: {
-          created_at?: string | null
-          expires_at: string
-          id?: string
-          phone_number: string
-          verification_code: string
-          verified?: boolean | null
-        }
-        Update: {
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          phone_number?: string
-          verification_code?: string
-          verified?: boolean | null
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           created_at: string | null
