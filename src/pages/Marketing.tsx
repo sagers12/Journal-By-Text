@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { MessageSquare, Smartphone, Search, Download, Clock, Shield, Zap, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
+
 const Marketing = () => {
-  return <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Header */}
       <header className="relative z-50 bg-white/70 backdrop-blur-sm border-b border-white/20">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -36,9 +37,9 @@ const Marketing = () => {
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Left Column - Content */}
             <div className="space-y-6 md:space-y-8 text-center lg:text-left">
-              <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 w-fit mx-auto lg:mx-0">
+              <div className="bg-blue-100 text-blue-700 hover:bg-blue-100 w-fit mx-auto lg:mx-0 px-3 py-1 rounded-full text-sm font-medium">
                 ✨ Journal anywhere, anytime
-              </Badge>
+              </div>
               
               <div className="space-y-4 md:space-y-6">
                 <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 leading-tight">
@@ -115,50 +116,56 @@ const Marketing = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center">
-              <CardHeader className="space-y-4">
-                <div className="flex justify-center">
-                  <Smartphone className="w-16 h-16 text-slate-700" />
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
+              <div className="flex flex-col space-y-1.5 p-6">
+                <div className="space-y-4">
+                  <div className="flex justify-center">
+                    <Smartphone className="w-16 h-16 text-slate-700" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-slate-800">Apps get forgotten</h3>
                 </div>
-                <CardTitle className="text-xl font-semibold text-slate-800">Apps get forgotten</CardTitle>
-              </CardHeader>
-              <CardContent>
+              </div>
+              <div className="p-6 pt-0">
                 <p className="text-slate-600">
                   Downloaded with good intentions, buried in your phone after a week
                 </p>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center">
-              <CardHeader className="space-y-4">
-                <div className="flex justify-center">
-                  <div className="w-16 h-16 flex items-center justify-center">
-                    <div className="w-12 h-14 bg-slate-700 rounded-sm flex items-center justify-center relative">
-                      <div className="w-8 h-1 bg-white rounded-full"></div>
-                      <div className="absolute top-1 left-1 right-1 h-8 border border-white/30 rounded-sm"></div>
+              </div>
+            </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
+              <div className="flex flex-col space-y-1.5 p-6">
+                <div className="space-y-4">
+                  <div className="flex justify-center">
+                    <div className="w-16 h-16 flex items-center justify-center">
+                      <div className="w-12 h-14 bg-slate-700 rounded-sm flex items-center justify-center relative">
+                        <div className="w-8 h-1 bg-white rounded-full"></div>
+                        <div className="absolute top-1 left-1 right-1 h-8 border border-white/30 rounded-sm"></div>
+                      </div>
                     </div>
                   </div>
+                  <h3 className="text-xl font-semibold text-slate-800">Notebooks get lost</h3>
                 </div>
-                <CardTitle className="text-xl font-semibold text-slate-800">Notebooks get lost</CardTitle>
-              </CardHeader>
-              <CardContent>
+              </div>
+              <div className="p-6 pt-0">
                 <p className="text-slate-600">
                   Left at home, forgotten in your bag, or filled with random notes
                 </p>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center">
-              <CardHeader className="space-y-4">
-                <div className="flex justify-center">
-                  <Clock className="w-16 h-16 text-red-500" />
+              </div>
+            </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
+              <div className="flex flex-col space-y-1.5 p-6">
+                <div className="space-y-4">
+                  <div className="flex justify-center">
+                    <Clock className="w-16 h-16 text-red-500" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-slate-800">Life gets busy</h3>
                 </div>
-                <CardTitle className="text-xl font-semibold text-slate-800">Life gets busy</CardTitle>
-              </CardHeader>
-              <CardContent>
+              </div>
+              <div className="p-6 pt-0">
                 <p className="text-slate-600">
                   Good habits break when you need them most
                 </p>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -173,48 +180,48 @@ const Marketing = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center">
-              <CardHeader>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
+              <div className="flex flex-col space-y-1.5 p-6">
                 <Smartphone className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                <CardTitle>Text to Journal</CardTitle>
-              </CardHeader>
-              <CardContent>
+                <h3 className="text-2xl font-semibold leading-none tracking-tight">Text to Journal</h3>
+              </div>
+              <div className="p-6 pt-0">
                 <p className="text-slate-600">
                   Send a text message to your personal journal number. That's it. Your entry is automatically saved and organized.
                 </p>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center">
-              <CardHeader>
+              </div>
+            </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
+              <div className="flex flex-col space-y-1.5 p-6">
                 <Search className="w-12 h-12 text-green-600 mx-auto mb-4" />
-                <CardTitle>Smart Search</CardTitle>
-              </CardHeader>
-              <CardContent>
+                <h3 className="text-2xl font-semibold leading-none tracking-tight">Smart Search</h3>
+              </div>
+              <div className="p-6 pt-0">
                 <p className="text-slate-600">
                   Find any memory instantly. Search by keyword, date, or phrase across your entire journal history.
                 </p>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center">
-              <CardHeader>
+              </div>
+            </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
+              <div className="flex flex-col space-y-1.5 p-6">
                 <Download className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-                <CardTitle>Export & Backup</CardTitle>
-              </CardHeader>
-              <CardContent>
+                <h3 className="text-2xl font-semibold leading-none tracking-tight">Export & Backup</h3>
+              </div>
+              <div className="p-6 pt-0">
                 <p className="text-slate-600">
                   Your memories are yours forever. Export your journal to PDF or text format anytime.
                 </p>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center">
-              <CardHeader>
+              </div>
+            </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
+              <div className="flex flex-col space-y-1.5 p-6">
                 <Shield className="w-12 h-12 text-red-600 mx-auto mb-4" />
-                <CardTitle>Private & Secure</CardTitle>
-              </CardHeader>
-              <CardContent>
+                <h3 className="text-2xl font-semibold leading-none tracking-tight">Private & Secure</h3>
+              </div>
+              <div className="p-6 pt-0">
                 <p className="text-slate-600">Your thoughts are kept safe, private, and encrypted. Your journal is secure and always will be.</p>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -270,17 +277,17 @@ const Marketing = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <Card className="border-2 border-blue-500 bg-white/70 backdrop-blur-sm">
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl">Monthly</CardTitle>
-                <CardDescription className="text-lg">Perfect for regular journaling</CardDescription>
+            <div className="border-2 border-blue-500 bg-white/70 backdrop-blur-sm rounded-lg">
+              <div className="flex flex-col space-y-1.5 p-6 text-center">
+                <h3 className="text-2xl font-semibold leading-none tracking-tight">Monthly</h3>
+                <p className="text-lg text-muted-foreground">Perfect for regular journaling</p>
                 <div className="text-4xl font-bold text-slate-800 mt-4">$4.99</div>
                 <div className="text-slate-600">per month</div>
                 <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium mt-4 inline-block">
                   10-day free trial
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              </div>
+              <div className="p-6 pt-0 space-y-4">
                 <ul className="space-y-2 text-slate-600">
                   <li className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -316,24 +323,24 @@ const Marketing = () => {
                     Start 10-Day Free Trial
                   </Button>
                 </Link>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
             
-            <Card className="border-2 border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 relative">
+            <div className="border-2 border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 relative rounded-lg">
               <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white">
                 BEST VALUE
               </Badge>
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl">Yearly</CardTitle>
-                <CardDescription className="text-lg">Save $20 compared to monthly</CardDescription>
+              <div className="flex flex-col space-y-1.5 p-6 text-center">
+                <h3 className="text-2xl font-semibold leading-none tracking-tight">Yearly</h3>
+                <p className="text-lg text-muted-foreground">Save $20 compared to monthly</p>
                 <div className="text-4xl font-bold text-slate-800 mt-4">$39.99</div>
                 <div className="text-slate-600">per year</div>
                 <div className="text-sm text-slate-500 line-through">$59.88 if billed monthly</div>
                 <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium mt-4 inline-block">
                   10-day free trial
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              </div>
+              <div className="p-6 pt-0 space-y-4">
                 <ul className="space-y-2 text-slate-600">
                   <li className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -353,8 +360,8 @@ const Marketing = () => {
                     Start 10-Day Free Trial
                   </Button>
                 </Link>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -363,9 +370,9 @@ const Marketing = () => {
       <section className="py-20 px-4 bg-white/30">
         <div className="container mx-auto max-w-4xl">
           <div className="text-center mb-16">
-            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 mb-4">
+            <div className="bg-blue-100 text-blue-700 hover:bg-blue-100 mb-4 px-3 py-1 rounded-full text-sm font-medium inline-block">
               FAQ
-            </Badge>
+            </div>
             <h2 className="text-4xl font-bold text-slate-800 mb-4">Frequently Asked Questions</h2>
             <p className="text-xl text-slate-600">
               Everything you need to know about Journal By Text.
@@ -465,6 +472,8 @@ const Marketing = () => {
           </div>
         </div>
       </footer>
-    </div>;
+    </div>
+  );
 };
+
 export default Marketing;
