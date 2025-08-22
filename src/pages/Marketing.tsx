@@ -41,16 +41,14 @@ const Marketing = () => {
                 ✨ Journal anywhere, anytime
               </div>
               
-              <div className="space-y-4 md:space-y-6">
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 leading-tight">
-                  The easiest way <br />
-                  <span className="text-blue-600">to keep a journal</span>
-                </h1>
-                
-                <p className="text-lg md:text-xl text-slate-600 leading-relaxed max-w-lg mx-auto lg:mx-0">
-                  You've never kept a journal, but now you can. No apps, no passwords, no friction. Just send a text message and capture your thoughts instantly.
-                </p>
-              </div>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 leading-tight">
+                The easiest way <br />
+                <span className="text-blue-600">to keep a journal</span>
+              </h1>
+              
+              <p className="text-lg md:text-xl text-slate-600 leading-relaxed max-w-lg mx-auto lg:mx-0">
+                You've never kept a journal, but now you can. No apps, no passwords, no friction. Just send a text message and capture your thoughts instantly.
+              </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Link to="/sign-up">
@@ -73,19 +71,19 @@ const Marketing = () => {
                   <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
                     <div className="w-2 h-2 rounded-full bg-green-500"></div>
                   </div>
-                  <span className="text-sm md:text-base">No credit card required to start</span>
+                  <p className="text-sm md:text-base">No credit card required to start</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
                     <div className="w-2 h-2 rounded-full bg-green-500"></div>
                   </div>
-                  <span className="text-sm md:text-base">No apps to download</span>
+                  <p className="text-sm md:text-base">No apps to download</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
                     <div className="w-2 h-2 rounded-full bg-green-500"></div>
                   </div>
-                  <span className="text-sm md:text-base">Daily prompts to inspire your writing</span>
+                  <p className="text-sm md:text-base">Daily prompts to inspire your writing</p>
                 </div>
               </div>
             </div>
@@ -116,55 +114,37 @@ const Marketing = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
-              <div className="flex flex-col space-y-1.5 p-6">
-                <div className="space-y-4">
-                  <div className="flex justify-center">
-                    <Smartphone className="w-16 h-16 text-slate-700" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-slate-800">Apps get forgotten</h3>
-                </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg p-6">
+              <div className="flex justify-center mb-4">
+                <Smartphone className="w-16 h-16 text-slate-700" />
               </div>
-              <div className="p-6 pt-0">
-                <p className="text-slate-600">
-                  Downloaded with good intentions, buried in your phone after a week
-                </p>
-              </div>
+              <h3 className="text-xl font-semibold text-slate-800 mb-4">Apps get forgotten</h3>
+              <p className="text-slate-600">
+                Downloaded with good intentions, buried in your phone after a week
+              </p>
             </div>
-            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
-              <div className="flex flex-col space-y-1.5 p-6">
-                <div className="space-y-4">
-                  <div className="flex justify-center">
-                    <div className="w-16 h-16 flex items-center justify-center">
-                      <div className="w-12 h-14 bg-slate-700 rounded-sm flex items-center justify-center relative">
-                        <div className="w-8 h-1 bg-white rounded-full"></div>
-                        <div className="absolute top-1 left-1 right-1 h-8 border border-white/30 rounded-sm"></div>
-                      </div>
-                    </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg p-6">
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 flex items-center justify-center">
+                  <div className="w-12 h-14 bg-slate-700 rounded-sm flex items-center justify-center relative">
+                    <div className="w-8 h-1 bg-white rounded-full"></div>
+                    <div className="absolute top-1 left-1 right-1 h-8 border border-white/30 rounded-sm"></div>
                   </div>
-                  <h3 className="text-xl font-semibold text-slate-800">Notebooks get lost</h3>
                 </div>
               </div>
-              <div className="p-6 pt-0">
-                <p className="text-slate-600">
-                  Left at home, forgotten in your bag, or filled with random notes
-                </p>
-              </div>
+              <h3 className="text-xl font-semibold text-slate-800 mb-4">Notebooks get lost</h3>
+              <p className="text-slate-600">
+                Left at home, forgotten in your bag, or filled with random notes
+              </p>
             </div>
-            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
-              <div className="flex flex-col space-y-1.5 p-6">
-                <div className="space-y-4">
-                  <div className="flex justify-center">
-                    <Clock className="w-16 h-16 text-red-500" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-slate-800">Life gets busy</h3>
-                </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg p-6">
+              <div className="flex justify-center mb-4">
+                <Clock className="w-16 h-16 text-red-500" />
               </div>
-              <div className="p-6 pt-0">
-                <p className="text-slate-600">
-                  Good habits break when you need them most
-                </p>
-              </div>
+              <h3 className="text-xl font-semibold text-slate-800 mb-4">Life gets busy</h3>
+              <p className="text-slate-600">
+                Good habits break when you need them most
+              </p>
             </div>
           </div>
         </div>
@@ -180,47 +160,31 @@ const Marketing = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
-              <div className="flex flex-col space-y-1.5 p-6">
-                <Smartphone className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                <h3 className="text-2xl font-semibold leading-none tracking-tight">Text to Journal</h3>
-              </div>
-              <div className="p-6 pt-0">
-                <p className="text-slate-600">
-                  Send a text message to your personal journal number. That's it. Your entry is automatically saved and organized.
-                </p>
-              </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg p-6">
+              <Smartphone className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Text to Journal</h3>
+              <p className="text-slate-600">
+                Send a text message to your personal journal number. That's it. Your entry is automatically saved and organized.
+              </p>
             </div>
-            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
-              <div className="flex flex-col space-y-1.5 p-6">
-                <Search className="w-12 h-12 text-green-600 mx-auto mb-4" />
-                <h3 className="text-2xl font-semibold leading-none tracking-tight">Smart Search</h3>
-              </div>
-              <div className="p-6 pt-0">
-                <p className="text-slate-600">
-                  Find any memory instantly. Search by keyword, date, or phrase across your entire journal history.
-                </p>
-              </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg p-6">
+              <Search className="w-12 h-12 text-green-600 mx-auto mb-4" />
+              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Smart Search</h3>
+              <p className="text-slate-600">
+                Find any memory instantly. Search by keyword, date, or phrase across your entire journal history.
+              </p>
             </div>
-            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
-              <div className="flex flex-col space-y-1.5 p-6">
-                <Download className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-                <h3 className="text-2xl font-semibold leading-none tracking-tight">Export & Backup</h3>
-              </div>
-              <div className="p-6 pt-0">
-                <p className="text-slate-600">
-                  Your memories are yours forever. Export your journal to PDF or text format anytime.
-                </p>
-              </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg p-6">
+              <Download className="w-12 h-12 text-purple-600 mx-auto mb-4" />
+              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Export & Backup</h3>
+              <p className="text-slate-600">
+                Your memories are yours forever. Export your journal to PDF or text format anytime.
+              </p>
             </div>
-            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg">
-              <div className="flex flex-col space-y-1.5 p-6">
-                <Shield className="w-12 h-12 text-red-600 mx-auto mb-4" />
-                <h3 className="text-2xl font-semibold leading-none tracking-tight">Private & Secure</h3>
-              </div>
-              <div className="p-6 pt-0">
-                <p className="text-slate-600">Your thoughts are kept safe, private, and encrypted. Your journal is secure and always will be.</p>
-              </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg p-6">
+              <Shield className="w-12 h-12 text-red-600 mx-auto mb-4" />
+              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Private & Secure</h3>
+              <p className="text-slate-600">Your thoughts are kept safe, private, and encrypted. Your journal is secure and always will be.</p>
             </div>
           </div>
         </div>
