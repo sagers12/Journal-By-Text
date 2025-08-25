@@ -34,14 +34,14 @@ const Marketing = () => {
       {/* Hero Section */}
       <section className="py-12 md:py-20 px-4">
         <div className="container mx-auto max-w-7xl">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-center">
             {/* Left Column - Content */}
             <div className="space-y-6 md:space-y-8 text-center lg:text-left">
               <div className="bg-blue-100 text-blue-700 hover:bg-blue-100 w-fit mx-auto lg:mx-0 px-3 py-1 rounded-full text-sm font-medium">
                 ✨ Journal anywhere, anytime
               </div>
               
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 leading-tight">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold text-slate-800 leading-tight">
                 The easiest way <br />
                 <span className="text-blue-600">to keep a journal</span>
               </h1>
@@ -106,7 +106,7 @@ const Marketing = () => {
       <section className="py-20 px-4 bg-white/30">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-800 mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 mb-6">
               "I wish I journaled more." - Everyone
             </h2>
             <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
@@ -154,7 +154,7 @@ const Marketing = () => {
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-800 mb-4">Journaling, Reimagined</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 mb-4">Journaling, Reimagined</h2>
             <p className="text-xl text-slate-600 max-w-2xl mx-auto">
               We've removed every barrier between you and your thoughts. Here's how we make journaling effortless.
             </p>
@@ -194,7 +194,7 @@ const Marketing = () => {
       <section id="how-it-works" className="py-20 px-4 bg-white/30">
         <div className="container mx-auto max-w-4xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-800 mb-4">Simple as 1-2-3</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 mb-4">Simple as 1-2-3</h2>
             <p className="text-xl text-slate-600">
               Start journaling in under 60 seconds
             </p>
