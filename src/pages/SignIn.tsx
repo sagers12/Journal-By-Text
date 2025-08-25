@@ -5,11 +5,18 @@ import { useAuth } from '@/hooks/useAuth';
 import { SignInForm } from '@/components/auth/SignInForm';
 import { MessageSquare } from 'lucide-react';
 import { useState } from 'react';
+import { useSEO } from '@/hooks/useSEO';
 
 const SignIn = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [formLoading, setFormLoading] = useState(false);
+
+  useSEO({
+    title: "Sign In - Journal By Text",
+    description: "Sign in to your Journal By Text account to access your SMS journal entries.",
+    noIndex: true
+  });
 
   useEffect(() => {
     if (!loading && user) {

@@ -4,11 +4,18 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { SignUpForm } from '@/components/auth/SignUpForm';
 import { MessageSquare } from 'lucide-react';
+import { useSEO } from '@/hooks/useSEO';
 
 const SignUp = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [formLoading, setFormLoading] = useState(false);
+
+  useSEO({
+    title: "Sign Up - Journal By Text",
+    description: "Create your Journal By Text account and start journaling via SMS with a free 10-day trial.",
+    noIndex: true
+  });
 
   useEffect(() => {
     if (!loading && user) {

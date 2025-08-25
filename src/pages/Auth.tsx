@@ -3,10 +3,17 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AuthComponent } from '@/components/AuthComponent';
+import { useSEO } from '@/hooks/useSEO';
 
 const Auth = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+
+  useSEO({
+    title: "Journal By Text - Sign In or Sign Up",
+    description: "Sign in to your Journal By Text account or create a new account to start journaling via SMS today.",
+    noIndex: true
+  });
 
   useEffect(() => {
     if (!loading && user) {

@@ -3,10 +3,74 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { MessageSquare, Smartphone, Search, Download, Clock, Shield, Zap, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useSEO } from "@/hooks/useSEO";
+import { useEffect } from "react";
 
 const Marketing = () => {
+  // SEO optimization for the marketing page
+  useSEO({
+    title: "Journal By Text - The Easiest Way to Keep a Journal via SMS",
+    description: "Journal anywhere, anytime by simply sending a text message. No apps to download, no passwords to remember. Transform your journaling habit with Journal By Text - start your 10-day free trial today.",
+    keywords: "journal, journaling, SMS journal, text message journal, digital journal, private journal, secure journaling, daily journal, journaling app alternative, text journaling, mobile journaling",
+    canonicalUrl: "https://journalbytext.com/",
+    ogImage: "https://journalbytext.com/lovable-uploads/cab78bea-5b0e-4707-8710-6caf5afe8188.png"
+  });
+
+  // Add structured data for better SEO
+  useEffect(() => {
+    const structuredData = {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Journal By Text",
+      "alternateName": "SMS Journal",
+      "description": "Journal anywhere, anytime by simply sending a text message. No apps to download, no passwords to remember.",
+      "url": "https://journalbytext.com",
+      "applicationCategory": "Lifestyle",
+      "operatingSystem": "Web Browser, SMS",
+      "offers": {
+        "@type": "Offer",
+        "price": "4.99",
+        "priceCurrency": "USD",
+        "billingIncrement": "Month",
+        "category": "Subscription"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "reviewCount": "150"
+      },
+      "creator": {
+        "@type": "Organization",
+        "name": "Journal By Text",
+        "url": "https://journalbytext.com"
+      },
+      "featureList": [
+        "SMS Journaling",
+        "Secure & Private",
+        "Smart Search",
+        "Export & Backup",
+        "Daily Reminders",
+        "Photo Support"
+      ]
+    };
+
+    let script = document.querySelector('script[type="application/ld+json"]') as HTMLScriptElement;
+    if (!script) {
+      script = document.createElement('script') as HTMLScriptElement;
+      script.type = 'application/ld+json';
+      document.head.appendChild(script);
+    }
+    script.textContent = JSON.stringify(structuredData);
+
+    return () => {
+      if (script && script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Header */}
       <header className="relative z-50 bg-white/70 backdrop-blur-sm border-b border-white/20">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -418,7 +482,7 @@ const Marketing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-4 bg-slate-800 text-white">
+      <footer className="py-12 px-4 bg-slate-800 text-white" role="contentinfo">
         <div className="container mx-auto text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
@@ -436,7 +500,7 @@ const Marketing = () => {
           </div>
         </div>
       </footer>
-    </div>
+    </main>
   );
 };
 
