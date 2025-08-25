@@ -106,12 +106,12 @@ const Marketing = () => {
               </div>
               
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold text-slate-800 leading-tight">
-                The easiest way <br />
-                <span className="text-blue-600">to keep a journal</span>
+                The easiest way to keep <br />
+                <span className="text-blue-600">a journal</span>
               </h1>
               
               <p className="text-lg md:text-xl text-slate-600 leading-relaxed max-w-lg mx-auto lg:mx-0">
-                You've never kept a journal, but now you can. No apps, no passwords, no friction. Just send a text message and capture your thoughts instantly.
+                The journaling solution for people who can't keep a journal. We've removed all the friction and all your excuses. It's as easy as texting your friend. Type words. Hit send. Done. You're journaling.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -218,7 +218,7 @@ const Marketing = () => {
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 mb-4">Journaling, Reimagined</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 mb-4">If you can text, you can journal</h2>
             <p className="text-xl text-slate-600 max-w-2xl mx-auto">
               We've removed every barrier between you and your thoughts. Here's how we make journaling effortless.
             </p>
