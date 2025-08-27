@@ -107,12 +107,12 @@ export default function Settings() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="mb-8">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => handleNavigation('/journal')}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 mb-4"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Journal
