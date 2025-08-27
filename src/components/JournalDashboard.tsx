@@ -137,7 +137,7 @@ export const JournalDashboard = () => {
   return (
     <div className="min-h-screen">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <JournalHeader />
+        <JournalHeader onExportClick={() => setIsExportOpen(true)} />
         
         {/* Show stats if there are entries */}
         {entries.length > 0 && <JournalStats entries={entries} />}
@@ -148,7 +148,6 @@ export const JournalDashboard = () => {
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             onFiltersChange={setSearchFilters}
-            onExportClick={() => setIsExportOpen(true)}
           />
         )}
 
