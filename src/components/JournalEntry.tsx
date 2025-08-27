@@ -72,11 +72,6 @@ export const JournalEntry = ({ entry, onDelete, onEdit }: JournalEntryProps) => 
       year: 'numeric'
     });
     
-    // Show count only for SMS entries with multiple messages
-    if (entry.source === 'sms' && smsMessageCount > 1) {
-      return `${date} (${smsMessageCount})`;
-    }
-    
     return date;
   };
 
