@@ -220,6 +220,48 @@ export async function sendFirstEntryPromptMessage(phoneNumber: string) {
   }
 }
 
+export async function sendFirstJournalEntryMessage(phoneNumber: string) {
+  const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
+  const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
+
+  if (!surgeApiToken || !surgeAccountId || !phoneNumber) {
+    console.log('Missing Surge credentials or phone number for first journal entry message')
+    return
+  }
+
+  try {
+    const responsePayload = {
+      conversation: {
+        contact: {
+          phone_number: phoneNumber
+        }
+      },
+      body: "You're on your way! While it's a small step, writing in your journal is a gateway to better mental and emotional health, improved memory and creative, and most importantly, a written record of your life, your thoughts, and what mattered to you. Remember, you can always view your entries on the web by going here 👉 https://journalbytext.com/sign-in",
+      attachments: []
+    }
+
+    const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
+    
+    const surgeResponse = await fetch(surgeUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${surgeApiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(responsePayload)
+    })
+
+    if (surgeResponse.ok) {
+      console.log('First journal entry message sent successfully')
+    } else {
+      const errorText = await surgeResponse.text()
+      console.error('Failed to send first journal entry message:', surgeResponse.status, errorText)
+    }
+  } catch (error) {
+    console.error('Error sending first journal entry message:', error)
+  }
+}
+
 export async function sendWelcomeMessage(phoneNumber: string) {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
   const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')

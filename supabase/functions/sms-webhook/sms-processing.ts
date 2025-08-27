@@ -502,6 +502,14 @@ export async function processJournalEntry(
     .update({ processed: true, entry_id: entryId })
     .eq('id', smsMessage.id)
 
+  // Check if this is the user's first entry
+  const { data: entryCount, error: countError } = await supabaseClient
+    .from('journal_entries')
+    .select('id', { count: 'exact' })
+    .eq('user_id', userId);
+
+  const isFirstEntry = !countError && entryCount && entryCount.length === 1;
+
   // Check for milestone streak and send congratulatory message if needed
   try {
     const currentStreak = await calculateCurrentStreak(supabaseClient, userId);
@@ -515,5 +523,5 @@ export async function processJournalEntry(
 
   console.log('SMS processing complete')
 
-  return { success: true, entryId, messageId }
+  return { success: true, entryId, messageId, isFirstEntry }
 }

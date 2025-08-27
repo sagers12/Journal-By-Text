@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import GraphemeSplitter from 'https://esm.sh/grapheme-splitter@1.0.4'
 import { validateSurgeSignature } from './signature-validation.ts'
-import { sendInstructionMessage, sendConfirmationMessage, sendSubscriptionReminderMessage, sendWelcomeMessage, sendFirstEntryPromptMessage } from './message-handlers.ts'
+import { sendInstructionMessage, sendConfirmationMessage, sendSubscriptionReminderMessage, sendWelcomeMessage, sendFirstEntryPromptMessage, sendFirstJournalEntryMessage } from './message-handlers.ts'
 import { processPhoneVerification, processJournalEntry } from './sms-processing.ts'
 
 const corsHeaders = {
@@ -259,7 +259,7 @@ serve(async (req) => {
       }
 
       // Process journal entry
-      await processJournalEntry(
+      const entryResult = await processJournalEntry(
         supabaseClient,
         finalMessageBody,
         userId,
@@ -271,6 +271,14 @@ serve(async (req) => {
       )
 
       await sendConfirmationMessage(fromPhone)
+
+      // If this is the user's first entry, send the special congratulatory message
+      if (entryResult.isFirstEntry) {
+        console.log('User created their first journal entry - sending congratulatory message')
+        // Add small delay before sending first entry congratulatory message
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        await sendFirstJournalEntryMessage(fromPhone)
+      }
       
       console.log('Background message processing completed successfully')
     } catch (error) {
