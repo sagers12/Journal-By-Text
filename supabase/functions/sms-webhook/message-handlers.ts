@@ -178,6 +178,48 @@ export async function sendSubscriptionReminderMessage(phoneNumber: string, userE
   }
 }
 
+export async function sendFirstEntryPromptMessage(phoneNumber: string) {
+  const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
+  const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
+
+  if (!surgeApiToken || !surgeAccountId || !phoneNumber) {
+    console.log('Missing Surge credentials or phone number for first entry prompt message')
+    return
+  }
+
+  try {
+    const responsePayload = {
+      conversation: {
+        contact: {
+          phone_number: phoneNumber
+        }
+      },
+      body: "Alright, time to make your first entry! It's easy. Just reply to this message and we'll add it to your journal. If you're not sure what to write about, just respond to this prompt: Why am I starting a journal and what am I going to do to ensure I stick with it?",
+      attachments: []
+    }
+
+    const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
+    
+    const surgeResponse = await fetch(surgeUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${surgeApiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(responsePayload)
+    })
+
+    if (surgeResponse.ok) {
+      console.log('First entry prompt message sent successfully')
+    } else {
+      const errorText = await surgeResponse.text()
+      console.error('Failed to send first entry prompt message:', surgeResponse.status, errorText)
+    }
+  } catch (error) {
+    console.error('Error sending first entry prompt message:', error)
+  }
+}
+
 export async function sendWelcomeMessage(phoneNumber: string) {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
   const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')

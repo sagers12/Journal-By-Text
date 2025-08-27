@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import GraphemeSplitter from 'https://esm.sh/grapheme-splitter@1.0.4'
 import { validateSurgeSignature } from './signature-validation.ts'
-import { sendInstructionMessage, sendConfirmationMessage, sendSubscriptionReminderMessage, sendWelcomeMessage } from './message-handlers.ts'
+import { sendInstructionMessage, sendConfirmationMessage, sendSubscriptionReminderMessage, sendWelcomeMessage, sendFirstEntryPromptMessage } from './message-handlers.ts'
 import { processPhoneVerification, processJournalEntry } from './sms-processing.ts'
 
 const corsHeaders = {
@@ -198,6 +198,10 @@ serve(async (req) => {
           entryDate
         )
         await sendInstructionMessage(fromPhone)
+        
+        // Add small delay before sending first entry prompt
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        await sendFirstEntryPromptMessage(fromPhone)
         return
       }
 
