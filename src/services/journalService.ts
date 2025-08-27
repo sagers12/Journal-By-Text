@@ -23,7 +23,8 @@ export const fetchJournalEntries = async (userId: string): Promise<Entry[]> => {
         )
       `)
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false });
 
     console.log('Raw journal entries from database:', data?.length || 0);
 
@@ -103,13 +104,33 @@ export const fetchJournalEntries = async (userId: string): Promise<Entry[]> => {
     // Filter out any null entries and log final result
     const validEntries = processedEntries.filter((entry): entry is Entry => entry !== null);
     
-    console.log('Final processed entries:', validEntries.map(entry => ({
+    // Client-side safety net: ensure reverse-chronological ordering
+    const sortedEntries = validEntries.sort((a, b) => {
+      const timeA = a.timestamp.getTime();
+      const timeB = b.timestamp.getTime();
+      if (timeA !== timeB) return timeB - timeA; // Reverse chronological
+      return b.id.localeCompare(a.id); // Stable secondary sort by ID
+    });
+    
+    // Debug: Check if sorting was needed
+    const wasAlreadySorted = validEntries.every((entry, index) => {
+      if (index === 0) return true;
+      const current = entry.timestamp.getTime();
+      const previous = validEntries[index - 1].timestamp.getTime();
+      return current <= previous;
+    });
+    
+    if (!wasAlreadySorted) {
+      console.warn('⚠️ Entries were not properly sorted by database query - applied client-side fix');
+    }
+    
+    console.log('Final processed entries:', sortedEntries.map(entry => ({
       id: entry.id,
       entry_date: entry.entry_date,
       source: entry.source
     })));
     
-    return validEntries;
+    return sortedEntries;
   } catch (error) {
     console.error('Error fetching entries:', error);
     throw error;
