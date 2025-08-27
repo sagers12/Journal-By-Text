@@ -26,7 +26,7 @@ export const JournalControls = ({
 }: JournalControlsProps) => {
   return (
     <div className="mb-8">
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex items-start gap-4 mb-4">
         <div className="flex-1">
           <SearchBar 
             searchTerm={searchTerm} 
@@ -37,7 +37,7 @@ export const JournalControls = ({
         <Button
           variant="outline"
           onClick={onExportClick}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 shrink-0 mt-0"
         >
           <Download className="w-4 h-4" />
           Export

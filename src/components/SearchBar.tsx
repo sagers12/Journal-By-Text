@@ -79,7 +79,7 @@ export const SearchBar = ({ searchTerm, onSearchChange, onFiltersChange }: Searc
       </div>
 
       {showAdvanced && (
-        <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-slate-200 space-y-4">
+        <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-slate-200 space-y-4 max-w-4xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
