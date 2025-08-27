@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, FileText, Type, Camera } from "lucide-react";
+import { Flame, Sun, Type, Camera } from "lucide-react";
 import type { Entry } from "@/types/entry";
 
 interface JournalStatsProps {
@@ -89,7 +89,7 @@ export const JournalStats = ({ entries }: JournalStatsProps) => {
           <CardTitle className="text-sm font-medium text-orange-800">
             Current Streak
           </CardTitle>
-          <Calendar className="h-4 w-4 text-orange-600" />
+          <Flame className="h-4 w-4 text-orange-600" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-orange-900">
@@ -106,7 +106,7 @@ export const JournalStats = ({ entries }: JournalStatsProps) => {
           <CardTitle className="text-sm font-medium text-blue-800">
             Total Days
           </CardTitle>
-          <FileText className="h-4 w-4 text-blue-600" />
+          <Sun className="h-4 w-4 text-blue-600" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-blue-900">
