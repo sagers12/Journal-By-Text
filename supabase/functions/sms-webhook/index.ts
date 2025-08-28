@@ -40,7 +40,7 @@ serve(async (req) => {
   }
 
   // Background processing function for heavy work
-  async function processMessageAsync(webhookData: any, supabaseClient: any) {
+  async function processMessageAsync(webhookData: any, supabaseClient: any, isDevEnvironment: boolean = false, destinationPhone: string = '') {
     const processingStart = Date.now()
     try {
       console.log('Starting background message processing...')
@@ -152,7 +152,7 @@ serve(async (req) => {
           console.error('Rate limit check error for unknown user:', rateLimitResult.error)
         } else if (rateLimitResult.data?.allowed) {
           // Send welcome message to unknown user
-          await sendWelcomeMessage(fromPhone)
+          await sendWelcomeMessage(fromPhone, isDevEnvironment)
           console.log(`Welcome message sent to unknown user: ${maskPhone(fromPhone)} (attempt ${rateLimitResult.data.attempts}/5)`)
         } else {
           console.log(`Rate limit exceeded for unknown user: ${maskPhone(fromPhone)} - no welcome message sent`)
@@ -197,11 +197,11 @@ serve(async (req) => {
           fromPhone,
           entryDate
         )
-        await sendInstructionMessage(fromPhone)
+        await sendInstructionMessage(fromPhone, isDevEnvironment)
         
         // Add small delay before sending first entry prompt
         await new Promise(resolve => setTimeout(resolve, 2000))
-        await sendFirstEntryPromptMessage(fromPhone)
+        await sendFirstEntryPromptMessage(fromPhone, isDevEnvironment)
         return
       }
 
@@ -254,7 +254,7 @@ serve(async (req) => {
             truncated: truncated
           }, { onConflict: 'surge_message_id' })
         
-        await sendSubscriptionReminderMessage(fromPhone)
+        await sendSubscriptionReminderMessage(fromPhone, subscriber?.email || '', isDevEnvironment)
         return
       }
 
@@ -267,17 +267,18 @@ serve(async (req) => {
         fromPhone,
         entryDate,
         attachments,
-        { charCount, byteCount, truncated }
+        { charCount, byteCount, truncated },
+        isDevEnvironment
       )
 
-      await sendConfirmationMessage(fromPhone)
+      await sendConfirmationMessage(fromPhone, isDevEnvironment)
 
       // If this is the user's first entry, send the special congratulatory message
       if (entryResult.isFirstEntry) {
         console.log('User created their first journal entry - sending congratulatory message')
         // Add small delay before sending first entry congratulatory message
         await new Promise(resolve => setTimeout(resolve, 2000))
-        await sendFirstJournalEntryMessage(fromPhone)
+        await sendFirstJournalEntryMessage(fromPhone, isDevEnvironment)
       }
       
       console.log('Background message processing completed successfully')
@@ -287,13 +288,58 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    // Get the raw body and headers for signature validation
+    // Get the raw body and headers for signature validation and parsing
     const body = await req.text()
+    let webhookData
+    let destinationPhone = ''
+    
+    try {
+      webhookData = JSON.parse(body)
+      
+      // Extract destination phone from webhook data for environment detection
+      if (webhookData?.data?.conversation?.phone_number) {
+        destinationPhone = webhookData.data.conversation.phone_number
+      } else if (webhookData?.properties?.conversation?.phone_number) {
+        destinationPhone = webhookData.properties.conversation.phone_number
+      }
+    } catch (parseError) {
+      console.error('Failed to parse webhook body for environment detection:', parseError)
+      return new Response('Invalid JSON', { status: 400, headers: corsHeaders })
+    }
+
+    // Environment detection logic
+    const PRODUCTION_PHONE = '8884338015'
+    const DEV_PHONE = '+18889849624'
+    
+    let isDevEnvironment = false
+    let supabaseUrl = ''
+    let supabaseServiceKey = ''
+    
+    // Determine environment based on destination phone number
+    if (destinationPhone === DEV_PHONE) {
+      isDevEnvironment = true
+      supabaseUrl = Deno.env.get('DEV_SUPABASE_URL') ?? Deno.env.get('SUPABASE_URL') ?? ''
+      supabaseServiceKey = Deno.env.get('DEV_SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      console.log('🔧 DEV ENVIRONMENT DETECTED - Message sent to dev number:', destinationPhone)
+    } else {
+      // Default to production for any other number (including formatted versions of production number)
+      isDevEnvironment = false
+      supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+      supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      console.log('🚀 PRODUCTION ENVIRONMENT - Message sent to production number or fallback')
+    }
+
+    // Create Supabase client for the appropriate environment
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey)
+    
+    console.log('Environment info:', { 
+      isDevEnvironment, 
+      destinationPhone: destinationPhone || 'not found',
+      hasDevUrl: !!Deno.env.get('DEV_SUPABASE_URL'),
+      hasDevKey: !!Deno.env.get('DEV_SUPABASE_SERVICE_ROLE_KEY')
+    })
+
+    // Get signature and webhook secret for validation
     const surgeSignature = req.headers.get('Surge-Signature')
     const webhookSecret = Deno.env.get('SURGE_WEBHOOK_SECRET')
 
@@ -305,15 +351,9 @@ serve(async (req) => {
       url: req.url
     })
 
-    // Parse the webhook data first
-    let data
-    try {
-      data = JSON.parse(body)
-      console.log('Parsed webhook data:', JSON.stringify(data, null, 2))
-    } catch (parseError) {
-      console.error('Failed to parse webhook body:', parseError)
-      return new Response('Invalid JSON', { status: 400, headers: corsHeaders })
-    }
+    // Use already parsed webhook data
+    const data = webhookData
+    console.log('Parsed webhook data:', JSON.stringify(data, null, 2))
 
     // Handle different webhook formats
     if (!data || typeof data !== 'object') {
@@ -389,9 +429,9 @@ serve(async (req) => {
       return new Response('Bad Request: Invalid message ID', { status: 400, headers: corsHeaders })
     }
 
-    // Start background processing without waiting
+    // Start background processing without waiting - pass environment info
     // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
-    EdgeRuntime.waitUntil(processMessageAsync(data, supabaseClient))
+    EdgeRuntime.waitUntil(processMessageAsync(data, supabaseClient, isDevEnvironment, destinationPhone))
 
     // Return 200 immediately for fast response
     return new Response('OK', { status: 200, headers: corsHeaders })
