@@ -1,9 +1,9 @@
-// Environment-aware Supabase client
+// Environment-aware Supabase client with fail-closed security
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { getEnvironmentConfig } from '@/config/environment';
 
-// Get environment-specific configuration
+// Get environment-specific configuration - will throw if invalid
 const envConfig = getEnvironmentConfig();
 
 // Create environment-aware Supabase client
@@ -29,13 +29,10 @@ export const supabaseEnvironmentInfo = {
   isProduction: envConfig.isProduction,
 };
 
-// Development environment warning
-if (envConfig.isDevelopment) {
-  console.log('🚧 Running in DEVELOPMENT environment');
-  console.log('📊 Environment Info:', supabaseEnvironmentInfo);
-  
-  // Check if dev credentials are placeholder
-  if (envConfig.SUPABASE_URL.includes('placeholder')) {
-    console.warn('⚠️ Dev Supabase credentials not configured - using placeholder values');
-  }
-}
+// Environment logging
+console.log(`🌐 Supabase client initialized for ${envConfig.environment.toUpperCase()} environment`);
+console.log('📊 Environment Info:', {
+  environment: envConfig.environment,
+  url: envConfig.SUPABASE_URL,
+  isDevelopment: envConfig.isDevelopment,
+});

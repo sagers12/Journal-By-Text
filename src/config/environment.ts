@@ -1,4 +1,4 @@
-// Environment configuration and detection
+// Environment configuration using Vite environment variables
 export type Environment = 'development' | 'production';
 
 export interface EnvironmentConfig {
@@ -9,53 +9,39 @@ export interface EnvironmentConfig {
   isProduction: boolean;
 }
 
-// Environment detection based on multiple factors
+// Validate required environment variables
+const validateEnvironmentVariables = () => {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      'Missing required environment variables. Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set.'
+    );
+  }
+  
+  if (supabaseUrl.includes('placeholder') || supabaseAnonKey.includes('placeholder')) {
+    throw new Error(
+      'Environment variables contain placeholder values. Please set proper Supabase credentials.'
+    );
+  }
+  
+  return { supabaseUrl, supabaseAnonKey };
+};
+
+// Simple environment detection
 export const detectEnvironment = (): Environment => {
-  // Check if we're in Vite development mode
-  if (import.meta.env.DEV) {
-    return 'development';
-  }
-  
-  // Check hostname patterns
-  const hostname = window.location.hostname;
-  
-  // Development patterns
-  if (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname.includes('dev') ||
-    hostname.includes('staging') ||
-    hostname.includes('preview') ||
-    hostname.endsWith('.vercel.app') && !hostname.includes('journal-by-text-production')
-  ) {
-    return 'development';
-  }
-  
-  // Default to production for safety
-  return 'production';
+  return import.meta.env.DEV ? 'development' : 'production';
 };
 
-// Environment-specific configurations
-const environments: Record<Environment, Omit<EnvironmentConfig, 'environment' | 'isDevelopment' | 'isProduction'>> = {
-  development: {
-    // DEV SUPABASE CREDENTIALS - TO BE UPDATED WHEN DEV PROJECT IS READY
-    SUPABASE_URL: "https://placeholder-dev.supabase.co", // Will be updated with actual dev URL
-    SUPABASE_ANON_KEY: "placeholder-dev-anon-key", // Will be updated with actual dev anon key
-  },
-  production: {
-    // PRODUCTION SUPABASE CREDENTIALS
-    SUPABASE_URL: "https://zfxdjbpjxpgreymebpsr.supabase.co",
-    SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmeGRqYnBqeHBncmV5bWVicHNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5ODIxNjAsImV4cCI6MjA2NDU1ODE2MH0.RKIGrOMAEE3DJfjoH-6BmNqeoTrVtd4Ct3yp3tG-Eww",
-  },
-};
-
-// Get current environment configuration
+// Get current environment configuration - fail closed approach
 export const getEnvironmentConfig = (): EnvironmentConfig => {
   const environment = detectEnvironment();
-  const config = environments[environment];
+  const { supabaseUrl, supabaseAnonKey } = validateEnvironmentVariables();
   
   return {
-    ...config,
+    SUPABASE_URL: supabaseUrl,
+    SUPABASE_ANON_KEY: supabaseAnonKey,
     environment,
     isDevelopment: environment === 'development',
     isProduction: environment === 'production',
@@ -65,13 +51,26 @@ export const getEnvironmentConfig = (): EnvironmentConfig => {
 // Export environment info for debugging
 export const environmentInfo = {
   get current() {
-    const config = getEnvironmentConfig();
-    return {
-      environment: config.environment,
-      hostname: window.location.hostname,
-      origin: window.location.origin,
-      isViteDev: import.meta.env.DEV,
-      supabaseUrl: config.SUPABASE_URL,
-    };
+    try {
+      const config = getEnvironmentConfig();
+      return {
+        environment: config.environment,
+        hostname: window.location.hostname,
+        origin: window.location.origin,
+        isViteDev: import.meta.env.DEV,
+        supabaseUrl: config.SUPABASE_URL,
+        hasValidCredentials: true,
+      };
+    } catch (error) {
+      return {
+        environment: 'unknown',
+        hostname: window.location.hostname,
+        origin: window.location.origin,
+        isViteDev: import.meta.env.DEV,
+        supabaseUrl: 'INVALID',
+        hasValidCredentials: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
   }
 };
