@@ -4,7 +4,7 @@ import GraphemeSplitter from 'https://esm.sh/grapheme-splitter@1.0.4'
 import { validateSurgeSignature } from './signature-validation.ts'
 import { sendInstructionMessage, sendConfirmationMessage, sendSubscriptionReminderMessage, sendWelcomeMessage, sendFirstEntryPromptMessage, sendFirstJournalEntryMessage } from './message-handlers.ts'
 import { processPhoneVerification, processJournalEntry } from './sms-processing.ts'
-import { maskPhone } from '../_shared/environment-utils.ts'
+import { maskPhone } from '../_shared/sms-utils.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,7 +37,7 @@ serve(async (req) => {
   }
 
   // Background processing function for heavy work
-  async function processMessageAsync(webhookData: any, supabaseClient: any, isDevEnvironment: boolean = false, destinationPhone: string = '') {
+  async function processMessageAsync(webhookData: any, supabaseClient: any, destinationPhone: string = '') {
     const processingStart = Date.now()
     try {
       console.log('Starting background message processing...')
@@ -149,7 +149,7 @@ serve(async (req) => {
           console.error('Rate limit check error for unknown user:', rateLimitResult.error)
         } else if (rateLimitResult.data?.allowed) {
           // Send welcome message to unknown user
-          await sendWelcomeMessage(fromPhone, isDevEnvironment)
+          await sendWelcomeMessage(fromPhone)
           console.log(`Welcome message sent to unknown user: ${maskPhone(fromPhone)} (attempt ${rateLimitResult.data.attempts}/5)`)
         } else {
           console.log(`Rate limit exceeded for unknown user: ${maskPhone(fromPhone)} - no welcome message sent`)
@@ -194,11 +194,11 @@ serve(async (req) => {
           fromPhone,
           entryDate
         )
-        await sendInstructionMessage(fromPhone, isDevEnvironment)
+        await sendInstructionMessage(fromPhone)
         
         // Add small delay before sending first entry prompt
         await new Promise(resolve => setTimeout(resolve, 2000))
-        await sendFirstEntryPromptMessage(fromPhone, isDevEnvironment)
+        await sendFirstEntryPromptMessage(fromPhone)
         return
       }
 
@@ -251,7 +251,7 @@ serve(async (req) => {
             truncated: truncated
           }, { onConflict: 'surge_message_id' })
         
-        await sendSubscriptionReminderMessage(fromPhone, subscriber?.email || '', isDevEnvironment)
+        await sendSubscriptionReminderMessage(fromPhone, subscriber?.email || '')
         return
       }
 
@@ -264,18 +264,17 @@ serve(async (req) => {
         fromPhone,
         entryDate,
         attachments,
-        { charCount, byteCount, truncated },
-        isDevEnvironment
+        { charCount, byteCount, truncated }
       )
 
-      await sendConfirmationMessage(fromPhone, isDevEnvironment)
+      await sendConfirmationMessage(fromPhone)
 
       // If this is the user's first entry, send the special congratulatory message
       if (entryResult.isFirstEntry) {
         console.log('User created their first journal entry - sending congratulatory message')
         // Add small delay before sending first entry congratulatory message
         await new Promise(resolve => setTimeout(resolve, 2000))
-        await sendFirstJournalEntryMessage(fromPhone, isDevEnvironment)
+        await sendFirstJournalEntryMessage(fromPhone)
       }
       
       console.log('Background message processing completed successfully')
@@ -307,64 +306,24 @@ serve(async (req) => {
       return new Response('Invalid JSON', { status: 400, headers: corsHeaders })
     }
 
-    // Import environment detection utility
-    const { getSurgeEnvironmentConfig } = await import('../_shared/environment-utils.ts')
-    
-    // Use Phone ID for reliable environment detection (preferred method)
-    const envConfig = getSurgeEnvironmentConfig(destinationPhone, undefined, destinationPhoneId)
-    const isDevEnvironment = envConfig.isDevEnvironment
-    
-    let supabaseUrl = ''
-    let supabaseServiceKey = ''
-    
-    // Get environment-specific Supabase credentials
-    if (isDevEnvironment) {
-      supabaseUrl = Deno.env.get('DEV_SUPABASE_URL') ?? Deno.env.get('SUPABASE_URL') ?? ''
-      supabaseServiceKey = Deno.env.get('DEV_SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      console.log('🔧 DEV ENVIRONMENT DETECTED via Phone ID or fallback')
-    } else {
-      supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-      supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      console.log('🚀 PRODUCTION ENVIRONMENT detected via Phone ID or fallback')
-    }
+    // Use production Supabase credentials
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    console.log('🚀 Using production Supabase environment')
 
-    // Create Supabase client for the appropriate environment
+    // Create Supabase client
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey)
-    
-    console.log('Environment info:', { 
-      isDevEnvironment, 
-      destinationPhone: destinationPhone || 'not found',
-      destinationPhoneId: destinationPhoneId || 'not found',
-      hasDevUrl: !!Deno.env.get('DEV_SUPABASE_URL'),
-      hasDevKey: !!Deno.env.get('DEV_SUPABASE_SERVICE_ROLE_KEY'),
-      hasDevPhoneId: !!Deno.env.get('SURGE_DEV_PHONE_ID'),
-      hasProdPhoneId: !!Deno.env.get('SURGE_PROD_PHONE_ID')
-    })
-
-    // Get environment-specific webhook secret
-    function getWebhookSecret(isDevEnvironment: boolean): string | null {
-      if (isDevEnvironment) {
-        // Try dev secret first, fallback to production secret for backward compatibility
-        return Deno.env.get('SURGE_DEV_WEBHOOK_SECRET') || Deno.env.get('SURGE_WEBHOOK_SECRET')
-      } else {
-        // Production environment uses production secret
-        return Deno.env.get('SURGE_WEBHOOK_SECRET')
-      }
-    }
 
     // Get signature and webhook secret for validation
     const surgeSignature = req.headers.get('Surge-Signature')
-    const webhookSecret = getWebhookSecret(isDevEnvironment)
+    const webhookSecret = Deno.env.get('SURGE_WEBHOOK_SECRET')
 
     console.log('SMS webhook received:', {
       hasSignature: !!surgeSignature,
       hasSecret: !!webhookSecret,
-      secretType: isDevEnvironment ? 'development' : 'production',
       bodyLength: body.length,
       method: req.method,
-      url: req.url,
-      hasDevSecret: !!Deno.env.get('SURGE_DEV_WEBHOOK_SECRET'),
-      hasProdSecret: !!Deno.env.get('SURGE_WEBHOOK_SECRET')
+      url: req.url
     })
 
     // Use already parsed webhook data
@@ -447,7 +406,7 @@ serve(async (req) => {
 
     // Start background processing without waiting - pass environment info
     // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
-    EdgeRuntime.waitUntil(processMessageAsync(data, supabaseClient, isDevEnvironment, destinationPhone))
+    EdgeRuntime.waitUntil(processMessageAsync(data, supabaseClient, destinationPhone))
 
     // Return 200 immediately for fast response
     return new Response('OK', { status: 200, headers: corsHeaders })

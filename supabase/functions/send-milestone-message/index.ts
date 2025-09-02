@@ -127,15 +127,10 @@ serve(async (req) => {
 
 async function sendMilestoneSMS(phoneNumber: string, message: string, surgeApiToken: string, surgeAccountId: string) {
   // Use the EXACT SAME payload structure as working reminders
-  // Determine environment based on phone number patterns or dev secrets
-  const isDevEnvironment = !!(Deno.env.get('DEV_SUPABASE_URL') && Deno.env.get('SURGE_DEV_PHONE_ID'))
+  // Use production phone number ID
+  const phoneNumberId = Deno.env.get('SURGE_PROD_PHONE_ID')
   
-  // Get the appropriate phone number ID based on environment
-  const phoneNumberId = isDevEnvironment 
-    ? Deno.env.get('SURGE_DEV_PHONE_ID') 
-    : Deno.env.get('SURGE_PROD_PHONE_ID')
-  
-  console.log(`[send-milestone-message] Environment: ${isDevEnvironment ? 'DEV' : 'PROD'}, Phone ID: ${phoneNumberId}`)
+  console.log('[send-milestone-message] Using production environment, Phone ID:', phoneNumberId)
   
   const payload = {
     conversation: {

@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { detectEdgeFunctionEnvironment, logEnvironmentInfo } from '../_shared/environment.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,41 +12,27 @@ serve(async (req) => {
   }
 
   try {
-    const envConfig = detectEdgeFunctionEnvironment(req);
-    logEnvironmentInfo(envConfig, 'environment-health-check');
+    console.log('🔧 Edge Function: environment-health-check');
 
-    // Perform environment-specific health checks
+    // Perform system health checks
     const healthCheck = {
       timestamp: new Date().toISOString(),
-      environment: envConfig.environment,
-      supabaseUrl: envConfig.supabaseUrl,
+      environment: 'production',
       status: 'healthy',
       checks: {
-        environment_detection: 'pass',
         supabase_connection: 'pending',
         secrets_available: {
           SUPABASE_URL: !!Deno.env.get('SUPABASE_URL'),
           SUPABASE_SERVICE_ROLE_KEY: !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
-          DEV_SUPABASE_URL: !!Deno.env.get('DEV_SUPABASE_URL'),
-          DEV_SUPABASE_SERVICE_ROLE_KEY: !!Deno.env.get('DEV_SUPABASE_SERVICE_ROLE_KEY'),
         }
-      },
-      dev_environment_ready: !!(
-        envConfig.isDevelopment && 
-        Deno.env.get('DEV_SUPABASE_URL') && 
-        Deno.env.get('DEV_SUPABASE_SERVICE_ROLE_KEY')
-      )
+      }
     };
 
     // Test Supabase connection
     try {
       const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-      const supabaseUrl = envConfig.isDevelopment 
-        ? (Deno.env.get('DEV_SUPABASE_URL') || Deno.env.get('SUPABASE_URL'))
-        : Deno.env.get('SUPABASE_URL');
-      const supabaseKey = envConfig.isDevelopment
-        ? (Deno.env.get('DEV_SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))
-        : Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
       const supabase = createClient(supabaseUrl!, supabaseKey!);
       

@@ -1,7 +1,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
-import { createSurgePayload, maskPhone } from '../_shared/environment-utils.ts'
+import { createSurgePayload, maskPhone } from '../_shared/sms-utils.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,16 +66,12 @@ serve(async (req) => {
     // Updated API endpoint to match Surge documentation
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
-    // Determine environment and create Surge payload
-    const isDevEnvironment = !!(Deno.env.get('DEV_SUPABASE_URL') && Deno.env.get('SURGE_DEV_PHONE_ID'))
-    
-    console.log(`[send-signup-confirmation] Environment: ${isDevEnvironment ? 'DEV' : 'PROD'}`)
+    console.log('[send-signup-confirmation] Using production environment')
 
-    // Use unified payload creation function
+    // Create Surge payload
     const payload = createSurgePayload(
       formattedPhoneNumber,
-      'Thanks for signing up for Journal By Text! Please respond YES so we can message your prompts and reminders in the future.',
-      isDevEnvironment
+      'Thanks for signing up for Journal By Text! Please respond YES so we can message your prompts and reminders in the future.'
     )
 
     console.log('Sending to Surge API:', JSON.stringify(payload, null, 2));

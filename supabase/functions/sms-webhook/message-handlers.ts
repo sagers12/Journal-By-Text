@@ -3,7 +3,7 @@
  */
 
 import Stripe from 'https://esm.sh/stripe@14.21.0'
-import { createSurgePayload, maskPhone } from '../_shared/environment-utils.ts'
+import { createSurgePayload, maskPhone } from '../_shared/sms-utils.ts'
 
 // Function to create Stripe checkout URL for subscription reminder
 async function createStripeCheckoutUrl(email: string): Promise<string> {
@@ -50,7 +50,7 @@ async function createStripeCheckoutUrl(email: string): Promise<string> {
   }
 }
 
-export async function sendInstructionMessage(phoneNumber: string, isDevEnvironment: boolean = false) {
+export async function sendInstructionMessage(phoneNumber: string) {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
   const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
 
@@ -60,13 +60,10 @@ export async function sendInstructionMessage(phoneNumber: string, isDevEnvironme
   }
 
   try {
-    // Determine app URL based on environment
-    const appUrl = isDevEnvironment 
-      ? Deno.env.get('DEV_APP_URL') || 'https://dev-journal-dop24vhye-ryans-projects-e481d356.vercel.app'
-      : (Deno.env.get('APP_URL') || 'https://journalbytext.com')
+    const appUrl = Deno.env.get('APP_URL') || 'https://journalbytext.com'
 
     const messageBody = `Perfect! Your phone is now verified. To create a journal entry, simply send a message to this number. You can view all your entries on our website at ${appUrl}`
-    const responsePayload = createSurgePayload(phoneNumber, messageBody, isDevEnvironment)
+    const responsePayload = createSurgePayload(phoneNumber, messageBody)
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
@@ -90,7 +87,7 @@ export async function sendInstructionMessage(phoneNumber: string, isDevEnvironme
   }
 }
 
-export async function sendConfirmationMessage(phoneNumber: string, isDevEnvironment: boolean = false) {
+export async function sendConfirmationMessage(phoneNumber: string) {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
   const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
 
@@ -101,11 +98,9 @@ export async function sendConfirmationMessage(phoneNumber: string, isDevEnvironm
 
   try {
     // Environment-specific confirmation message
-    const confirmationText = isDevEnvironment 
-      ? '✅ [DEV] Your journal entry has been saved!'
-      : '✅ Your journal entry has been saved!'
+    const confirmationText = '✅ Your journal entry has been saved!'
 
-    const responsePayload = createSurgePayload(phoneNumber, confirmationText, isDevEnvironment)
+    const responsePayload = createSurgePayload(phoneNumber, confirmationText)
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
@@ -129,7 +124,7 @@ export async function sendConfirmationMessage(phoneNumber: string, isDevEnvironm
   }
 }
 
-export async function sendSubscriptionReminderMessage(phoneNumber: string, userEmail: string = '', isDevEnvironment: boolean = false) {
+export async function sendSubscriptionReminderMessage(phoneNumber: string, userEmail: string = '') {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
   const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
 
@@ -139,16 +134,12 @@ export async function sendSubscriptionReminderMessage(phoneNumber: string, userE
   }
 
   try {
-    // Generate Stripe checkout link for monthly plan (only for production)
-    const checkoutUrl = isDevEnvironment 
-      ? 'https://dev-journal-dop24vhye-ryans-projects-e481d356.vercel.app'
-      : await createStripeCheckoutUrl(userEmail)
+    // Generate Stripe checkout link for monthly plan
+    const checkoutUrl = await createStripeCheckoutUrl(userEmail)
     
-    const subscriptionText = isDevEnvironment
-      ? `[DEV] Your trial has expired. Visit the dev site to continue: ${checkoutUrl}`
-      : `Hey, still looking to use Journal By Text? We'd love to get you journaling again. Your free trial has already expired, but you can continue with one of our paid plans! Here's the link to subscribe: ${checkoutUrl}`
+    const subscriptionText = `Hey, still looking to use Journal By Text? We'd love to get you journaling again. Your free trial has already expired, but you can continue with one of our paid plans! Here's the link to subscribe: ${checkoutUrl}`
     
-    const responsePayload = createSurgePayload(phoneNumber, subscriptionText, isDevEnvironment)
+    const responsePayload = createSurgePayload(phoneNumber, subscriptionText)
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
@@ -172,7 +163,7 @@ export async function sendSubscriptionReminderMessage(phoneNumber: string, userE
   }
 }
 
-export async function sendFirstEntryPromptMessage(phoneNumber: string, isDevEnvironment: boolean = false) {
+export async function sendFirstEntryPromptMessage(phoneNumber: string) {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
   const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
 
@@ -182,11 +173,9 @@ export async function sendFirstEntryPromptMessage(phoneNumber: string, isDevEnvi
   }
 
   try {
-    const promptText = isDevEnvironment
-      ? "[DEV] Alright, time to make your first entry! It's easy. Just reply to this message and we'll add it to your journal. If you're not sure what to write about, just respond to this prompt: Why am I starting a journal and what am I going to do to ensure I stick with it?"
-      : "Alright, time to make your first entry! It's easy. Just reply to this message and we'll add it to your journal. If you're not sure what to write about, just respond to this prompt: Why am I starting a journal and what am I going to do to ensure I stick with it?"
+    const promptText = "Alright, time to make your first entry! It's easy. Just reply to this message and we'll add it to your journal. If you're not sure what to write about, just respond to this prompt: Why am I starting a journal and what am I going to do to ensure I stick with it?"
 
-    const responsePayload = createSurgePayload(phoneNumber, promptText, isDevEnvironment)
+    const responsePayload = createSurgePayload(phoneNumber, promptText)
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
@@ -210,7 +199,7 @@ export async function sendFirstEntryPromptMessage(phoneNumber: string, isDevEnvi
   }
 }
 
-export async function sendFirstJournalEntryMessage(phoneNumber: string, isDevEnvironment: boolean = false) {
+export async function sendFirstJournalEntryMessage(phoneNumber: string) {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
   const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
 
@@ -220,16 +209,11 @@ export async function sendFirstJournalEntryMessage(phoneNumber: string, isDevEnv
   }
 
   try {
-    // Environment-specific app URL
-    const appUrl = isDevEnvironment 
-      ? 'https://dev-journal-dop24vhye-ryans-projects-e481d356.vercel.app/sign-in'
-      : 'https://journalbytext.com/sign-in'
+    const appUrl = 'https://journalbytext.com/sign-in'
 
-    const congratsText = isDevEnvironment
-      ? `[DEV] You're on your way! While it's a small step, writing in your journal is a gateway to better mental and emotional health, improved memory and creative, and most importantly, a written record of your life, your thoughts, and what mattered to you. Remember, you can always view your entries on the web by going here 👉 ${appUrl}`
-      : `You're on your way! While it's a small step, writing in your journal is a gateway to better mental and emotional health, improved memory and creative, and most importantly, a written record of your life, your thoughts, and what mattered to you. Remember, you can always view your entries on the web by going here 👉 ${appUrl}`
+    const congratsText = `You're on your way! While it's a small step, writing in your journal is a gateway to better mental and emotional health, improved memory and creative, and most importantly, a written record of your life, your thoughts, and what mattered to you. Remember, you can always view your entries on the web by going here 👉 ${appUrl}`
 
-    const responsePayload = createSurgePayload(phoneNumber, congratsText, isDevEnvironment)
+    const responsePayload = createSurgePayload(phoneNumber, congratsText)
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
@@ -253,7 +237,7 @@ export async function sendFirstJournalEntryMessage(phoneNumber: string, isDevEnv
   }
 }
 
-export async function sendWelcomeMessage(phoneNumber: string, isDevEnvironment: boolean = false) {
+export async function sendWelcomeMessage(phoneNumber: string) {
   const surgeApiToken = Deno.env.get('SURGE_API_TOKEN')
   const surgeAccountId = Deno.env.get('SURGE_ACCOUNT_ID')
 
@@ -263,17 +247,12 @@ export async function sendWelcomeMessage(phoneNumber: string, isDevEnvironment: 
   }
 
   try {
-    // Environment-specific app URL
-    const appUrl = isDevEnvironment 
-      ? 'https://dev-journal-dop24vhye-ryans-projects-e481d356.vercel.app'
-      : (Deno.env.get('APP_URL') || 'https://journalbytext.com')
+    const appUrl = Deno.env.get('APP_URL') || 'https://journalbytext.com'
     const signUpUrl = `${appUrl}/sign-up`
     
-    const welcomeText = isDevEnvironment
-      ? `[DEV] Welcome to Journal By Text! You just took the first step to building a lasting journaling habit. Every message you send here will become part of your private journal. Tap this link to finish the sign-up process and get journaling 👉 ${signUpUrl}`
-      : `Welcome to Journal By Text! You just took the first step to building a lasting journaling habit. Every message you send here will become part of your private journal. Tap this link to finish the sign-up process and get journaling 👉 ${signUpUrl}`
+    const welcomeText = `Welcome to Journal By Text! You just took the first step to building a lasting journaling habit. Every message you send here will become part of your private journal. Tap this link to finish the sign-up process and get journaling 👉 ${signUpUrl}`
     
-    const responsePayload = createSurgePayload(phoneNumber, welcomeText, isDevEnvironment)
+    const responsePayload = createSurgePayload(phoneNumber, welcomeText)
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     

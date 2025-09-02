@@ -135,7 +135,7 @@ const calculateCurrentStreak = async (supabase: any, userId: string): Promise<nu
   }
 };
 
-const checkAndSendMilestone = async (supabase: any, userId: string, streak: number, phoneNumber: string, isDevEnvironment: boolean = false): Promise<void> => {
+const checkAndSendMilestone = async (supabase: any, userId: string, streak: number, phoneNumber: string): Promise<void> => {
   try {
     console.log(`=== MILESTONE CHECK START ===`);
     console.log(`User ${userId}: Checking milestone for ${streak} day streak`);
@@ -298,8 +298,7 @@ export async function processJournalEntry(
   fromPhone: string,
   entryDate: string,
   attachments: any[] = [],
-  lengthMetrics?: { charCount: number; byteCount: number; truncated: boolean },
-  isDevEnvironment: boolean = false
+  lengthMetrics?: { charCount: number; byteCount: number; truncated: boolean }
 ) {
   // Get user's timezone to determine the correct entry date
   const { data: userProfile } = await supabaseClient
@@ -515,7 +514,7 @@ export async function processJournalEntry(
   try {
     const currentStreak = await calculateCurrentStreak(supabaseClient, userId);
     if (currentStreak >= 2) { // Check milestones for streaks of 2 or higher
-      await checkAndSendMilestone(supabaseClient, userId, currentStreak, fromPhone, isDevEnvironment);
+      await checkAndSendMilestone(supabaseClient, userId, currentStreak, fromPhone);
     }
   } catch (error) {
     console.error('Error checking milestone:', error);

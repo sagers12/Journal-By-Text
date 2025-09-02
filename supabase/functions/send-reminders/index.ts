@@ -1,7 +1,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
-import { maskPhone } from '../_shared/environment-utils.ts'
+import { maskPhone } from '../_shared/sms-utils.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -301,15 +301,10 @@ async function sendReminderSMS(phoneNumber: string, prompt: string) {
   const message = `Here's a friendly reminder to journal today! Not sure what to write about? Here's a prompt: ${prompt}`
 
   // Updated payload structure to match working signup function
-  // Determine environment based on phone number patterns or dev secrets
-  const isDevEnvironment = !!(Deno.env.get('DEV_SUPABASE_URL') && Deno.env.get('SURGE_DEV_PHONE_ID'))
+  // Use production phone number ID
+  const phoneNumberId = Deno.env.get('SURGE_PROD_PHONE_ID')
   
-  // Get the appropriate phone number ID based on environment
-  const phoneNumberId = isDevEnvironment 
-    ? Deno.env.get('SURGE_DEV_PHONE_ID') 
-    : Deno.env.get('SURGE_PROD_PHONE_ID')
-  
-  console.log(`[send-reminders] Environment: ${isDevEnvironment ? 'DEV' : 'PROD'}, Phone ID: ${phoneNumberId}`)
+  console.log('[send-reminders] Using production environment, Phone ID:', phoneNumberId)
   
   const payload = {
     conversation: {

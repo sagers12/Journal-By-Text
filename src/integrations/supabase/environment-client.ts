@@ -1,38 +1,16 @@
-// Environment-aware Supabase client with fail-closed security
+// Simple Supabase client
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
-import { getEnvironmentConfig } from '@/config/environment';
 
-// Get environment-specific configuration - will throw if invalid
-const envConfig = getEnvironmentConfig();
+const SUPABASE_URL = "https://kvctyaldiikbcbtyhkjw.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2Y3R5YWxkaWlrYmNidHloa2p3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzOTk2MDEsImV4cCI6MjA3MTk3NTYwMX0.Ic_cgeOqoiJcu10KzIUvHvIS1BtXKgoNs0VTjHhZxQI";
 
-// Create environment-aware Supabase client
-export const supabase = createClient<Database>(
-  envConfig.SUPABASE_URL,
-  envConfig.SUPABASE_ANON_KEY,
-  {
-    auth: {
-      storage: localStorage,
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      flowType: 'pkce'
-    }
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce'
   }
-);
-
-// Export environment info for debugging
-export const supabaseEnvironmentInfo = {
-  environment: envConfig.environment,
-  url: envConfig.SUPABASE_URL,
-  isDevelopment: envConfig.isDevelopment,
-  isProduction: envConfig.isProduction,
-};
-
-// Environment logging
-console.log(`🌐 Supabase client initialized for ${envConfig.environment.toUpperCase()} environment`);
-console.log('📊 Environment Info:', {
-  environment: envConfig.environment,
-  url: envConfig.SUPABASE_URL,
-  isDevelopment: envConfig.isDevelopment,
 });

@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
-import { createSurgePayload, maskPhone } from '../_shared/environment-utils.ts'
+import { createSurgePayload, maskPhone } from '../_shared/sms-utils.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -283,13 +283,10 @@ async function sendTrialReminderSMS(phoneNumber: string, message: string) {
     throw new Error('Surge credentials not configured')
   }
 
-  // Determine environment and create Surge payload
-  const isDevEnvironment = !!(Deno.env.get('DEV_SUPABASE_URL') && Deno.env.get('SURGE_DEV_PHONE_ID'))
+  console.log('[send-trial-reminders] Using production environment')
   
-  console.log(`[send-trial-reminders] Environment: ${isDevEnvironment ? 'DEV' : 'PROD'}`)
-  
-  // Use unified payload creation function
-  const payload = createSurgePayload(phoneNumber, message, isDevEnvironment)
+  // Create Surge payload
+  const payload = createSurgePayload(phoneNumber, message)
 
   const redactedPayload = { ...payload, conversation: { contact: { phone_number: maskPhone(phoneNumber) } } }
   console.log('Sending trial reminder to Surge API:', JSON.stringify(redactedPayload, null, 2));
