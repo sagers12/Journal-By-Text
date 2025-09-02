@@ -341,16 +341,30 @@ serve(async (req) => {
       hasProdPhoneId: !!Deno.env.get('SURGE_PROD_PHONE_ID')
     })
 
+    // Get environment-specific webhook secret
+    function getWebhookSecret(isDevEnvironment: boolean): string | null {
+      if (isDevEnvironment) {
+        // Try dev secret first, fallback to production secret for backward compatibility
+        return Deno.env.get('SURGE_DEV_WEBHOOK_SECRET') || Deno.env.get('SURGE_WEBHOOK_SECRET')
+      } else {
+        // Production environment uses production secret
+        return Deno.env.get('SURGE_WEBHOOK_SECRET')
+      }
+    }
+
     // Get signature and webhook secret for validation
     const surgeSignature = req.headers.get('Surge-Signature')
-    const webhookSecret = Deno.env.get('SURGE_WEBHOOK_SECRET')
+    const webhookSecret = getWebhookSecret(isDevEnvironment)
 
     console.log('SMS webhook received:', {
       hasSignature: !!surgeSignature,
       hasSecret: !!webhookSecret,
+      secretType: isDevEnvironment ? 'development' : 'production',
       bodyLength: body.length,
       method: req.method,
-      url: req.url
+      url: req.url,
+      hasDevSecret: !!Deno.env.get('SURGE_DEV_WEBHOOK_SECRET'),
+      hasProdSecret: !!Deno.env.get('SURGE_WEBHOOK_SECRET')
     })
 
     // Use already parsed webhook data
