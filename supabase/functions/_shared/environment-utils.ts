@@ -8,32 +8,52 @@ interface SurgeEnvironmentConfig {
 
 /**
  * Determines the environment and returns the appropriate Surge phone configuration
- * based on various detection methods
+ * based on various detection methods (Phone ID is the primary method)
  */
 export function getSurgeEnvironmentConfig(
   destinationPhone?: string,
-  isDevEnvironment?: boolean
+  isDevEnvironment?: boolean,
+  destinationPhoneId?: string
 ): SurgeEnvironmentConfig {
   // Method 1: Use explicit isDevEnvironment flag if provided
   if (isDevEnvironment !== undefined) {
     return isDevEnvironment ? getDevConfig() : getProdConfig();
   }
   
-  // Method 2: Detect from destination phone number (for webhook processing)
+  // Method 2: Detect from destination Phone ID (PREFERRED - most reliable)
+  if (destinationPhoneId) {
+    const devPhoneId = Deno.env.get('SURGE_DEV_PHONE_ID');
+    const prodPhoneId = Deno.env.get('SURGE_PROD_PHONE_ID');
+    
+    if (devPhoneId && destinationPhoneId === devPhoneId) {
+      console.log('Environment detected as DEV via Phone ID:', destinationPhoneId);
+      return getDevConfig();
+    }
+    
+    if (prodPhoneId && destinationPhoneId === prodPhoneId) {
+      console.log('Environment detected as PROD via Phone ID:', destinationPhoneId);
+      return getProdConfig();
+    }
+  }
+  
+  // Method 3: Detect from destination phone number (fallback for backwards compatibility)
   if (destinationPhone) {
     const devPhoneNumber = Deno.env.get('SURGE_DEV_PHONE_NUMBER') || '+18889849624';
     if (destinationPhone === devPhoneNumber) {
+      console.log('Environment detected as DEV via phone number (fallback):', destinationPhone);
       return getDevConfig();
     }
   }
   
-  // Method 3: Check if dev secrets exist (fallback detection)
+  // Method 4: Check if dev secrets exist (fallback detection)
   const hasDevSecrets = !!(Deno.env.get('DEV_SUPABASE_URL') && Deno.env.get('SURGE_DEV_PHONE_ID'));
   if (hasDevSecrets) {
+    console.log('Environment detected as DEV via secret existence');
     return getDevConfig();
   }
   
   // Default to production
+  console.log('Environment defaulting to PROD');
   return getProdConfig();
 }
 

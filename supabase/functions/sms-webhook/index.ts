@@ -289,41 +289,43 @@ serve(async (req) => {
     const body = await req.text()
     let webhookData
     let destinationPhone = ''
+    let destinationPhoneId = ''
     
     try {
       webhookData = JSON.parse(body)
       
-      // Extract destination phone from webhook data for environment detection
+      // Extract destination phone and Phone ID from webhook data for environment detection
       if (webhookData?.data?.conversation?.phone_number) {
         destinationPhone = webhookData.data.conversation.phone_number
+        destinationPhoneId = webhookData.data.conversation.phone_number?.id || ''
       } else if (webhookData?.properties?.conversation?.phone_number) {
         destinationPhone = webhookData.properties.conversation.phone_number
+        destinationPhoneId = webhookData.properties.conversation.phone_number?.id || ''
       }
     } catch (parseError) {
       console.error('Failed to parse webhook body for environment detection:', parseError)
       return new Response('Invalid JSON', { status: 400, headers: corsHeaders })
     }
 
-    // Environment detection logic using environment variables
-    const PRODUCTION_PHONE = Deno.env.get('SURGE_PROD_PHONE_NUMBER') || Deno.env.get('SURGE_PHONE_NUMBER') || '8884338015'
-    const DEV_PHONE = Deno.env.get('SURGE_DEV_PHONE_NUMBER') || '+18889849624'
+    // Import environment detection utility
+    const { getSurgeEnvironmentConfig } = await import('../_shared/environment-utils.ts')
     
-    let isDevEnvironment = false
+    // Use Phone ID for reliable environment detection (preferred method)
+    const envConfig = getSurgeEnvironmentConfig(destinationPhone, undefined, destinationPhoneId)
+    const isDevEnvironment = envConfig.isDevEnvironment
+    
     let supabaseUrl = ''
     let supabaseServiceKey = ''
     
-    // Determine environment based on destination phone number
-    if (destinationPhone === DEV_PHONE) {
-      isDevEnvironment = true
+    // Get environment-specific Supabase credentials
+    if (isDevEnvironment) {
       supabaseUrl = Deno.env.get('DEV_SUPABASE_URL') ?? Deno.env.get('SUPABASE_URL') ?? ''
       supabaseServiceKey = Deno.env.get('DEV_SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      console.log('🔧 DEV ENVIRONMENT DETECTED - Message sent to dev number:', destinationPhone)
+      console.log('🔧 DEV ENVIRONMENT DETECTED via Phone ID or fallback')
     } else {
-      // Default to production for any other number (including formatted versions of production number)
-      isDevEnvironment = false
       supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
       supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      console.log('🚀 PRODUCTION ENVIRONMENT - Message sent to production number or fallback')
+      console.log('🚀 PRODUCTION ENVIRONMENT detected via Phone ID or fallback')
     }
 
     // Create Supabase client for the appropriate environment
@@ -332,8 +334,7 @@ serve(async (req) => {
     console.log('Environment info:', { 
       isDevEnvironment, 
       destinationPhone: destinationPhone || 'not found',
-      prodPhone: PRODUCTION_PHONE,
-      devPhone: DEV_PHONE,
+      destinationPhoneId: destinationPhoneId || 'not found',
       hasDevUrl: !!Deno.env.get('DEV_SUPABASE_URL'),
       hasDevKey: !!Deno.env.get('DEV_SUPABASE_SERVICE_ROLE_KEY'),
       hasDevPhoneId: !!Deno.env.get('SURGE_DEV_PHONE_ID'),
