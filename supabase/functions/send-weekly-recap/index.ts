@@ -44,10 +44,6 @@ function formatPhoneNumber(phoneNumber: string): string {
   return `+1${digitsOnly}`;
 }
 
-// Mask phone for logs
-function maskPhone(phone: string): string {
-  return phone ? phone.replace(/.(?=.{4})/g, '*') : '';
-}
 
 // Function to get previous week's Sunday-Saturday range in a given timezone
 function getPreviousWeekRange(countTimezone: string) {
@@ -350,10 +346,23 @@ try {
 
 async function sendWeeklyRecapSMS(phoneNumber: string, message: string, surgeApiToken: string, surgeAccountId: string) {
   // Use the EXACT SAME payload structure as working reminders
+  // Determine environment based on phone number patterns or dev secrets
+  const isDevEnvironment = !!(Deno.env.get('DEV_SUPABASE_URL') && Deno.env.get('SURGE_DEV_PHONE_ID'))
+  
+  // Get the appropriate phone number ID based on environment
+  const phoneNumberId = isDevEnvironment 
+    ? Deno.env.get('SURGE_DEV_PHONE_ID') 
+    : Deno.env.get('SURGE_PROD_PHONE_ID')
+  
+  console.log(`[send-weekly-recap] Environment: ${isDevEnvironment ? 'DEV' : 'PROD'}, Phone ID: ${phoneNumberId}`)
+  
   const payload = {
     conversation: {
       contact: {
         phone_number: phoneNumber
+      },
+      phone_number: {
+        id: phoneNumberId
       }
     },
     body: message,

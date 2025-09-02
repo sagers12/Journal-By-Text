@@ -3,6 +3,7 @@
  */
 
 import Stripe from 'https://esm.sh/stripe@14.21.0'
+import { createSurgePayload, maskPhone } from '../_shared/environment-utils.ts'
 
 // Function to create Stripe checkout URL for subscription reminder
 async function createStripeCheckoutUrl(email: string): Promise<string> {
@@ -64,15 +65,8 @@ export async function sendInstructionMessage(phoneNumber: string, isDevEnvironme
       ? Deno.env.get('DEV_APP_URL') || 'https://dev-journal-dop24vhye-ryans-projects-e481d356.vercel.app'
       : (Deno.env.get('APP_URL') || 'https://journalbytext.com')
 
-    const responsePayload = {
-      conversation: {
-        contact: {
-          phone_number: phoneNumber
-        }
-      },
-      body: `Perfect! Your phone is now verified. To create a journal entry, simply send a message to this number. You can view all your entries on our website at ${appUrl}`,
-      attachments: []
-    }
+    const messageBody = `Perfect! Your phone is now verified. To create a journal entry, simply send a message to this number. You can view all your entries on our website at ${appUrl}`
+    const responsePayload = createSurgePayload(phoneNumber, messageBody, isDevEnvironment)
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
@@ -111,15 +105,7 @@ export async function sendConfirmationMessage(phoneNumber: string, isDevEnvironm
       ? '✅ [DEV] Your journal entry has been saved!'
       : '✅ Your journal entry has been saved!'
 
-    const responsePayload = {
-      conversation: {
-        contact: {
-          phone_number: phoneNumber
-        }
-      },
-      body: confirmationText,
-      attachments: []
-    }
+    const responsePayload = createSurgePayload(phoneNumber, confirmationText, isDevEnvironment)
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
@@ -162,15 +148,7 @@ export async function sendSubscriptionReminderMessage(phoneNumber: string, userE
       ? `[DEV] Your trial has expired. Visit the dev site to continue: ${checkoutUrl}`
       : `Hey, still looking to use Journal By Text? We'd love to get you journaling again. Your free trial has already expired, but you can continue with one of our paid plans! Here's the link to subscribe: ${checkoutUrl}`
     
-    const responsePayload = {
-      conversation: {
-        contact: {
-          phone_number: phoneNumber
-        }
-      },
-      body: subscriptionText,
-      attachments: []
-    }
+    const responsePayload = createSurgePayload(phoneNumber, subscriptionText, isDevEnvironment)
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
@@ -208,15 +186,7 @@ export async function sendFirstEntryPromptMessage(phoneNumber: string, isDevEnvi
       ? "[DEV] Alright, time to make your first entry! It's easy. Just reply to this message and we'll add it to your journal. If you're not sure what to write about, just respond to this prompt: Why am I starting a journal and what am I going to do to ensure I stick with it?"
       : "Alright, time to make your first entry! It's easy. Just reply to this message and we'll add it to your journal. If you're not sure what to write about, just respond to this prompt: Why am I starting a journal and what am I going to do to ensure I stick with it?"
 
-    const responsePayload = {
-      conversation: {
-        contact: {
-          phone_number: phoneNumber
-        }
-      },
-      body: promptText,
-      attachments: []
-    }
+    const responsePayload = createSurgePayload(phoneNumber, promptText, isDevEnvironment)
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
@@ -259,15 +229,7 @@ export async function sendFirstJournalEntryMessage(phoneNumber: string, isDevEnv
       ? `[DEV] You're on your way! While it's a small step, writing in your journal is a gateway to better mental and emotional health, improved memory and creative, and most importantly, a written record of your life, your thoughts, and what mattered to you. Remember, you can always view your entries on the web by going here 👉 ${appUrl}`
       : `You're on your way! While it's a small step, writing in your journal is a gateway to better mental and emotional health, improved memory and creative, and most importantly, a written record of your life, your thoughts, and what mattered to you. Remember, you can always view your entries on the web by going here 👉 ${appUrl}`
 
-    const responsePayload = {
-      conversation: {
-        contact: {
-          phone_number: phoneNumber
-        }
-      },
-      body: congratsText,
-      attachments: []
-    }
+    const responsePayload = createSurgePayload(phoneNumber, congratsText, isDevEnvironment)
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     
@@ -311,15 +273,7 @@ export async function sendWelcomeMessage(phoneNumber: string, isDevEnvironment: 
       ? `[DEV] Welcome to Journal By Text! You just took the first step to building a lasting journaling habit. Every message you send here will become part of your private journal. Tap this link to finish the sign-up process and get journaling 👉 ${signUpUrl}`
       : `Welcome to Journal By Text! You just took the first step to building a lasting journaling habit. Every message you send here will become part of your private journal. Tap this link to finish the sign-up process and get journaling 👉 ${signUpUrl}`
     
-    const responsePayload = {
-      conversation: {
-        contact: {
-          phone_number: phoneNumber
-        }
-      },
-      body: welcomeText,
-      attachments: []
-    }
+    const responsePayload = createSurgePayload(phoneNumber, welcomeText, isDevEnvironment)
 
     const surgeUrl = `https://api.surge.app/accounts/${surgeAccountId}/messages`
     

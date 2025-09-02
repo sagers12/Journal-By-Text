@@ -4,16 +4,13 @@ import GraphemeSplitter from 'https://esm.sh/grapheme-splitter@1.0.4'
 import { validateSurgeSignature } from './signature-validation.ts'
 import { sendInstructionMessage, sendConfirmationMessage, sendSubscriptionReminderMessage, sendWelcomeMessage, sendFirstEntryPromptMessage, sendFirstJournalEntryMessage } from './message-handlers.ts'
 import { processPhoneVerification, processJournalEntry } from './sms-processing.ts'
+import { maskPhone } from '../_shared/environment-utils.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Mask phone for logs
-function maskPhone(phone: string): string {
-  return phone ? phone.replace(/.(?=.{4})/g, '*') : '';
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -307,9 +304,9 @@ serve(async (req) => {
       return new Response('Invalid JSON', { status: 400, headers: corsHeaders })
     }
 
-    // Environment detection logic
-    const PRODUCTION_PHONE = '8884338015'
-    const DEV_PHONE = '+18889849624'
+    // Environment detection logic using environment variables
+    const PRODUCTION_PHONE = Deno.env.get('SURGE_PROD_PHONE_NUMBER') || Deno.env.get('SURGE_PHONE_NUMBER') || '8884338015'
+    const DEV_PHONE = Deno.env.get('SURGE_DEV_PHONE_NUMBER') || '+18889849624'
     
     let isDevEnvironment = false
     let supabaseUrl = ''
@@ -335,8 +332,12 @@ serve(async (req) => {
     console.log('Environment info:', { 
       isDevEnvironment, 
       destinationPhone: destinationPhone || 'not found',
+      prodPhone: PRODUCTION_PHONE,
+      devPhone: DEV_PHONE,
       hasDevUrl: !!Deno.env.get('DEV_SUPABASE_URL'),
-      hasDevKey: !!Deno.env.get('DEV_SUPABASE_SERVICE_ROLE_KEY')
+      hasDevKey: !!Deno.env.get('DEV_SUPABASE_SERVICE_ROLE_KEY'),
+      hasDevPhoneId: !!Deno.env.get('SURGE_DEV_PHONE_ID'),
+      hasProdPhoneId: !!Deno.env.get('SURGE_PROD_PHONE_ID')
     })
 
     // Get signature and webhook secret for validation
