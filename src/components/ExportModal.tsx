@@ -29,7 +29,8 @@ export const ExportModal = ({ entries, onClose }: ExportModalProps) => {
       .replace(/'/g, '&#39;');
 
   const getFilteredEntries = () => {
-    let filtered = entries;
+    // Create a defensive copy to prevent mutation of the original entries array
+    let filtered = [...entries];
     
     if (dateFrom) {
       const fromDate = new Date(dateFrom);
@@ -42,7 +43,8 @@ export const ExportModal = ({ entries, onClose }: ExportModalProps) => {
       filtered = filtered.filter(entry => entry.timestamp <= toDate);
     }
     
-    return filtered.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    // Sort in reverse chronological order (newest first) to match the main journal display
+    return filtered.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   };
 
   const exportAsText = () => {
