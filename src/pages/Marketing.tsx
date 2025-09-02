@@ -111,7 +111,7 @@ const Marketing = () => {
               </h1>
               
               <p className="text-lg md:text-xl text-slate-600 leading-relaxed max-w-lg mx-auto lg:mx-0">
-                The journaling solution for people who can't keep a journal. We've removed all the friction and all your excuses. It's as easy as texting your friend. Type words. Hit send. Done. You're journaling.
+                We've removed all the friction and all your excuses. It's as easy as texting your friend. Type words. Hit send. Done. You're journaling.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
