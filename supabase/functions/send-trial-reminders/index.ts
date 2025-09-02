@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
-import { maskPhone } from './_shared/environment-utils.ts'
+import { createSurgePayload, maskPhone } from '../_shared/environment-utils.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -283,28 +283,13 @@ async function sendTrialReminderSMS(phoneNumber: string, message: string) {
     throw new Error('Surge credentials not configured')
   }
 
-  // Determine environment based on phone number patterns or dev secrets
+  // Determine environment and create Surge payload
   const isDevEnvironment = !!(Deno.env.get('DEV_SUPABASE_URL') && Deno.env.get('SURGE_DEV_PHONE_ID'))
   
-  // Get the appropriate phone number ID based on environment
-  const phoneNumberId = isDevEnvironment 
-    ? Deno.env.get('SURGE_DEV_PHONE_ID') 
-    : Deno.env.get('SURGE_PROD_PHONE_ID')
+  console.log(`[send-trial-reminders] Environment: ${isDevEnvironment ? 'DEV' : 'PROD'}`)
   
-  console.log(`[send-trial-reminders] Environment: ${isDevEnvironment ? 'DEV' : 'PROD'}, Phone ID: ${phoneNumberId}`)
-  
-  const payload = {
-    conversation: {
-      contact: {
-        phone_number: phoneNumber
-      },
-      phone_number: {
-        id: phoneNumberId
-      }
-    },
-    body: message,
-    attachments: []
-  }
+  // Use unified payload creation function
+  const payload = createSurgePayload(phoneNumber, message, isDevEnvironment)
 
   const redactedPayload = { ...payload, conversation: { contact: { phone_number: maskPhone(phoneNumber) } } }
   console.log('Sending trial reminder to Surge API:', JSON.stringify(redactedPayload, null, 2));
