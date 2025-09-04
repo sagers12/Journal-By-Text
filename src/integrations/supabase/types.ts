@@ -754,6 +754,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_current_admin_user_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_next_prompt_for_user: {
         Args: { user_uuid: string }
         Returns: {
@@ -765,6 +769,10 @@ export type Database = {
       get_setting: {
         Args: { p_key: string }
         Returns: string
+      }
+      is_current_user_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       is_verified_admin: {
         Args: Record<PropertyKey, never>
@@ -801,6 +809,10 @@ export type Database = {
       trigger_weekly_recap_system: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      validate_admin_session: {
+        Args: { session_token: string }
+        Returns: boolean
       }
       validate_password_strength: {
         Args: { password: string }
