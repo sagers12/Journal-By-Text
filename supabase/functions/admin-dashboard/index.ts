@@ -286,54 +286,115 @@ async function getSubscribersData(supabaseClient: any, page: number, limit: numb
   const offset = (page - 1) * limit
   const now = new Date()
   
-  // Build query for paid subscribers only
-  let query = supabaseClient
-    .from('subscribers')
-    .select(`
-      id,
-      created_at,
-      updated_at,
-      subscribed,
-      is_trial,
-      profiles!subscribers_user_id_fkey (
-        phone_number,
-        created_at
-      )
-    `)
-    .eq('subscribed', true)
-    .eq('is_trial', false)
-    .order('updated_at', { ascending: false })
-  
-  // Add search filter if provided (search by last 4 digits of phone)
-  if (search) {
-    query = query.ilike('profiles.phone_number', `%${search}`)
-  }
-  
-  // Get total count for pagination
+  // Get total count for pagination first
   const { count: totalCount } = await supabaseClient
     .from('subscribers')
     .select('*', { count: 'exact', head: true })
     .eq('subscribed', true)
     .eq('is_trial', false)
   
-  // Get paginated results
-  const { data: subscribersData, error } = await query
-    .range(offset, offset + limit - 1)
+  // Since there's no foreign key, we need to use RPC or do a manual query
+  // Let's use a direct query with manual join
+  let sqlQuery = `
+    SELECT 
+      s.id,
+      s.created_at,
+      s.updated_at,
+      s.subscribed,
+      s.is_trial,
+      s.user_id,
+      p.phone_number,
+      p.created_at as profile_created_at
+    FROM subscribers s
+    INNER JOIN profiles p ON s.user_id = p.id
+    WHERE s.subscribed = true 
+      AND s.is_trial = false
+      AND p.phone_number IS NOT NULL
+  `
   
-  if (error) {
-    console.error('Error fetching subscribers:', error)
-    throw error
+  // Add search filter if provided
+  if (search) {
+    sqlQuery += ` AND p.phone_number ILIKE '%${search}%'`
   }
   
+  sqlQuery += ` ORDER BY s.updated_at DESC LIMIT ${limit} OFFSET ${offset}`
+  
+  const { data: subscribersData, error } = await supabaseClient.rpc('exec_sql', { 
+    sql: sqlQuery 
+  })
+  
+  // If RPC doesn't work, fall back to separate queries
+  if (error) {
+    console.log('RPC failed, using fallback approach:', error)
+    
+    // Get subscribers first
+    const { data: subs, error: subsError } = await supabaseClient
+      .from('subscribers')
+      .select('id, created_at, updated_at, user_id')
+      .eq('subscribed', true)
+      .eq('is_trial', false)
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+    
+    if (subsError) {
+      console.error('Error fetching subscribers:', subsError)
+      throw subsError
+    }
+    
+    // Get profiles for these subscribers
+    const userIds = (subs || []).map(sub => sub.user_id)
+    if (userIds.length === 0) {
+      return {
+        subscribers: [],
+        totalCount: totalCount || 0,
+        metrics: {
+          totalSubscribers: totalCount || 0,
+          newSubscribersThisMonth: 0,
+          averageDuration: 0
+        }
+      }
+    }
+    
+    const { data: profiles, error: profilesError } = await supabaseClient
+      .from('profiles')
+      .select('id, phone_number, created_at')
+      .in('id', userIds)
+      .not('phone_number', 'is', null)
+    
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError)
+      throw profilesError
+    }
+    
+    // Combine the data
+    const combinedData = (subs || []).map(sub => {
+      const profile = (profiles || []).find(p => p.id === sub.user_id)
+      return {
+        ...sub,
+        profiles: profile ? {
+          phone_number: profile.phone_number,
+          created_at: profile.created_at
+        } : null
+      }
+    }).filter(sub => sub.profiles) // Only include subscribers with profiles
+    
+    return await processSubscribersData(supabaseClient, combinedData, totalCount, now)
+  }
+  
+  return await processSubscribersData(supabaseClient, subscribersData, totalCount, now)
+}
+
+async function processSubscribersData(supabaseClient: any, subscribersData: any[], totalCount: number, now: Date) {
   // Process the data
   const subscribers: SubscriberData[] = (subscribersData || []).map((sub: any) => {
-    const phoneNumber = sub.profiles?.phone_number || ''
+    // Handle both the joined data format and the separate queries format
+    const phoneNumber = sub.profiles?.phone_number || sub.phone_number || ''
     const phone_last_four = phoneNumber.length >= 4 ? phoneNumber.slice(-4) : phoneNumber
     
     return {
       id: sub.id,
       phone_last_four,
-      signup_date: sub.profiles?.created_at || sub.created_at,
+      signup_date: sub.profiles?.created_at || sub.profile_created_at || sub.created_at,
       subscription_date: sub.updated_at // This is when they became a paid subscriber
     }
   })
