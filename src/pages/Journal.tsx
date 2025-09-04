@@ -3,11 +3,18 @@ import { JournalDashboard } from '@/components/JournalDashboard';
 import { SubscriptionBanner } from '@/components/SubscriptionBanner';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
+import { useSEO } from '@/hooks/useSEO';
 import { useEffect } from 'react';
 
 const Journal = () => {
   const { refreshSubscription } = useSubscription();
   const { toast } = useToast();
+
+  useSEO({
+    title: "Journal - Journal By Text",
+    description: "View and manage your SMS journal entries. Access your personal journaling space and search through your entries.",
+    noIndex: true
+  });
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
