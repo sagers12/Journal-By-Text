@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ArrowLeft, Users, UserPlus, Clock, Search, RefreshCw, Download } from 'lucide-react'
+import { ArrowLeft, Users, UserPlus, Clock, Search, RefreshCw, Download, UserX } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useNavigate } from 'react-router-dom'
 
@@ -28,6 +28,7 @@ interface SubscribersMetrics {
   totalSubscribers: number
   newSubscribersThisMonth: number
   averageDuration: number
+  cancelledThisMonth: number
 }
 
 interface SubscribersResponse {
@@ -214,7 +215,7 @@ export default function AdminSubscribers() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Subscribers</CardTitle>
@@ -256,6 +257,21 @@ export default function AdminSubscribers() {
               </div>
               <p className="text-xs text-slate-600">
                 Months subscribed
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Cancelled This Month</CardTitle>
+              <UserX className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                {subscribersData?.metrics.cancelledThisMonth || 0}
+              </div>
+              <p className="text-xs text-slate-600">
+                Cancellations this month
               </p>
             </CardContent>
           </Card>

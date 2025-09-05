@@ -462,13 +462,22 @@ async function processSubscribersData(supabaseClient: any, subscribersData: any[
     averageDuration = Math.round((totalMonths / allSubscribers.length) * 10) / 10
   }
   
+  // Calculate cancellations this month
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const { data: cancellationsThisMonth } = await supabaseClient
+    .from('subscription_events')
+    .select('id', { count: 'exact' })
+    .eq('event_type', 'cancelled')
+    .gte('event_date', thisMonthStart.toISOString())
+
   return {
     subscribers,
     totalCount: totalCount || 0,
     metrics: {
       totalSubscribers,
       newSubscribersThisMonth: newSubscribersThisMonth || 0,
-      averageDuration
+      averageDuration,
+      cancelledThisMonth: cancellationsThisMonth?.length || 0
     }
   }
 }
