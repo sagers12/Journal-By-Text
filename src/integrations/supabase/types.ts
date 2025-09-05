@@ -649,6 +649,36 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_events: {
+        Row: {
+          created_at: string
+          event_date: string
+          event_type: string
+          id: string
+          stripe_subscription_id: string | null
+          subscription_tier: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_date?: string
+          event_type: string
+          id?: string
+          stripe_subscription_id?: string | null
+          subscription_tier?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_date?: string
+          event_type?: string
+          id?: string
+          stripe_subscription_id?: string | null
+          subscription_tier?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           created_at: string

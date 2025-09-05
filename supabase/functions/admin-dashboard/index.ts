@@ -141,6 +141,13 @@ async function calculateMetrics(supabaseClient: any, period: string): Promise<Da
   const now = new Date()
   const { startDate, endDate } = getPeriodDates(period, now)
 
+  // Get subscription events for enhanced metrics
+  const { data: subscriptionEvents } = await supabaseClient
+    .from('subscription_events')
+    .select('*')
+    .gte('event_date', startDate.toISOString())
+    .lte('event_date', endDate.toISOString())
+
   // Paid subscribers count
   const { count: paidSubscribers } = await supabaseClient
     .from('subscribers')
@@ -209,6 +216,27 @@ async function calculateMetrics(supabaseClient: any, period: string): Promise<Da
   const accountVerificationRate = newSignupsCount > 0 ? 
     Math.round((verifiedAccountsCount / newSignupsCount) * 100) : 0
 
+  // Calculate re-subscription metrics
+  const resubscriptionEvents = subscriptionEvents?.filter(e => e.event_type === 'resubscribed') || []
+  const cancellationEvents = subscriptionEvents?.filter(e => e.event_type === 'cancelled') || []
+  const resubscriptionRate = cancellationEvents.length > 0 ? (resubscriptionEvents.length / cancellationEvents.length * 100) : 0
+  
+  // Calculate average subscription duration (for cancelled subscriptions)
+  const { data: cancelledSubscribers } = await supabaseClient
+    .from('subscribers')
+    .select('first_subscription_date, subscription_end')
+    .eq('subscribed', false)
+    .not('first_subscription_date', 'is', null)
+    .not('subscription_end', 'is', null)
+    
+  const totalDuration = (cancelledSubscribers || []).reduce((sum, sub) => {
+    const startDate = new Date(sub.first_subscription_date)
+    const endDate = new Date(sub.subscription_end)
+    return sum + (endDate.getTime() - startDate.getTime())
+  }, 0)
+  const avgSubscriptionDays = (cancelledSubscribers?.length || 0) > 0 ? 
+    Math.round(totalDuration / ((cancelledSubscribers?.length || 1) * 24 * 60 * 60 * 1000)) : 0
+
   return {
     paidSubscribers: paidSubscribers || 0,
     trialUsers: trialUsers || 0,
@@ -222,7 +250,11 @@ async function calculateMetrics(supabaseClient: any, period: string): Promise<Da
       count: newSignupsCount || 0,
       period
     },
-    accountVerificationRate
+    accountVerificationRate,
+    resubscriptionRate: Math.round(resubscriptionRate * 100) / 100,
+    avgSubscriptionDays,
+    totalCancellations: cancellationEvents.length,
+    totalResubscriptions: resubscriptionEvents.length
   }
 }
 

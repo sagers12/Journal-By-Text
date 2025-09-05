@@ -68,7 +68,15 @@ serve(async (req) => {
           }
         }
 
+        // Get existing subscriber to check if this is a resubscription
+        const { data: existingSubscriber } = await supabaseClient
+          .from("subscribers")
+          .select('user_id, subscribed, first_subscription_date')
+          .eq('email', customer.email)
+          .single();
+
         const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+        const isResubscription = existingSubscriber && !existingSubscriber.subscribed && subscription.status === 'active';
         
         const { error } = await supabaseClient
           .from("subscribers")
@@ -78,11 +86,33 @@ serve(async (req) => {
             subscribed: subscription.status === 'active',
             subscription_tier: subscriptionTier,
             subscription_end: subscriptionEnd,
+            first_subscription_date: existingSubscriber?.first_subscription_date || (subscription.status === 'active' ? new Date().toISOString() : undefined),
             is_trial: false, // No longer on trial once subscribed
             updated_at: new Date().toISOString(),
           }, { onConflict: 'email' });
 
         if (error) throw error;
+
+        // Record subscription event
+        if (existingSubscriber?.user_id && subscription.status === 'active') {
+          const eventType = isResubscription ? 'resubscribed' : 'subscribed';
+          const { error: eventError } = await supabaseClient
+            .from('subscription_events')
+            .insert({
+              user_id: existingSubscriber.user_id,
+              event_type: eventType,
+              subscription_tier: subscriptionTier,
+              stripe_subscription_id: subscription.id,
+              event_date: new Date().toISOString()
+            });
+
+          if (eventError) {
+            logStep('Error recording subscription event', { error: eventError });
+          } else {
+            logStep('Subscription event recorded', { eventType, userId: existingSubscriber.user_id });
+          }
+        }
+
         logStep("Subscription updated", { email: customer.email, tier: subscriptionTier });
         break;
       }
@@ -95,6 +125,15 @@ serve(async (req) => {
           throw new Error("Customer email not found");
         }
 
+        // Get subscriber info for event recording
+        const { data: cancelledSubscriber } = await supabaseClient
+          .from("subscribers")
+          .select('user_id, subscription_tier')
+          .eq('email', customer.email)
+          .single();
+
+        // Set subscription_end to the cancellation date (preserve for duration calculations)
+        const cancellationDate = new Date().toISOString();
         const { error } = await supabaseClient
           .from("subscribers")
           .upsert({
@@ -102,12 +141,32 @@ serve(async (req) => {
             stripe_customer_id: customer.id,
             subscribed: false,
             subscription_tier: null,
-            subscription_end: null,
+            subscription_end: cancellationDate, // Keep the cancellation date instead of null
             is_trial: false, // They had a subscription, so no more trial
-            updated_at: new Date().toISOString(),
+            updated_at: cancellationDate,
           }, { onConflict: 'email' });
 
         if (error) throw error;
+
+        // Record cancellation event
+        if (cancelledSubscriber?.user_id) {
+          const { error: eventError } = await supabaseClient
+            .from('subscription_events')
+            .insert({
+              user_id: cancelledSubscriber.user_id,
+              event_type: 'cancelled',
+              subscription_tier: cancelledSubscriber.subscription_tier,
+              stripe_subscription_id: subscription.id,
+              event_date: cancellationDate
+            });
+
+          if (eventError) {
+            logStep('Error recording cancellation event', { error: eventError });
+          } else {
+            logStep('Cancellation event recorded', { userId: cancelledSubscriber.user_id });
+          }
+        }
+
         logStep("Subscription cancelled", { email: customer.email });
         break;
       }

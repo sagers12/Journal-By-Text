@@ -154,7 +154,31 @@ serve(async (req) => {
       logStep("Setting first_subscription_date for new subscriber", { email: user.email });
     }
 
+    // Check if this is a resubscription (user had subscription before but was cancelled)
+    const isResubscription = currentSubscriber && !currentSubscriber.subscribed && hasActiveSub;
+
     await supabaseClient.from("subscribers").upsert(updateData, { onConflict: 'email' });
+
+    // Record subscription event if user has active subscription
+    if (hasActiveSub && subscriptions.data.length > 0) {
+      const subscription = subscriptions.data[0];
+      const eventType = isResubscription ? 'resubscribed' : 'subscribed';
+      const { error: eventError } = await supabaseClient
+        .from('subscription_events')
+        .insert({
+          user_id: user.id,
+          event_type: eventType,
+          subscription_tier: subscriptionTier,
+          stripe_subscription_id: subscription.id,
+          event_date: new Date().toISOString()
+        });
+
+      if (eventError) {
+        logStep("Error recording subscription event", { error: eventError });
+      } else {
+        logStep("Subscription event recorded", { eventType, userId: user.id });
+      }
+    }
 
     logStep("Updated database with subscription info", { subscribed: hasActiveSub, subscriptionTier });
     return new Response(JSON.stringify({
