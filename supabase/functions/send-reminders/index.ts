@@ -301,10 +301,10 @@ async function sendReminderSMS(phoneNumber: string, prompt: string) {
   const message = `Here's a friendly reminder to journal today! Not sure what to write about? Here's a prompt: ${prompt}`
 
   // Updated payload structure to match working signup function
-  // Use production phone number ID
-  const phoneNumberId = Deno.env.get('SURGE_PROD_PHONE_ID')
+  // Use phone number ID
+  const phoneNumberId = Deno.env.get('SURGE_PHONE_NUMBER')
   
-  console.log('[send-reminders] Using production environment, Phone ID:', phoneNumberId)
+  console.log('[send-reminders] Using phone number ID:', phoneNumberId)
   
   const payload = {
     conversation: {
