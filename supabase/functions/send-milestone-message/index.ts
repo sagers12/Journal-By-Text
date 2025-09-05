@@ -127,8 +127,8 @@ serve(async (req) => {
 
 async function sendMilestoneSMS(phoneNumber: string, message: string, surgeApiToken: string, surgeAccountId: string) {
   // Use the EXACT SAME payload structure as working reminders
-  // Use production phone number ID
-  const phoneNumberId = Deno.env.get('SURGE_PROD_PHONE_ID')
+  // Use phone number ID
+  const phoneNumberId = Deno.env.get('SURGE_PHONE_NUMBER')
   
   console.log('[send-milestone-message] Using production environment, Phone ID:', phoneNumberId)
   

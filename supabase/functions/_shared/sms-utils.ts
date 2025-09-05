@@ -22,7 +22,7 @@ export function createSurgePayload(
         phone_number: recipientPhoneNumber
       },
       phone_number: {
-        id: Deno.env.get('SURGE_PROD_PHONE_ID') || ''
+        id: Deno.env.get('SURGE_PHONE_NUMBER') || ''
       }
     },
     body: messageBody,
