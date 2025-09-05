@@ -387,37 +387,7 @@ async function getSubscribersData(supabaseClient: any, page: number, limit: numb
   }).filter(sub => sub.profiles) // Only include subscribers with profiles
   
   return await processSubscribersData(supabaseClient, combinedData, totalCount, now)
-        subscribers: [],
-        totalCount: totalCount || 0,
-        metrics: {
-          totalSubscribers: totalCount || 0,
-          newSubscribersThisMonth: 0,
-          averageDuration: 0
-        }
-      }
-    }
-    
-    const { data: profiles, error: profilesError } = await supabaseClient
-      .from('profiles')
-      .select('id, phone_number, created_at')
-      .in('id', userIds)
-      .not('phone_number', 'is', null)
-    
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError)
-      throw profilesError
-    }
-    
-    // Combine the data
-    const combinedData = (subs || []).map(sub => {
-      const profile = (profiles || []).find(p => p.id === sub.user_id)
-      return {
-        ...sub,
-        profiles: profile ? {
-          phone_number: profile.phone_number,
-          created_at: profile.created_at
-        } : null
-      }
+}
     }).filter(sub => sub.profiles) // Only include subscribers with profiles
     
     return await processSubscribersData(supabaseClient, combinedData, totalCount, now)
