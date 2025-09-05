@@ -124,7 +124,15 @@ serve(async (req) => {
       logStep("No active subscription found");
     }
 
-    await supabaseClient.from("subscribers").upsert({
+    // Get current subscriber data to check if this is their first subscription
+    const { data: currentSubscriber } = await supabaseClient
+      .from("subscribers")
+      .select("first_subscription_date, subscribed")
+      .eq("email", user.email)
+      .single();
+
+    // Prepare the update object
+    const updateData: any = {
       email: user.email,
       user_id: user.id,
       stripe_customer_id: customerId,
@@ -133,7 +141,20 @@ serve(async (req) => {
       subscription_end: subscriptionEnd,
       is_trial: hasActiveSub ? false : undefined, // Once subscribed, no longer on trial
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'email' });
+    };
+
+    // Only set first_subscription_date if:
+    // 1. User is newly subscribing (hasActiveSub = true)
+    // 2. They don't already have a first_subscription_date
+    // 3. They weren't previously subscribed
+    if (hasActiveSub && 
+        (!currentSubscriber?.first_subscription_date) && 
+        (!currentSubscriber?.subscribed)) {
+      updateData.first_subscription_date = new Date().toISOString();
+      logStep("Setting first_subscription_date for new subscriber", { email: user.email });
+    }
+
+    await supabaseClient.from("subscribers").upsert(updateData, { onConflict: 'email' });
 
     logStep("Updated database with subscription info", { subscribed: hasActiveSub, subscriptionTier });
     return new Response(JSON.stringify({

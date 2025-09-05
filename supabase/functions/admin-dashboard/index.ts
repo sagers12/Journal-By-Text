@@ -300,6 +300,7 @@ async function getSubscribersData(supabaseClient: any, page: number, limit: numb
       s.id,
       s.created_at,
       s.updated_at,
+      s.first_subscription_date,
       s.subscribed,
       s.is_trial,
       s.user_id,
@@ -330,10 +331,10 @@ async function getSubscribersData(supabaseClient: any, page: number, limit: numb
     // Get subscribers first
     const { data: subs, error: subsError } = await supabaseClient
       .from('subscribers')
-      .select('id, created_at, updated_at, user_id')
+      .select('id, created_at, updated_at, first_subscription_date, user_id')
       .eq('subscribed', true)
       .eq('is_trial', false)
-      .order('updated_at', { ascending: false })
+      .order('first_subscription_date', { ascending: false })
       .range(offset, offset + limit - 1)
     
     if (subsError) {
@@ -395,33 +396,34 @@ async function processSubscribersData(supabaseClient: any, subscribersData: any[
       id: sub.id,
       phone_last_four,
       signup_date: sub.profiles?.created_at || sub.profile_created_at || sub.created_at,
-      subscription_date: sub.updated_at // This is when they became a paid subscriber
+      subscription_date: sub.first_subscription_date || sub.updated_at // Use first_subscription_date, fallback to updated_at
     }
   })
   
   // Calculate metrics
   const totalSubscribers = totalCount || 0
   
-  // New subscribers this month
+  // New subscribers this month (based on first subscription date)
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
   const { count: newSubscribersThisMonth } = await supabaseClient
     .from('subscribers')
     .select('*', { count: 'exact', head: true })
     .eq('subscribed', true)
     .eq('is_trial', false)
-    .gte('updated_at', thisMonthStart.toISOString())
+    .gte('first_subscription_date', thisMonthStart.toISOString())
   
-  // Calculate average duration (in months)
+  // Calculate average duration (in months) based on first subscription date
   const { data: allSubscribers } = await supabaseClient
     .from('subscribers')
-    .select('updated_at')
+    .select('first_subscription_date, updated_at')
     .eq('subscribed', true)
     .eq('is_trial', false)
   
   let averageDuration = 0
   if (allSubscribers && allSubscribers.length > 0) {
     const totalMonths = allSubscribers.reduce((acc: number, sub: any) => {
-      const subscriptionDate = new Date(sub.updated_at)
+      // Use first_subscription_date if available, fallback to updated_at
+      const subscriptionDate = new Date(sub.first_subscription_date || sub.updated_at)
       const monthsDiff = (now.getTime() - subscriptionDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44) // Average days per month
       return acc + Math.max(monthsDiff, 0)
     }, 0)
