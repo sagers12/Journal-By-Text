@@ -20,6 +20,12 @@ interface WeeklyRecapHistory {
   entry_count: number;
 }
 
+// Function to mask phone number for logging purposes  
+function maskPhone(phone: string): string {
+  if (!phone || phone.length < 4) return phone;
+  return '*'.repeat(phone.length - 4) + phone.slice(-4);
+}
+
 // Function to format phone number to international format (same as reminders)
 function formatPhoneNumber(phoneNumber: string): string {
   // Remove any non-digit characters
@@ -346,8 +352,8 @@ try {
 
 async function sendWeeklyRecapSMS(phoneNumber: string, message: string, surgeApiToken: string, surgeAccountId: string) {
   // Use the EXACT SAME payload structure as working reminders
-  // Use production phone number ID
-  const phoneNumberId = Deno.env.get('SURGE_PROD_PHONE_ID')
+  // Use production phone number
+  const phoneNumberId = Deno.env.get('SURGE_PHONE_NUMBER')
   
   console.log('[send-weekly-recap] Using production environment, Phone ID:', phoneNumberId)
   

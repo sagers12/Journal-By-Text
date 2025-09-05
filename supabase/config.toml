@@ -5,3 +5,15 @@ verify_jwt = false
 
 [functions.send-reminders]
 verify_jwt = false
+
+[functions.send-weekly-recap]
+verify_jwt = false
+
+[functions.send-trial-reminders]
+verify_jwt = false
+
+[functions.send-milestone-message]
+verify_jwt = false
+
+[functions.send-signup-confirmation]
+verify_jwt = false
