@@ -387,12 +387,6 @@ async function getSubscribersData(supabaseClient: any, page: number, limit: numb
   }).filter(sub => sub.profiles) // Only include subscribers with profiles
   
   return await processSubscribersData(supabaseClient, combinedData, totalCount, now)
-}
-    }).filter(sub => sub.profiles) // Only include subscribers with profiles
-    
-    return await processSubscribersData(supabaseClient, combinedData, totalCount, now)
-  }
-  
   return await processSubscribersData(supabaseClient, subscribersData, totalCount, now)
 }
 
