@@ -325,59 +325,68 @@ async function getSubscribersData(supabaseClient: any, page: number, limit: numb
     .eq('subscribed', true)
     .eq('is_trial', false)
   
-  // Since there's no foreign key, we need to use RPC or do a manual query
-  // Let's use a direct query with manual join
-  let sqlQuery = `
-    SELECT 
-      s.id,
-      s.created_at,
-      s.updated_at,
-      s.first_subscription_date,
-      s.subscribed,
-      s.is_trial,
-      s.user_id,
-      p.phone_number,
-      p.created_at as profile_created_at
-    FROM subscribers s
-    INNER JOIN profiles p ON s.user_id = p.id
-    WHERE s.subscribed = true 
-      AND s.is_trial = false
-      AND p.phone_number IS NOT NULL
-  `
+  // Get subscribers first
+  let query = supabaseClient
+    .from('subscribers')
+    .select('id, created_at, updated_at, first_subscription_date, user_id')
+    .eq('subscribed', true)
+    .eq('is_trial', false)
+    .order('first_subscription_date', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  const { data: subs, error: subsError } = await query
   
-  // Add search filter if provided
-  if (search) {
-    sqlQuery += ` AND p.phone_number ILIKE '%${search}%'`
+  if (subsError) {
+    console.error('Error fetching subscribers:', subsError)
+    throw subsError
   }
   
-  sqlQuery += ` ORDER BY s.updated_at DESC LIMIT ${limit} OFFSET ${offset}`
-  
-  const { data: subscribersData, error } = await supabaseClient.rpc('exec_sql', { 
-    sql: sqlQuery 
-  })
-  
-  // If RPC doesn't work, fall back to separate queries
-  if (error) {
-    console.log('RPC failed, using fallback approach:', error)
-    
-    // Get subscribers first
-    const { data: subs, error: subsError } = await supabaseClient
-      .from('subscribers')
-      .select('id, created_at, updated_at, first_subscription_date, user_id')
-      .eq('subscribed', true)
-      .eq('is_trial', false)
-      .order('first_subscription_date', { ascending: false })
-      .range(offset, offset + limit - 1)
-    
-    if (subsError) {
-      console.error('Error fetching subscribers:', subsError)
-      throw subsError
+  // Get profiles for these subscribers
+  const userIds = (subs || []).map(sub => sub.user_id)
+  if (userIds.length === 0) {
+    return {
+      subscribers: [],
+      totalCount: totalCount || 0,
+      metrics: {
+        totalSubscribers: totalCount || 0,
+        newSubscribersThisMonth: 0,
+        averageDuration: 0,
+        cancelledThisMonth: 0
+      }
     }
-    
-    // Get profiles for these subscribers
-    const userIds = (subs || []).map(sub => sub.user_id)
-    if (userIds.length === 0) {
-      return {
+  }
+  
+  let profilesQuery = supabaseClient
+    .from('profiles')
+    .select('id, phone_number, created_at')
+    .in('id', userIds)
+    .not('phone_number', 'is', null)
+
+  // Add search filter if provided
+  if (search) {
+    profilesQuery = profilesQuery.ilike('phone_number', `%${search}%`)
+  }
+  
+  const { data: profiles, error: profilesError } = await profilesQuery
+  
+  if (profilesError) {
+    console.error('Error fetching profiles:', profilesError)
+    throw profilesError
+  }
+  
+  // Combine the data
+  const combinedData = (subs || []).map(sub => {
+    const profile = (profiles || []).find(p => p.id === sub.user_id)
+    return {
+      ...sub,
+      profiles: profile ? {
+        phone_number: profile.phone_number,
+        created_at: profile.created_at
+      } : null
+    }
+  }).filter(sub => sub.profiles) // Only include subscribers with profiles
+  
+  return await processSubscribersData(supabaseClient, combinedData, totalCount, now)
         subscribers: [],
         totalCount: totalCount || 0,
         metrics: {
