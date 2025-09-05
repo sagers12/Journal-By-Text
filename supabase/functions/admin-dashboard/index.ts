@@ -20,6 +20,10 @@ interface DashboardMetrics {
     period: string
   }
   accountVerificationRate: number
+  resubscriptionRate: number
+  avgSubscriptionDays: number
+  totalCancellations: number
+  totalResubscriptions: number
 }
 
 interface SubscriberData {
@@ -36,6 +40,7 @@ interface SubscribersResponse {
     totalSubscribers: number
     newSubscribersThisMonth: number
     averageDuration: number
+    cancelledThisMonth: number
   }
 }
 
@@ -387,7 +392,6 @@ async function getSubscribersData(supabaseClient: any, page: number, limit: numb
   }).filter(sub => sub.profiles) // Only include subscribers with profiles
   
   return await processSubscribersData(supabaseClient, combinedData, totalCount, now)
-  return await processSubscribersData(supabaseClient, subscribersData, totalCount, now)
 }
 
 async function processSubscribersData(supabaseClient: any, subscribersData: any[], totalCount: number, now: Date) {
@@ -435,11 +439,10 @@ async function processSubscribersData(supabaseClient: any, subscribersData: any[
     averageDuration = Math.round((totalMonths / allSubscribers.length) * 10) / 10
   }
   
-  // Calculate cancellations this month
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const { data: cancellationsThisMonth } = await supabaseClient
+  // Calculate cancellations this month  
+  const { count: cancellationsThisMonth } = await supabaseClient
     .from('subscription_events')
-    .select('id', { count: 'exact' })
+    .select('*', { count: 'exact', head: true })
     .eq('event_type', 'cancelled')
     .gte('event_date', thisMonthStart.toISOString())
 
@@ -450,7 +453,7 @@ async function processSubscribersData(supabaseClient: any, subscribersData: any[
       totalSubscribers,
       newSubscribersThisMonth: newSubscribersThisMonth || 0,
       averageDuration,
-      cancelledThisMonth: cancellationsThisMonth?.length || 0
+      cancelledThisMonth: cancellationsThisMonth || 0
     }
   }
 }
