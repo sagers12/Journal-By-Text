@@ -14,6 +14,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ArrowLeft, UserCheck, UserPlus, Clock, AlertTriangle, Search, RefreshCw, Download, Calendar } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { useNavigate } from 'react-router-dom'
 
@@ -49,6 +51,7 @@ export default function AdminTrialUsers() {
   const [refreshing, setRefreshing] = useState(false)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [showExpired, setShowExpired] = useState(false)
   const limit = 50
 
   // Add noindex meta tag
@@ -71,6 +74,7 @@ export default function AdminTrialUsers() {
       const searchParams = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
+        status: showExpired ? 'expired' : 'active',
         ...(search && { search })
       })
 
@@ -145,7 +149,7 @@ export default function AdminTrialUsers() {
 
   useEffect(() => {
     fetchTrialUsers()
-  }, [page])
+  }, [page, showExpired])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -367,7 +371,7 @@ export default function AdminTrialUsers() {
               <div>
                 <CardTitle>Trial List</CardTitle>
                 <CardDescription>
-                  {trialUsersData?.totalCount || 0} active trial users
+                  {trialUsersData?.totalCount || 0} {showExpired ? 'expired' : 'active'} trial users
                 </CardDescription>
               </div>
               
@@ -388,6 +392,18 @@ export default function AdminTrialUsers() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Toggle for Active/Expired */}
+            <div className="flex items-center space-x-2 mb-6">
+              <Switch
+                id="show-expired"
+                checked={showExpired}
+                onCheckedChange={setShowExpired}
+              />
+              <Label htmlFor="show-expired" className="text-sm font-medium">
+                Show expired trials
+              </Label>
+            </div>
+            
             <div className="rounded-md border">
               <Table>
                 <TableHeader>

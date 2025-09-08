@@ -153,8 +153,9 @@ serve(async (req) => {
       const page = parseInt(url.searchParams.get('page') || '1')
       const limit = parseInt(url.searchParams.get('limit') || '50')
       const search = url.searchParams.get('search') || ''
+      const status = url.searchParams.get('status') || 'active'
       
-      const trialUsersData = await getTrialUsersData(supabaseClient, page, limit, search)
+      const trialUsersData = await getTrialUsersData(supabaseClient, page, limit, search, status)
       
       return new Response(
         JSON.stringify({ success: true, data: trialUsersData }),
@@ -492,24 +493,28 @@ async function processSubscribersData(supabaseClient: any, subscribersData: any[
   }
 }
 
-async function getTrialUsersData(supabaseClient: any, page: number, limit: number, search: string): Promise<TrialUsersResponse> {
+async function getTrialUsersData(supabaseClient: any, page: number, limit: number, search: string, status = 'active'): Promise<TrialUsersResponse> {
   const offset = (page - 1) * limit
   const now = new Date()
+  
+  // Determine query filter based on status
+  const isExpired = status === 'expired'
+  const trialFilter = isExpired ? 'lt' : 'gt'
   
   // Get total count for pagination
   const { count: totalCount } = await supabaseClient
     .from('subscribers')
     .select('*', { count: 'exact', head: true })
     .eq('is_trial', true)
-    .gt('trial_end', now.toISOString())
+    [trialFilter]('trial_end', now.toISOString())
   
   // Get trial users
   let query = supabaseClient
     .from('subscribers')
     .select('id, created_at, trial_end, user_id')
     .eq('is_trial', true)
-    .gt('trial_end', now.toISOString())
-    .order('trial_end', { ascending: true })
+    [trialFilter]('trial_end', now.toISOString())
+    .order('trial_end', { ascending: isExpired ? false : true })
     .range(offset, offset + limit - 1)
 
   const { data: subs, error: subsError } = await query
