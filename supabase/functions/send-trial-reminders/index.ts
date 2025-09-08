@@ -98,20 +98,21 @@ serve(async (req) => {
         const subscription = user.subscribers[0] // We know there's exactly one due to the query
         const userTimezone = user.timezone || user.reminder_timezone || 'America/New_York'
 
-        // Convert dates to user's timezone for proper trial day calculation
-        const trialStartUTC = DateTime.fromISO(subscription.created_at, { zone: 'utc' })
-        const trialEndUTC = DateTime.fromISO(subscription.trial_end, { zone: 'utc' })
+        const zone = userTimezone;
 
-        const trialStartLocal = trialStartUTC.setZone(userTimezone).startOf('day')
-        const trialEndLocal = trialEndUTC.setZone(userTimezone).startOf('day') 
-        const nowLocal = nowUTC.setZone(userTimezone)
+        // Local "calendar day" anchors
+        const startLocalDay = DateTime.fromISO(subscription.created_at, { zone: 'utc' })
+          .setZone(zone).startOf('day');
 
-        // Calculate trial day based on user's timezone
-        const totalTrialDays = Math.ceil(trialEndLocal.diff(trialStartLocal, 'days').days)
-        const daysSinceStart = Math.floor(nowLocal.startOf('day').diff(trialStartLocal, 'days').days)
-        const daysRemaining = totalTrialDays - daysSinceStart
+        const endLocalDay = DateTime.fromISO(subscription.trial_end, { zone: 'utc' })
+          .setZone(zone).startOf('day');
 
-        console.log(`User ${user.id}: ${daysRemaining} days remaining (timezone: ${userTimezone})`)
+        const todayLocalDay = nowUTC.setZone(zone).startOf('day');
+
+        // Remaining whole days = how many midnights are left including today's remaining hours
+        const daysRemaining = Math.max(0, Math.floor(endLocalDay.diff(todayLocalDay, 'days').days));
+
+        console.log(`User ${user.id}: daysRemaining=${daysRemaining} (tz: ${zone})`)
 
         // Only send reminders for 4, 3, 2, and 1 days remaining
         const reminderDays = [4, 3, 2, 1]
@@ -121,35 +122,29 @@ serve(async (req) => {
         }
 
         // Only send between 1 PM and 4 PM in user's timezone
+        const nowLocal = nowUTC.setZone(zone)
         const currentHour = nowLocal.hour
         if (currentHour < 13 || currentHour >= 16) {
-          console.log(`User ${user.id}: Outside reminder window (${nowLocal.toFormat('HH:mm')} in ${userTimezone})`)
+          console.log(`User ${user.id}: Outside reminder window (${nowLocal.toFormat('HH:mm')} in ${zone})`)
           continue
         }
 
         // INSERT-THEN-SEND: Try to insert reminder record first (idempotent due to unique constraint)
-        try {
-          const { error: insertError } = await supabaseClient
-            .from('trial_reminder_history')
-            .insert({
-              user_id: user.id,
-              trial_day: daysRemaining,
-              sent_at: nowUTC.toISO()
-            })
+        const { data: insData, error: insertError } = await supabaseClient
+          .from('trial_reminder_history')
+          .insert({ user_id: user.id, trial_day: daysRemaining }) // don't set sent_at yet
+          .onConflict('user_id,trial_day')
+          .ignore();
 
-          if (insertError) {
-            // If we get a unique constraint violation, it means reminder was already sent
-            if (insertError.code === '23505') { // unique_violation
-              console.log(`User ${user.id}: Reminder already sent for ${daysRemaining} days remaining - skipping`)
-              continue
-            } else {
-              console.error(`User ${user.id}: Error recording reminder:`, insertError)
-              continue
-            }
-          }
-        } catch (dbError) {
-          console.error(`User ${user.id}: Database error:`, dbError)
-          continue
+        if (insertError) {
+          console.error(`User ${user.id}: Insert error`, insertError);
+          continue; // bail safely
+        }
+
+        // If nothing inserted (conflict), skip sending
+        if (!insData || insData.length === 0) {
+          console.log(`User ${user.id}: Reminder already recorded for ${daysRemaining} days remaining - skipping`);
+          continue;
         }
 
         // If we got here, the insert was successful, so send the SMS
@@ -168,12 +163,19 @@ serve(async (req) => {
           const formattedPhoneNumber = formatPhoneNumber(user.phone_number)
           await sendTrialReminderSMS(formattedPhoneNumber, message)
 
+          // Update sent_at after successful SMS
+          await supabaseClient
+            .from('trial_reminder_history')
+            .update({ sent_at: nowUTC.toISO() })
+            .eq('user_id', user.id)
+            .eq('trial_day', daysRemaining);
+
           remindersSent.push({
             userId: user.id,
             email: subscription.email,
             phone: maskPhone(user.phone_number),
             trialDaysRemaining: daysRemaining,
-            timezone: userTimezone,
+            timezone: zone,
             message: message
           })
 
