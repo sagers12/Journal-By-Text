@@ -44,6 +44,27 @@ interface SubscribersResponse {
   }
 }
 
+interface TrialUserData {
+  id: string
+  phone_last_four: string
+  signup_date: string
+  trial_end: string
+}
+
+interface TrialUsersResponse {
+  trialUsers: TrialUserData[]
+  totalCount: number
+  metrics: {
+    newTrialsToday: number
+    activeTrialUsers: number
+    endingToday: number
+    endingIn1Day: number
+    endingIn2Days: number
+    endingIn3Days: number
+    expiredThisMonth: number
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -124,6 +145,19 @@ serve(async (req) => {
       
       return new Response(
         JSON.stringify({ success: true, data: subscribersData }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (action === 'trial-users') {
+      const page = parseInt(url.searchParams.get('page') || '1')
+      const limit = parseInt(url.searchParams.get('limit') || '50')
+      const search = url.searchParams.get('search') || ''
+      
+      const trialUsersData = await getTrialUsersData(supabaseClient, page, limit, search)
+      
+      return new Response(
+        JSON.stringify({ success: true, data: trialUsersData }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -455,5 +489,168 @@ async function processSubscribersData(supabaseClient: any, subscribersData: any[
       averageDuration,
       cancelledThisMonth: cancellationsThisMonth || 0
     }
+  }
+}
+
+async function getTrialUsersData(supabaseClient: any, page: number, limit: number, search: string): Promise<TrialUsersResponse> {
+  const offset = (page - 1) * limit
+  const now = new Date()
+  
+  // Get total count for pagination
+  const { count: totalCount } = await supabaseClient
+    .from('subscribers')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_trial', true)
+    .gt('trial_end', now.toISOString())
+  
+  // Get trial users
+  let query = supabaseClient
+    .from('subscribers')
+    .select('id, created_at, trial_end, user_id')
+    .eq('is_trial', true)
+    .gt('trial_end', now.toISOString())
+    .order('trial_end', { ascending: true })
+    .range(offset, offset + limit - 1)
+
+  const { data: subs, error: subsError } = await query
+  
+  if (subsError) {
+    console.error('Error fetching trial users:', subsError)
+    throw subsError
+  }
+  
+  // Get profiles for these trial users
+  const userIds = (subs || []).map(sub => sub.user_id)
+  if (userIds.length === 0) {
+    return {
+      trialUsers: [],
+      totalCount: totalCount || 0,
+      metrics: await calculateTrialMetrics(supabaseClient, now)
+    }
+  }
+  
+  let profilesQuery = supabaseClient
+    .from('profiles')
+    .select('id, phone_number, created_at')
+    .in('id', userIds)
+    .not('phone_number', 'is', null)
+
+  // Add search filter if provided
+  if (search) {
+    profilesQuery = profilesQuery.ilike('phone_number', `%${search}%`)
+  }
+  
+  const { data: profiles, error: profilesError } = await profilesQuery
+  
+  if (profilesError) {
+    console.error('Error fetching profiles:', profilesError)
+    throw profilesError
+  }
+  
+  // Combine the data
+  const combinedData = (subs || []).map(sub => {
+    const profile = (profiles || []).find(p => p.id === sub.user_id)
+    return {
+      ...sub,
+      profiles: profile ? {
+        phone_number: profile.phone_number,
+        created_at: profile.created_at
+      } : null
+    }
+  }).filter(sub => sub.profiles) // Only include trial users with profiles
+  
+  // Process the data
+  const trialUsers: TrialUserData[] = combinedData.map((sub: any) => {
+    const phoneNumber = sub.profiles.phone_number || ''
+    const phone_last_four = phoneNumber.length >= 4 ? phoneNumber.slice(-4) : phoneNumber
+    
+    return {
+      id: sub.id,
+      phone_last_four,
+      signup_date: sub.profiles.created_at || sub.created_at,
+      trial_end: sub.trial_end
+    }
+  })
+  
+  const metrics = await calculateTrialMetrics(supabaseClient, now)
+  
+  return {
+    trialUsers,
+    totalCount: totalCount || 0,
+    metrics
+  }
+}
+
+async function calculateTrialMetrics(supabaseClient: any, now: Date) {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+  const in2Days = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000)
+  const in3Days = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000)
+  const in4Days = new Date(today.getTime() + 4 * 24 * 60 * 60 * 1000)
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  
+  // New trials today
+  const { count: newTrialsToday } = await supabaseClient
+    .from('subscribers')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_trial', true)
+    .gte('created_at', today.toISOString())
+    .lt('created_at', tomorrow.toISOString())
+  
+  // Active trial users
+  const { count: activeTrialUsers } = await supabaseClient
+    .from('subscribers')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_trial', true)
+    .gt('trial_end', now.toISOString())
+  
+  // Ending today
+  const { count: endingToday } = await supabaseClient
+    .from('subscribers')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_trial', true)
+    .gte('trial_end', today.toISOString())
+    .lt('trial_end', tomorrow.toISOString())
+  
+  // Ending in 1 day
+  const { count: endingIn1Day } = await supabaseClient
+    .from('subscribers')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_trial', true)
+    .gte('trial_end', tomorrow.toISOString())
+    .lt('trial_end', in2Days.toISOString())
+  
+  // Ending in 2 days
+  const { count: endingIn2Days } = await supabaseClient
+    .from('subscribers')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_trial', true)
+    .gte('trial_end', in2Days.toISOString())
+    .lt('trial_end', in3Days.toISOString())
+  
+  // Ending in 3 days
+  const { count: endingIn3Days } = await supabaseClient
+    .from('subscribers')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_trial', true)
+    .gte('trial_end', in3Days.toISOString())
+    .lt('trial_end', in4Days.toISOString())
+  
+  // Expired trials this month
+  const { count: expiredThisMonth } = await supabaseClient
+    .from('subscribers')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_trial', true)
+    .gte('trial_end', thisMonthStart.toISOString())
+    .lt('trial_end', now.toISOString())
+  
+  return {
+    newTrialsToday: newTrialsToday || 0,
+    activeTrialUsers: activeTrialUsers || 0,
+    endingToday: endingToday || 0,
+    endingIn1Day: endingIn1Day || 0,
+    endingIn2Days: endingIn2Days || 0,
+    endingIn3Days: endingIn3Days || 0,
+    expiredThisMonth: expiredThisMonth || 0
   }
 }
