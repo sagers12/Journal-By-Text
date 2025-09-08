@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
+import { DateTime } from 'https://esm.sh/luxon@3.4.4'
 import { createSurgePayload, maskPhone } from '../_shared/sms-utils.ts'
 
 const corsHeaders = {
@@ -26,7 +27,6 @@ function formatPhoneNumber(phoneNumber: string): string {
   
   return `+1${digitsOnly}`;
 }
-
 
 serve(async (req) => {
   console.log('=== SEND TRIAL REMINDERS FUNCTION CALLED ===')
@@ -57,152 +57,136 @@ serve(async (req) => {
 
     console.log('Starting trial reminder check process...')
 
-    // Get users with verified phones (using same pattern as working reminders)
-    const { data: profiles, error: profileError } = await supabaseClient
+    // Fetch users with active trials in a single query (more efficient)
+    const { data: usersWithTrials, error: fetchError } = await supabaseClient
       .from('profiles')
-      .select('id, phone_number, reminder_timezone')
-      .eq('phone_verified', true)
+      .select(`
+        id, 
+        phone_number, 
+        timezone,
+        reminder_timezone,
+        subscribers!inner(trial_end, created_at, is_trial, email)
+      `)
       .not('phone_number', 'is', null)
+      .eq('phone_verified', true)
+      .eq('subscribers.is_trial', true)
+      .gt('subscribers.trial_end', new Date().toISOString())
 
-    if (profileError) {
-      console.error('Error fetching profiles:', profileError)
-      return new Response(JSON.stringify({ error: 'Failed to fetch profiles' }), {
+    if (fetchError) {
+      console.error('Error fetching users with trials:', fetchError)
+      return new Response(JSON.stringify({ error: 'Failed to fetch users with trials' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    console.log(`Found ${profiles?.length || 0} profiles to check`)
+    console.log(`Found ${usersWithTrials?.length || 0} users with active trials`)
 
-    if (!profiles || profiles.length === 0) {
-      return new Response(JSON.stringify({ message: 'No profiles found' }), {
+    if (!usersWithTrials || usersWithTrials.length === 0) {
+      return new Response(JSON.stringify({ message: 'No users with active trials found' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
     const remindersSent = []
-    const now = new Date()
+    const nowUTC = DateTime.utc()
 
-    for (const profile of profiles) {
+    for (const user of usersWithTrials) {
       try {
-        console.log(`Processing user ${profile.id}`)
+        console.log(`Processing user ${user.id}`)
         
-        // Check subscription status (same pattern as working reminders)
-        const { data: subscriber, error: subError } = await supabaseClient
-          .from('subscribers')
-          .select('is_trial, trial_end, email')
-          .eq('user_id', profile.id)
-          .single()
+        const subscription = user.subscribers[0] // We know there's exactly one due to the query
+        const userTimezone = user.timezone || user.reminder_timezone || 'America/New_York'
 
-        if (subError || !subscriber) {
-          console.log(`User ${profile.id}: No subscription record found - skipping`)
+        // Convert dates to user's timezone for proper trial day calculation
+        const trialStartUTC = DateTime.fromISO(subscription.created_at, { zone: 'utc' })
+        const trialEndUTC = DateTime.fromISO(subscription.trial_end, { zone: 'utc' })
+
+        const trialStartLocal = trialStartUTC.setZone(userTimezone).startOf('day')
+        const trialEndLocal = trialEndUTC.setZone(userTimezone).startOf('day') 
+        const nowLocal = nowUTC.setZone(userTimezone)
+
+        // Calculate trial day based on user's timezone
+        const totalTrialDays = Math.ceil(trialEndLocal.diff(trialStartLocal, 'days').days)
+        const daysSinceStart = Math.floor(nowLocal.startOf('day').diff(trialStartLocal, 'days').days)
+        const daysRemaining = totalTrialDays - daysSinceStart
+
+        console.log(`User ${user.id}: ${daysRemaining} days remaining (timezone: ${userTimezone})`)
+
+        // Only send reminders for 4, 3, 2, and 1 days remaining
+        const reminderDays = [4, 3, 2, 1]
+        if (!reminderDays.includes(daysRemaining)) {
+          console.log(`User ${user.id}: Not a reminder day (${daysRemaining} days remaining)`)
           continue
         }
 
-        // Only process users with active trials
-        const hasActiveTrial = subscriber.is_trial && 
-          subscriber.trial_end && 
-          new Date(subscriber.trial_end) > new Date()
-
-        if (!hasActiveTrial) {
-          console.log(`User ${profile.id}: No active trial - skipping`)
+        // Only send between 1 PM and 4 PM in user's timezone
+        const currentHour = nowLocal.hour
+        if (currentHour < 13 || currentHour >= 16) {
+          console.log(`User ${user.id}: Outside reminder window (${nowLocal.toFormat('HH:mm')} in ${userTimezone})`)
           continue
         }
 
-        console.log(`User ${profile.id}: ✅ Has active trial - checking timing`)
-        
-        // Calculate days until trial ends (more user-friendly than days elapsed)
-        const trialEndDate = new Date(subscriber.trial_end)
-        const daysUntilEnd = Math.ceil((trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-        
-        console.log(`User ${profile.id}: Trial ends in ${daysUntilEnd} days`)
+        // INSERT-THEN-SEND: Try to insert reminder record first (idempotent due to unique constraint)
+        try {
+          const { error: insertError } = await supabaseClient
+            .from('trial_reminder_history')
+            .insert({
+              user_id: user.id,
+              trial_day: daysRemaining,
+              sent_at: nowUTC.toISO()
+            })
 
-        // Send reminders when 4, 3, 2, and 1 days remain (converted from old 7,8,9,10 logic)
-        if (![4, 3, 2, 1].includes(daysUntilEnd)) {
-          console.log(`User ${profile.id}: Not a reminder day (${daysUntilEnd} days remaining)`)
+          if (insertError) {
+            // If we get a unique constraint violation, it means reminder was already sent
+            if (insertError.code === '23505') { // unique_violation
+              console.log(`User ${user.id}: Reminder already sent for ${daysRemaining} days remaining - skipping`)
+              continue
+            } else {
+              console.error(`User ${user.id}: Error recording reminder:`, insertError)
+              continue
+            }
+          }
+        } catch (dbError) {
+          console.error(`User ${user.id}: Database error:`, dbError)
           continue
         }
 
-        // Use same timezone approach as working reminders
-        const userTimezone = profile.reminder_timezone || 'America/New_York'
-        const now_utc = new Date()
-        const localTimeString = now_utc.toLocaleString('en-US', { 
-          timeZone: userTimezone,
-          hour12: false,
-          year: 'numeric',
-          month: '2-digit', 
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-        
-        const [datePart, timePart] = localTimeString.split(', ')
-        const currentLocalDate = datePart.split('/').reverse().join('-').replace(/^(\d{4})\/(\d{2})\/(\d{2})$/, '$1-$3-$2')
-        const [hours, minutes] = timePart.split(':').map(Number)
-        const currentTimeInMinutes = hours * 60 + minutes
-        
-        console.log(`User ${profile.id}: Current time in ${userTimezone}: ${hours}:${minutes.toString().padStart(2, '0')}`)
+        // If we got here, the insert was successful, so send the SMS
+        try {
+          // Generate checkout URL for this user
+          const checkoutUrl = await createCheckoutUrl(subscription.email)
+          
+          let message = ''
+          if (daysRemaining === 1) {
+            message = `Hey, this is the last day of your free trial with Journal By Text. Your service will end today unless you subscribe. Check out our monthly or yearly subscription options, and continue to build your journaling habit! Your future self will thank you for it. ${checkoutUrl}`
+          } else {
+            message = `Hey! Your Journal By Text free trial ends in ${daysRemaining} days. To keep journaling and maintain access to all your entries, subscribe to one of our paid plans today! ${checkoutUrl}`
+          }
 
-        // Send between 1 PM and 4 PM (same window as working reminders)
-        if (currentTimeInMinutes < 13 * 60 || currentTimeInMinutes > 16 * 60) {
-          console.log(`User ${profile.id}: Outside reminder window (1-4 PM)`)
-          continue
-        }
+          // Send SMS reminder
+          const formattedPhoneNumber = formatPhoneNumber(user.phone_number)
+          await sendTrialReminderSMS(formattedPhoneNumber, message)
 
-        // Check if reminder already sent today for this trial day
-        const { data: existingReminder } = await supabaseClient
-          .from('trial_reminder_history')
-          .select('id')
-          .eq('user_id', profile.id)
-          .eq('trial_day', daysUntilEnd)
-          .gte('sent_at', currentLocalDate + 'T00:00:00.000Z')
-          .lt('sent_at', currentLocalDate + 'T23:59:59.999Z')
-          .single()
-
-        if (existingReminder) {
-          console.log(`User ${profile.id}: Reminder already sent today for ${daysUntilEnd} days remaining`)
-          continue
-        }
-
-        // Generate checkout URL for this user
-        const checkoutUrl = await createCheckoutUrl(subscriber.email)
-        
-        let message = ''
-        if (daysUntilEnd === 1) {
-          message = `Hey, this is the last day of your free trial with Journal By Text. Your service will end today unless you subscribe. Check out our monthly or yearly subscription options, and continue to build your journaling habit! Your future self will thank you for it. ${checkoutUrl}`
-        } else {
-          message = `Hey! Your Journal By Text free trial ends in ${daysUntilEnd} days. To keep journaling and maintain access to all your entries, subscribe to one of our paid plans today! ${checkoutUrl}`
-        }
-
-        // Send SMS reminder
-        const formattedPhoneNumber = formatPhoneNumber(profile.phone_number)
-        await sendTrialReminderSMS(formattedPhoneNumber, message)
-
-        // Record that we sent this reminder
-        const { error: historyError } = await supabaseClient
-          .from('trial_reminder_history')
-          .insert({
-            user_id: profile.id,
-            trial_day: daysUntilEnd,
-            sent_at: now.toISOString()
+          remindersSent.push({
+            userId: user.id,
+            email: subscription.email,
+            phone: maskPhone(user.phone_number),
+            trialDaysRemaining: daysRemaining,
+            timezone: userTimezone,
+            message: message
           })
 
-        if (historyError) {
-          console.error(`Error recording reminder history for user ${profile.id}:`, historyError)
+          console.log(`User ${user.id}: ✅ Trial reminder sent successfully for ${daysRemaining} days remaining`)
+
+        } catch (smsError) {
+          console.error(`User ${user.id}: Error sending SMS:`, smsError)
+          // Note: We don't remove the reminder history record here because we want to prevent retries
+          // The unique constraint ensures we won't try again for this trial day
         }
 
-        remindersSent.push({
-          userId: profile.id,
-          email: subscriber.email,
-          phone: maskPhone(profile.phone_number),
-          trialDaysRemaining: daysUntilEnd,
-          message: message
-        })
-
-        console.log(`Trial reminder sent successfully to user ${profile.id} for ${daysUntilEnd} days remaining`)
-
-      } catch (error) {
-        console.error(`Error processing user ${profile.id}:`, error)
+      } catch (userError) {
+        console.error(`User ${user.id}: Error processing:`, userError)
         continue
       }
     }
@@ -210,9 +194,11 @@ serve(async (req) => {
     console.log(`Trial reminder process completed. Sent ${remindersSent.length} reminders.`)
 
     return new Response(JSON.stringify({ 
+      success: true,
       message: `Sent ${remindersSent.length} trial reminders`,
       remindersSent,
-      currentUTC: now.toISOString()
+      usersChecked: usersWithTrials.length,
+      currentUTC: nowUTC.toISO()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
