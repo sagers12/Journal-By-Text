@@ -153,35 +153,37 @@
   .message-1 {
     top: 50px;
     right: 20px;
-    background: linear-gradient(135deg, #48bb78, #38a169);
+    background: linear-gradient(135deg, hsl(217, 91%, 60%), hsl(224, 76%, 48%));
     animation-delay: 0s;
   }
 
   .message-2 {
     top: 120px;
     left: 20px;
-    background: linear-gradient(135deg, #ed8936, #dd6b20);
+    background: linear-gradient(135deg, hsl(215, 25%, 27%), hsl(215, 28%, 17%));
     animation-delay: 2s;
   }
 
   .message-3 {
     top: 190px;
     right: 20px;
-    background: linear-gradient(135deg, #9f7aea, #805ad5);
+    background: linear-gradient(135deg, hsl(213, 27%, 84%), hsl(215, 20%, 65%));
+    color: hsl(var(--primary));
     animation-delay: 4s;
   }
 
   .message-4 {
     top: 260px;
     left: 20px;
-    background: linear-gradient(135deg, #4299e1, #3182ce);
+    background: linear-gradient(135deg, hsl(221, 83%, 53%), hsl(224, 76%, 48%));
     animation-delay: 1s;
   }
 
   .message-5 {
     top: 330px;
     right: 20px;
-    background: linear-gradient(135deg, #f56565, #e53e3e);
+    background: linear-gradient(135deg, hsl(210, 40%, 98%), hsl(214, 32%, 91%));
+    color: hsl(var(--primary));
     animation-delay: 3s;
   }
 
