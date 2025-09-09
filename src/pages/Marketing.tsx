@@ -114,20 +114,12 @@ const Marketing = () => {
                 We've removed all the friction and all your excuses. It's as easy as texting your friend. Type words. Hit send. Done. You're journaling.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+              <div className="flex justify-center lg:justify-start">
                 <Link to="/sign-up">
-                  <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-3 w-full sm:w-auto">
-                    Start journaling - it's free
+                  <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg px-8 py-3">
+                    Start journaling for free
                   </Button>
                 </Link>
-                <Button 
-                  variant="outline" 
-                  size="lg" 
-                  className="text-blue-600 border-blue-600 hover:bg-blue-50 w-full sm:w-auto"
-                  onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
-                >
-                  How It Works
-                </Button>
               </div>
 
               <div className="space-y-3 text-slate-600">
