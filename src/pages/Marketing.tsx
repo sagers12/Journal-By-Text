@@ -391,6 +391,16 @@ const Marketing = () => {
               </div>
             </div>
           </div>
+          
+          {/* Third box spanning both columns */}
+          <div className="mt-12 max-w-4xl mx-auto">
+            <div className="border-2 border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-8">
+              <h3 className="text-2xl font-bold text-slate-800 mb-6 text-center">Why isn't there a free version?</h3>
+              <p className="text-slate-700 leading-relaxed text-lg">
+                We get it. Everyone wants free. But ask yourself this: would you really commit to keeping a journal if you didn't pay for it? When we get things for free, we place zero value on them because there's zero cost associated with them. When we pay for something, we have skin in the game. We care more. We immediately place value on the thing we're paying for. Keeping a journal for three days and forgetting about it isn't helpful to anyone, yet that's exactly what would happen if we had a free plan. Our goal is more ambitious. We want you to keep a journal for a year, or five years, or a lifetime. Journaling is important because your life is important. It's worth recording and worth remembering. And you're more likely to do that if you're paying a little along the way. In the grand scheme of things, $5 each month won't matter much. But if that $5 results in you recording your thoughts, dreams, and memories for your future self and your posterity to read? That's money well spent. That's why there's no free plan.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
