@@ -152,14 +152,18 @@ const Marketing = () => {
               </div>
             </div>
             
-            {/* Right Column - Phone Mockup */}
+            {/* Right Column - Animated Phone Mockup */}
             <div className="flex justify-center lg:justify-end">
-              <div className="w-64 sm:w-80 max-w-sm">
-                <img 
-                  src="/lovable-uploads/cab78bea-5b0e-4707-8710-6caf5afe8188.png" 
-                  alt="iPhone showing text conversation for journaling" 
-                  className="w-full h-auto drop-shadow-2xl"
-                />
+              <div className="hero-visual">
+                <div className="phone-mockup">
+                  <div className="phone-screen">
+                    <div className="message-bubble message-1">Had an amazing coffee with Sarah today ☕</div>
+                    <div className="message-bubble message-2">Feeling grateful for small moments like these</div>
+                    <div className="message-bubble message-3">Tomorrow's goal: morning walk in the park 🌳</div>
+                    <div className="message-bubble message-4">Just finished reading an inspiring book 📚</div>
+                    <div className="message-bubble message-5">Can't wait for the weekend getaway! ✈️</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
