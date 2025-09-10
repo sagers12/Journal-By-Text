@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { MessageSquare, Smartphone, Search, Download, Clock, Shield, Zap, Heart } from "lucide-react";
+import { MessageSquare, Smartphone, Search, Download, Clock, Shield, Zap, Heart, Check, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSEO } from "@/hooks/useSEO";
 import { useEffect } from "react";
@@ -202,42 +202,187 @@ const Marketing = () => {
         </div>
       </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-20 px-4 bg-white/30">
-        <div className="container mx-auto max-w-4xl">
+      {/* Comparison Section */}
+      <section className="py-20 px-4 bg-gradient-to-b from-white/30 to-slate-50/30">
+        <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 mb-4">Simple as 1-2-3</h2>
-            <p className="text-xl text-slate-600">
-              Start journaling in under 60 seconds
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 mb-6">You've been lied to</h2>
+            <p className="text-xl text-slate-600 max-w-4xl mx-auto leading-relaxed">
+              Almost everything you've been taught about journaling is wrong. The act of writing something down is more important than how or where it is written. So let's re-write the rules.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-white text-xl font-bold">
-                1
+          
+          <div className="bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 overflow-hidden">
+            <div className="grid md:grid-cols-2">
+              {/* Old School Journaling Column */}
+              <div className="p-8 md:p-12 bg-gradient-to-br from-slate-50/50 to-slate-100/50 border-r border-slate-200/50">
+                <div className="text-center mb-10">
+                  <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <X className="w-8 h-8 text-slate-500" strokeWidth={2.5} />
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-bold text-slate-700 mb-2">Old School Journaling</h3>
+                  <div className="w-16 h-0.5 bg-slate-300 mx-auto"></div>
+                </div>
+                
+                <div className="space-y-8">
+                  <div className="group">
+                    <div className="flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-slate-100/50">
+                      <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center mt-1 flex-shrink-0">
+                        <X className="w-4 h-4 text-red-500" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-1">It has to be on physical paper</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">If you don't have a fancy leatherbound notebook, then what's the point?</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="group">
+                    <div className="flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-slate-100/50">
+                      <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center mt-1 flex-shrink-0">
+                        <X className="w-4 h-4 text-red-500" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-1">It has to be long and profound</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">If you're not writing pages and pages of beautiful prose, then why write at all?</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="group">
+                    <div className="flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-slate-100/50">
+                      <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center mt-1 flex-shrink-0">
+                        <X className="w-4 h-4 text-red-500" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-1">It has to be daily</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">If you fall behind, you either have to catchup or quit writing altogether</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="group">
+                    <div className="flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-slate-100/50">
+                      <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center mt-1 flex-shrink-0">
+                        <X className="w-4 h-4 text-red-500" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-1">It has to be perfect</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">If you have bad handwriting, bad grammar, or can't spell, then it's too embarrassing to keep writing</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="group">
+                    <div className="flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-slate-100/50">
+                      <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center mt-1 flex-shrink-0">
+                        <X className="w-4 h-4 text-red-500" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-1">It has to be formatted</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">If journal entries don't all look the same and carry a consistent format then what's the point?</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="group">
+                    <div className="flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-slate-100/50">
+                      <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center mt-1 flex-shrink-0">
+                        <X className="w-4 h-4 text-red-500" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-1">It should be filled with big events</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">If you're not taking unbelievable vacations or doing crazy cool stuff every day, then why write about the mundaneness of your life?</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2">Sign Up</h3>
-              <p className="text-slate-600">
-                Create your account and verify your phone number. Takes less than a minute.
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-white text-xl font-bold">
-                2
+              
+              {/* New Way Column */}
+              <div className="p-8 md:p-12 bg-gradient-to-br from-blue-50/30 to-indigo-50/30">
+                <div className="text-center mb-10">
+                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Check className="w-8 h-8 text-white" strokeWidth={2.5} />
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-bold text-slate-800 mb-2">The New Way to Journal</h3>
+                  <div className="w-16 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 mx-auto"></div>
+                </div>
+                
+                <div className="space-y-8">
+                  <div className="group">
+                    <div className="flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-blue-50/50">
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mt-1 flex-shrink-0">
+                        <Check className="w-4 h-4 text-green-600" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-1">Journal anywhere</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">If you've got your phone and can send a text, you can journal. Zero friction.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="group">
+                    <div className="flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-blue-50/50">
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mt-1 flex-shrink-0">
+                        <Check className="w-4 h-4 text-green-600" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-1">Short is enough</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">If it's one sentence or one photo, that counts. Just capture the thought or moment.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="group">
+                    <div className="flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-blue-50/50">
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mt-1 flex-shrink-0">
+                        <Check className="w-4 h-4 text-green-600" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-1">Journal when you want</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">If you miss a day? No big deal. We'll send you a friendly reminder the next day.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="group">
+                    <div className="flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-blue-50/50">
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mt-1 flex-shrink-0">
+                        <Check className="w-4 h-4 text-green-600" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-1">Permission to be messy</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">This is <em>your</em> journal. Typos? No problem. Bad grammar? Who cares.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="group">
+                    <div className="flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-blue-50/50">
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mt-1 flex-shrink-0">
+                        <Check className="w-4 h-4 text-green-600" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-1">Structure built in</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">Every entry is formatted for you. Multiple entries sent on the same day are combined.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="group">
+                    <div className="flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-blue-50/50">
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mt-1 flex-shrink-0">
+                        <Check className="w-4 h-4 text-green-600" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-1">Your life matters - all of it.</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">Small moments, interesting thoughts, and good memories should all be included. Every day is a gift worth writing about.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2">Start Texting</h3>
-              <p className="text-slate-600">
-                Send your first journal entry via text. Include photos, thoughts, or daily highlights.
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-white text-xl font-bold">
-                3
-              </div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2">Watch It Grow</h3>
-              <p className="text-slate-600">
-                View, search, and reflect on your journal through our beautiful web interface.
-              </p>
             </div>
           </div>
         </div>
