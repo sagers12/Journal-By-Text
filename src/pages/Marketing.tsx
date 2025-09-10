@@ -410,7 +410,7 @@ const Marketing = () => {
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-slate-800 mb-4">Simple, Transparent Pricing</h2>
             <p className="text-xl text-slate-600">
-              It costs less than your favorite drink at Starbucks to create a record of your life. (Start on a free trial today, no credit card required.
+              It costs less than your favorite drink at Starbucks to create a record of your life. (Start on a free trial today, no credit card required)
             </p>
           </div>
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
