@@ -163,7 +163,7 @@ const Marketing = () => {
       </section>
 
       {/* Comparison Section */}
-      <section className="py-20 px-4 bg-white">
+      <section className="py-20 px-4 bg-gradient-to-b from-white/30 to-slate-50/30">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 mb-6">You've been lied to</h2>
@@ -172,7 +172,7 @@ const Marketing = () => {
             </p>
           </div>
           
-          <div className="bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-xl border border-white/50 overflow-hidden">
             <div className="grid md:grid-cols-2">
               {/* Old School Journaling Column */}
               <div className="p-8 md:p-12 bg-gradient-to-br from-slate-50/50 to-slate-100/50 border-r border-slate-200/50">
