@@ -162,46 +162,6 @@ const Marketing = () => {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 mb-4">If you can text, you can journal</h2>
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-              We've removed every barrier between you and your thoughts. Here's how we make journaling effortless.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg p-6">
-              <Smartphone className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Text to Journal</h3>
-              <p className="text-slate-600">
-                Send a text message to your personal journal number. That's it. Your entry is automatically saved and organized.
-              </p>
-            </div>
-            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg p-6">
-              <Search className="w-12 h-12 text-green-600 mx-auto mb-4" />
-              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Smart Search</h3>
-              <p className="text-slate-600">
-                Find any memory instantly. Search by keyword, date, or phrase across your entire journal history.
-              </p>
-            </div>
-            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg p-6">
-              <Download className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Export & Backup</h3>
-              <p className="text-slate-600">
-                Your memories are yours forever. Export your journal to PDF or text format anytime.
-              </p>
-            </div>
-            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm text-center rounded-lg p-6">
-              <Shield className="w-12 h-12 text-red-600 mx-auto mb-4" />
-              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Private & Secure</h3>
-              <p className="text-slate-600">Your thoughts are kept safe, private, and encrypted. Your journal is secure and always will be.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Comparison Section */}
       <section className="py-20 px-4 bg-gradient-to-b from-white/30 to-slate-50/30">
         <div className="container mx-auto max-w-6xl">
@@ -383,6 +343,62 @@ const Marketing = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 px-4">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 mb-4">If you can text, you can journal</h2>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+              We've removed every barrier between you and your thoughts. Here's how we make journaling effortless.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm rounded-lg p-8 text-left">
+              <MessageSquare className="w-12 h-12 text-blue-600 mb-6" />
+              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Text Your Journal</h3>
+              <p className="text-slate-600">
+                We've eliminated all the friction associated with journaling.
+              </p>
+            </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm rounded-lg p-8 text-left">
+              <Shield className="w-12 h-12 text-green-600 mb-6" />
+              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Private. Encrypted. Secure.</h3>
+              <p className="text-slate-600">
+                Your journal is like Fort Knox. No one will read it but you.
+              </p>
+            </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm rounded-lg p-8 text-left">
+              <Download className="w-12 h-12 text-purple-600 mb-6" />
+              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Export Anytime</h3>
+              <p className="text-slate-600">
+                Your journal is *yours.* Export it as a PDF or text file whenever.
+              </p>
+            </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm rounded-lg p-8 text-left">
+              <Zap className="w-12 h-12 text-orange-600 mb-6" />
+              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Insights & Analytics</h3>
+              <p className="text-slate-600">
+                We help you build momentum by tracking your progress
+              </p>
+            </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm rounded-lg p-8 text-left">
+              <Search className="w-12 h-12 text-blue-500 mb-6" />
+              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Search that works</h3>
+              <p className="text-slate-600">
+                Find any journal entry instantly with robust search capabilities
+              </p>
+            </div>
+            <div className="border-0 shadow-lg bg-white/70 backdrop-blur-sm rounded-lg p-8 text-left">
+              <Clock className="w-12 h-12 text-red-600 mb-6" />
+              <h3 className="text-2xl font-semibold leading-none tracking-tight mb-4">Daily Reminders</h3>
+              <p className="text-slate-600">
+                Don't know what to write about? We'll send you a prompt to keep you on track.
+              </p>
             </div>
           </div>
         </div>
