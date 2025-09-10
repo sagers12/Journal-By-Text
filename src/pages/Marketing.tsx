@@ -410,7 +410,7 @@ const Marketing = () => {
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-slate-800 mb-4">Simple, Transparent Pricing</h2>
             <p className="text-xl text-slate-600">
-              Start free, upgrade when you're ready for more
+              Record your life story for yourself and your posterity each month for less than your favorite drink at Starbucks. We promise, this has good ROI. (Plus you can get started for free, no credit card required.)
             </p>
           </div>
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
