@@ -163,7 +163,7 @@ const Marketing = () => {
       </section>
 
       {/* Comparison Section */}
-      <section className="py-20 px-4 bg-gradient-to-b from-white/30 to-slate-50/30">
+      <section className="py-20 px-4 bg-white">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 mb-6">You've been lied to</h2>
