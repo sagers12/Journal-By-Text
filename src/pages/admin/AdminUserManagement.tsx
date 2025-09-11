@@ -22,11 +22,11 @@ interface UserProfile {
   updated_at: string
 }
 
-interface AuthUser {
-  id: string
+interface UserData {
+  profile: UserProfile
   email: string
   created_at: string
-  last_sign_in_at?: string
+  subscription_status?: 'trial' | 'active' | 'expired'
 }
 
 interface DeletionSummary {
@@ -51,8 +51,7 @@ export default function AdminUserManagement() {
   const navigate = useNavigate()
   
   const [searchTerm, setSearchTerm] = useState('')
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null)
+  const [userData, setUserData] = useState<UserData | null>(null)
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmationText, setConfirmationText] = useState('')
@@ -63,69 +62,80 @@ export default function AdminUserManagement() {
 
     setLoading(true)
     try {
+      let profile = null
+      let subscriber = null
+
       // Search by UUID first
       if (searchTerm.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
-        const { data: profile, error: profileError } = await supabase
+        const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', searchTerm)
           .single()
 
-        if (profile && !profileError) {
-          setUserProfile(profile)
-          // Get auth user info
-          const { data: { session } } = await supabase.auth.getSession()
-          if (session?.access_token) {
-            const response = await fetch(`https://zfxdjbpjxpgreymebpsr.supabase.co/functions/v1/admin-dashboard/user-info?userId=${searchTerm}`, {
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-              },
-            })
-            const data = await response.json()
-            if (data.success) {
-              setAuthUser(data.authUser)
-            }
-          }
-        } else {
-          setUserProfile(null)
-          setAuthUser(null)
-          toast({
-            title: "User not found",
-            description: "No user found with that UUID",
-            variant: "destructive"
-          })
+        if (data && !error) {
+          profile = data
         }
       } else {
         // Search by email or phone
-        const { data: profiles, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .or(`phone_number.eq.${searchTerm}`)
+        // First try to find by email in subscribers table
+        const { data: subscriberData } = await supabase
+          .from('subscribers')
+          .select('*, profiles(*)')
+          .eq('email', searchTerm)
+          .single()
 
-        if (profiles && profiles.length > 0) {
-          setUserProfile(profiles[0])
-          // Get auth user info for the found profile
-          const { data: { session } } = await supabase.auth.getSession()
-          if (session?.access_token) {
-            const response = await fetch(`https://zfxdjbpjxpgreymebpsr.supabase.co/functions/v1/admin-dashboard/user-info?userId=${profiles[0].id}`, {
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-              },
-            })
-            const data = await response.json()
-            if (data.success) {
-              setAuthUser(data.authUser)
-            }
-          }
+        if (subscriberData?.profiles) {
+          profile = subscriberData.profiles
+          subscriber = subscriberData
         } else {
-          setUserProfile(null)
-          setAuthUser(null)
-          toast({
-            title: "User not found",
-            description: "No user found with that email or phone number",
-            variant: "destructive"
-          })
+          // Search by phone number in profiles
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('phone_number', searchTerm)
+            .single()
+
+          if (profileData) {
+            profile = profileData
+          }
         }
+      }
+
+      if (profile) {
+        // Get subscriber info if we don't have it
+        if (!subscriber) {
+          const { data: subscriberData } = await supabase
+            .from('subscribers')
+            .select('*')
+            .eq('user_id', profile.id)
+            .single()
+          subscriber = subscriberData
+        }
+
+        // Determine subscription status
+        let subscription_status: 'trial' | 'active' | 'expired' = 'expired'
+        if (subscriber) {
+          if (subscriber.is_trial && subscriber.trial_end) {
+            subscription_status = new Date(subscriber.trial_end) > new Date() ? 'trial' : 'expired'
+          } else if (subscriber.subscribed) {
+            subscription_status = 'active'
+          }
+        }
+
+        setUserData({
+          profile,
+          email: subscriber?.email || 'No email found',
+          created_at: profile.created_at,
+          subscription_status
+        })
+      } else {
+        setUserData(null)
+        toast({
+          title: "User not found",
+          description: "No user found with that UUID, email, or phone number",
+          variant: "destructive"
+        })
       }
     } catch (error) {
       console.error('Search error:', error)
@@ -140,7 +150,7 @@ export default function AdminUserManagement() {
   }
 
   const deleteUser = async () => {
-    if (!userProfile || confirmationText !== 'DELETE') return
+    if (!userData || confirmationText !== 'DELETE') return
 
     setDeleting(true)
     try {
@@ -156,7 +166,7 @@ export default function AdminUserManagement() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: userProfile.id,
+          userId: userData.profile.id,
           confirmationText: confirmationText
         })
       })
@@ -165,8 +175,7 @@ export default function AdminUserManagement() {
 
       if (data.success) {
         setLastDeletion(data.summary)
-        setUserProfile(null)
-        setAuthUser(null)
+        setUserData(null)
         setSearchTerm('')
         setConfirmationText('')
         
@@ -267,7 +276,7 @@ export default function AdminUserManagement() {
         </Card>
 
         {/* User Information */}
-        {userProfile && authUser && (
+        {userData && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -279,7 +288,7 @@ export default function AdminUserManagement() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">User ID</Label>
-                  <p className="text-sm text-slate-600 font-mono">{userProfile.id}</p>
+                  <p className="text-sm text-slate-600 font-mono">{userData.profile.id}</p>
                 </div>
                 
                 <div className="space-y-2">
@@ -287,7 +296,7 @@ export default function AdminUserManagement() {
                     <Mail className="w-4 h-4 mr-1" />
                     Email
                   </Label>
-                  <p className="text-sm text-slate-600">{authUser.email}</p>
+                  <p className="text-sm text-slate-600">{userData.email}</p>
                 </div>
                 
                 <div className="space-y-2">
@@ -296,8 +305,8 @@ export default function AdminUserManagement() {
                     Phone Number
                   </Label>
                   <div className="flex items-center space-x-2">
-                    <p className="text-sm text-slate-600">{userProfile.phone_number || 'Not provided'}</p>
-                    {userProfile.phone_verified ? (
+                    <p className="text-sm text-slate-600">{userData.profile.phone_number || 'Not provided'}</p>
+                    {userData.profile.phone_verified ? (
                       <Badge variant="default" className="bg-green-100 text-green-800">Verified</Badge>
                     ) : (
                       <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Unverified</Badge>
@@ -311,8 +320,23 @@ export default function AdminUserManagement() {
                     Created
                   </Label>
                   <p className="text-sm text-slate-600">
-                    {new Date(userProfile.created_at).toLocaleDateString()}
+                    {new Date(userData.created_at).toLocaleDateString()}
                   </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Subscription Status</Label>
+                  <div>
+                    {userData.subscription_status === 'trial' && (
+                      <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Trial</Badge>
+                    )}
+                    {userData.subscription_status === 'active' && (
+                      <Badge variant="default" className="bg-green-100 text-green-800">Active</Badge>
+                    )}
+                    {userData.subscription_status === 'expired' && (
+                      <Badge variant="secondary" className="bg-red-100 text-red-800">Expired</Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -320,7 +344,7 @@ export default function AdminUserManagement() {
         )}
 
         {/* Delete User Section */}
-        {userProfile && (
+        {userData && (
           <Card className="border-red-200">
             <CardHeader>
               <CardTitle className="flex items-center text-red-700">
@@ -358,7 +382,7 @@ export default function AdminUserManagement() {
                     <AlertDialogDescription>
                       You are about to permanently delete the account for:
                       <div className="mt-2 p-2 bg-slate-100 rounded text-sm font-mono">
-                        {authUser?.email}
+                        {userData?.email}
                       </div>
                       
                       <div className="mt-4 space-y-2">
