@@ -160,6 +160,14 @@ export default function AdminDashboard() {
             
             <div className="flex items-center space-x-4">
               <Button
+                onClick={() => navigate('/admin/user-management')}
+                variant="outline"
+                size="sm"
+              >
+                User Management
+              </Button>
+              
+              <Button
                 onClick={() => window.open('/admin/sms-testing', '_blank')}
                 variant="outline"
                 size="sm"

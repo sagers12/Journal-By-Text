@@ -23,6 +23,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminSubscribers from "./pages/admin/AdminSubscribers";
 import AdminTrialUsers from "./pages/admin/AdminTrialUsers";
 import SMSTesting from "./pages/admin/SMSTesting";
+import AdminUserManagement from "./pages/admin/AdminUserManagement";
 
 const queryClient = new QueryClient();
 
@@ -74,6 +75,11 @@ const App = () => (
                 <Route path="sms-testing" element={
                   <AdminProtectedRoute>
                     <SMSTesting />
+                  </AdminProtectedRoute>
+                } />
+                <Route path="user-management" element={
+                  <AdminProtectedRoute>
+                    <AdminUserManagement />
                   </AdminProtectedRoute>
                 } />
               </Routes>
