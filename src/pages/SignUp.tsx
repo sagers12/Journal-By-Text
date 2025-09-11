@@ -23,9 +23,10 @@ const SignUp = () => {
     }
   }, [user, loading, navigate]);
 
-  const handleSignUpSuccess = (phoneNumber: string) => {
-    // Handle successful sign up - form will redirect to verification page
-    console.log('Sign up successful for phone:', phoneNumber);
+  const handleSignUpSuccess = (phoneNumber: string, verificationToken: string, redirectTo: string) => {
+    navigate('/phone-verification', { 
+      state: { phoneNumber, verificationToken, redirectTo }
+    });
   };
 
   if (loading) {

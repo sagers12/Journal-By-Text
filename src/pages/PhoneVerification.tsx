@@ -1,24 +1,28 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageSquare, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Clock, Phone, ArrowLeft, MessageSquare, CheckCircle, AlertCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { useSEO } from '@/hooks/useSEO';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
-const PhoneVerification = () => {
-  const { user, loading, signIn } = useAuth();
+export const PhoneVerification = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [timeElapsed, setTimeElapsed] = useState(0);
-  const [showSupport, setShowSupport] = useState(false);
-  const [checkingVerification, setCheckingVerification] = useState(false);
+  const location = useLocation();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-
-  const phoneNumber = searchParams.get('phone');
-  const email = searchParams.get('email');
+  
+  // Get state from navigation - now includes verification token
+  const phoneNumber = location.state?.phoneNumber;
+  const verificationToken = location.state?.verificationToken;
+  const redirectTo = location.state?.redirectTo;
+  
+  const [timeElapsed, setTimeElapsed] = useState(0);
+  const [isVerified, setIsVerified] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
 
   useSEO({
     title: "Verify Your Phone - Journal By Text",
@@ -26,7 +30,7 @@ const PhoneVerification = () => {
     noIndex: true
   });
 
-  // Timer to show support option after 2 minutes
+  // Timer effect
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeElapsed(prev => prev + 1);
@@ -40,92 +44,66 @@ const PhoneVerification = () => {
     return () => clearInterval(timer);
   }, [timeElapsed]);
 
-  // Poll for phone verification status
-  useEffect(() => {
-    if (!phoneNumber || !email || checkingVerification) return;
+  // Verification function using token-based approach
+  const attemptVerification = async () => {
+    if (!verificationToken || verifying) return;
 
-    const pollForVerification = async () => {
-      try {
-        setCheckingVerification(true);
-        
-        // Check if phone is verified by looking up the profile
-        const { data: profiles, error } = await supabase
-          .from('profiles')
-          .select('phone_verified')
-          .eq('phone_number', phoneNumber)
-          .eq('phone_verified', true)
-          .limit(1);
+    setVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-and-signin', {
+        body: { verification_token: verificationToken }
+      });
 
-        if (error) {
-          console.error('Error checking verification status:', error);
-          return;
-        }
-
-        if (profiles && profiles.length > 0) {
-          // Phone is verified, attempt to sign in
-          console.log('Phone verified, attempting to sign in...');
-          
-          // Get the password from session storage (stored during signup)
-          const storedPassword = sessionStorage.getItem('signup_password');
-          
-          if (storedPassword) {
-            try {
-              const { error: signInError } = await signIn(email, storedPassword);
-              if (!signInError) {
-                // Clean up stored password
-                sessionStorage.removeItem('signup_password');
-                toast({
-                  title: "Phone verified!",
-                  description: "Welcome to Journal By Text. You can now start journaling via SMS.",
-                });
-                navigate('/journal');
-                return;
-              }
-            } catch (signInError) {
-              console.error('Error signing in after verification:', signInError);
-            }
-          }
-          
-          // Fallback: show success and redirect to sign in
-          toast({
-            title: "Phone verified!",
-            description: "Please sign in to access your journal.",
-          });
-          navigate('/sign-in');
-        }
-      } catch (error) {
-        console.error('Error polling for verification:', error);
-      } finally {
-        setCheckingVerification(false);
+      if (error) {
+        console.error('Verification failed:', error);
+        return;
       }
-    };
 
-    // Poll every 3 seconds
-    const interval = setInterval(pollForVerification, 3000);
-    
-    // Also check immediately
-    pollForVerification();
+      if (data?.success && data?.auth_link) {
+        console.log('Verification successful, redirecting to auth link');
+        setIsVerified(true);
+        toast({
+          title: "Phone verified!",
+          description: "Signing you in..."
+        });
+        
+        // Use the magic link to complete authentication
+        window.location.href = data.auth_link;
+      }
+    } catch (error) {
+      console.error('Error during verification:', error);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  // Check verification status periodically (every 5 seconds)
+  useEffect(() => {
+    if (isVerified || !verificationToken) return;
+
+    // Try verification immediately
+    attemptVerification();
+
+    // Then check every 5 seconds
+    const interval = setInterval(attemptVerification, 5000);
 
     return () => clearInterval(interval);
-  }, [phoneNumber, email, navigate, toast, signIn, checkingVerification]);
+  }, [verificationToken, isVerified]);
 
-  // Listen for authentication state changes
+  // Redirect if already authenticated
   useEffect(() => {
-    if (!loading && user) {
-      toast({
-        title: "Phone verified!",
-        description: "Welcome to Journal By Text. You can now start journaling via SMS.",
-      });
+    if (!authLoading && user) {
       navigate('/journal');
     }
-  }, [user, loading, navigate, toast]);
+  }, [user, authLoading, navigate]);
 
-  // If no phone number or email in params, redirect to signup
+  // Redirect if missing required data
   useEffect(() => {
-    if (!phoneNumber || !email) {
+    if (!phoneNumber || !verificationToken) {
+      console.log('Missing phone number or verification token, redirecting to signup');
       navigate('/sign-up');
     }
-  }, [phoneNumber, email, navigate]);
+  }, [phoneNumber, verificationToken, navigate]);
 
   const formatTimeElapsed = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -150,7 +128,7 @@ const PhoneVerification = () => {
     });
   };
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-slate-600">Loading...</div>
@@ -195,7 +173,9 @@ const PhoneVerification = () => {
 
               <div className="flex items-center justify-center gap-2 text-slate-500">
                 <Clock className="w-4 h-4" />
-                <span className="text-sm">Waiting for verification • {formatTimeElapsed(timeElapsed)}</span>
+                <span className="text-sm">
+                  {verifying ? 'Checking verification...' : `Waiting for verification • ${formatTimeElapsed(timeElapsed)}`}
+                </span>
               </div>
 
               {timeElapsed > 30 && (

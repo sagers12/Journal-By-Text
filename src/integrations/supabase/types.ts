@@ -332,6 +332,33 @@ export type Database = {
         }
         Relationships: []
       }
+      phone_verification_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          token_hash: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token_hash: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token_hash?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -786,6 +813,12 @@ export type Database = {
       cleanup_old_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      consume_phone_verification_token: {
+        Args: { p_token_hash: string }
+        Returns: {
+          user_id: string
+        }[]
       }
       get_current_admin_user_id: {
         Args: Record<PropertyKey, never>

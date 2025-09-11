@@ -1,13 +1,11 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useTimezone } from '@/hooks/useTimezone';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useCSRFToken } from '@/components/CSRFToken';
 import { sanitizeInput, detectSuspiciousActivity, logSecurityEvent, checkClientRateLimit } from '@/utils/securityMonitoring';
@@ -16,7 +14,7 @@ import { Eye, EyeOff } from 'lucide-react';
 interface SignUpFormProps {
   loading: boolean;
   setLoading: (loading: boolean) => void;
-  onSignUpSuccess: (phoneNumber: string) => void;
+  onSignUpSuccess: (phoneNumber: string, verificationToken: string, redirectTo: string) => void;
 }
 
 export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormProps) => {
@@ -26,13 +24,27 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
   const [smsConsent, setSmsConsent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
-  const { signUp } = useAuth();
   const { toast } = useToast();
   const { userTimezone } = useTimezone();
   const { csrfToken, validateAndRefreshToken } = useCSRFToken();
-  const navigate = useNavigate();
 
-  const consentText = "I authorize Journal By Text to send journaling reminders and prompts to the provided phone number using automated means. Message/data rates apply. Message frequency varies. Text HELP for help or STOP to opt out. Consent is not a condition of purchase. See privacy policy.";
+  // Keep verification token in memory only
+  const [verificationToken, setVerificationToken] = useState<string | null>(null);
+
+  const sendSignupConfirmation = async (formattedPhone: string): Promise<void> => {
+    try {
+      const { error } = await supabase.functions.invoke('send-signup-confirmation', {
+        body: { phoneNumber: formattedPhone }
+      });
+
+      if (error) throw error;
+      
+      console.log('Signup confirmation SMS sent successfully');
+    } catch (error) {
+      console.error('Error sending signup confirmation:', error);
+      // Don't throw here - we don't want to block signup for SMS issues
+    }
+  };
 
   const formatPhoneNumber = (input: string) => {
     // Remove all non-digit characters
@@ -57,115 +69,156 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
     }
   };
 
-  // Note: SMS consent will be stored after phone verification when user has authenticated session
-
-  const sendSignupConfirmation = async (formattedPhone: string) => {
-    try {
-      const { error } = await supabase.functions.invoke('send-signup-confirmation', {
-        body: { phoneNumber: formattedPhone }
-      });
-
-      if (error) throw error;
-      
-      console.log('Signup confirmation SMS sent successfully');
-    } catch (error) {
-      console.error('Error sending signup confirmation:', error);
-      // Don't throw here - we don't want to block signup for SMS issues
-    }
-  };
-
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     
     try {
-      // CSRF protection
-      const validToken = validateAndRefreshToken();
-      if (!validToken) {
-        throw new Error('Security token validation failed. Please refresh the page.');
-      }
-
-      // Client-side rate limiting
-      if (!checkClientRateLimit('signup', 3)) {
-        throw new Error('Too many signup attempts. Please wait before trying again.');
-      }
-
-      // Input validation and sanitization
-      if (!email) {
-        throw new Error('Email is required for account creation');
-      }
-      if (!phoneNumber) {
-        throw new Error('Phone number is required for account creation');
-      }
-      if (!smsConsent) {
-        throw new Error('You must agree to receive SMS messages to use SMS Journal');
-      }
-
+      setLoading(true);
+      
+      // Client-side input sanitization
       const sanitizedEmail = sanitizeInput(email, 254);
-      const sanitizedPhone = phoneNumber ? sanitizeInput(phoneNumber, 20) : '';
-
+      const sanitizedPhone = sanitizeInput(phoneNumber, 15);
+      
       // Check for suspicious activity
       if (detectSuspiciousActivity(email) || detectSuspiciousActivity(phoneNumber)) {
-        await logSecurityEvent({
+        logSecurityEvent({
           event_type: 'suspicious_signup_attempt',
           identifier: email,
-          details: {
-            suspicious_email: email,
-            suspicious_phone: phoneNumber,
-            user_agent: navigator.userAgent
-          },
+          details: { email: sanitizedEmail, phone: sanitizedPhone },
           severity: 'high'
         });
-        throw new Error('Invalid input detected. Please check your information.');
+        toast({
+          title: "Invalid input detected",
+          description: "Please try again.",
+          variant: "destructive"
+        });
+        return;
       }
-      
-      // Format and validate phone number
-      const formattedPhone = formatPhoneNumber(sanitizedPhone);
+
+      // Client-side rate limiting check
+      const rateLimitPassed = checkClientRateLimit('signup', 3);
+      if (!rateLimitPassed) {
+        toast({
+          title: "Too many attempts",
+          description: "Please wait before trying again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const formattedPhone = formatPhoneNumber(phoneNumber);
       if (!formattedPhone) {
-        throw new Error('Please enter a valid 10-digit US phone number');
+        toast({
+          title: "Invalid phone number",
+          description: "Please enter a valid 10-digit US phone number",
+          variant: "destructive"
+        });
+        return;
       }
-      
-      const { data, error } = await signUp(sanitizedEmail, password, formattedPhone, userTimezone);
-      if (error) {
-        // Handle specific error for duplicate phone number
-        if (error.message.includes('duplicate key value violates unique constraint "profiles_phone_number_unique"')) {
-          throw new Error('This phone number is already registered with another account. Please use a different phone number or sign in to your existing account.');
+
+      if (!smsConsent) {
+        toast({
+          title: "SMS consent required",
+          description: "You must agree to receive SMS messages to use SMS Journal",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('Attempting signup with:', { email: sanitizedEmail, phone: formattedPhone });
+
+      // Call secure-auth function directly for token-based flow
+      const response = await supabase.functions.invoke('secure-auth', {
+        body: {
+          action: 'signup',
+          email: sanitizedEmail,
+          password,
+          phoneNumber: formattedPhone,
+          timezone: userTimezone
         }
-        throw error;
-      }
-      
-      // Send signup confirmation SMS (SMS consent will be stored after phone verification)
-      if (data.user?.id) {
-        await sendSignupConfirmation(formattedPhone);
-      }
-      
-      onSignUpSuccess(formattedPhone);
-      
-      // Store password temporarily for auto-signin after verification
-      sessionStorage.setItem('signup_password', password);
-      
-      // Redirect to phone verification page instead of staying on signup page
-      navigate(`/phone-verification?phone=${encodeURIComponent(formattedPhone)}&email=${encodeURIComponent(sanitizedEmail)}`);
-      
-      toast({
-        title: "Account created!",
-        description: "Check your phone for a verification text. Reply YES to complete setup."
       });
-    } catch (error: any) {
-      // Log failed signup attempt
-      await logSecurityEvent({
-        event_type: 'failed_signup',
-        identifier: email || 'unknown',
-        details: {
-          error: error.message,
-          user_agent: navigator.userAgent
-        },
+      
+      if (response.error) {
+        console.error('Signup error:', response.error);
+        
+        // Log failed signup attempt
+        logSecurityEvent({
+          event_type: 'signup_failure',
+          identifier: sanitizedEmail,
+          details: { error: response.error.message, phone: formattedPhone },
+          severity: 'medium'
+        });
+        
+        if (response.error.message?.includes('rate limit') || response.error.message?.includes('Rate limit')) {
+          toast({
+            title: "Too many attempts",
+            description: "Please wait before trying again.",
+            variant: "destructive"
+          });
+        } else if (response.error.message?.includes('User already registered')) {
+          toast({
+            title: "Account exists",
+            description: "An account with this email already exists. Please sign in instead.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Sign up failed",
+            description: response.error.message || 'Failed to create account. Please try again.',
+            variant: "destructive"
+          });
+        }
+        return;
+      }
+
+      const { verification_token, redirect_to } = response.data;
+      if (!verification_token) {
+        toast({
+          title: "Error",
+          description: "Failed to generate verification token. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('Signup successful, token generated');
+      
+      // Send SMS confirmation
+      await sendSignupConfirmation(formattedPhone);
+
+      // Keep token in memory only - do NOT persist to sessionStorage
+      setVerificationToken(verification_token);
+      
+      // Immediately clear password from state
+      setPassword('');
+
+      // Log successful signup
+      logSecurityEvent({
+        event_type: 'signup_success',
+        identifier: sanitizedEmail,
+        details: { phone: formattedPhone },
         severity: 'low'
       });
 
       toast({
-        title: "Sign up failed",
-        description: error.message,
+        title: "Account created!",
+        description: "Check your phone for verification instructions."
+      });
+      
+      // Navigate to phone verification with token in memory
+      onSignUpSuccess(formattedPhone, verification_token, redirect_to);
+      
+    } catch (error) {
+      console.error('Signup error:', error);
+      logSecurityEvent({
+        event_type: 'signup_error',
+        identifier: email,
+        details: { error: error instanceof Error ? error.message : 'Unknown error' },
+        severity: 'high'
+      });
+      toast({
+        title: "An unexpected error occurred",
+        description: "Please try again.",
         variant: "destructive"
       });
     } finally {

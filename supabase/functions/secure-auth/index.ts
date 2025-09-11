@@ -1,10 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { sha256ToHex, randomTokenBase64Url, corsHeadersFor, okCorsPreflight } from '../_shared/utils/security.ts';
 
 interface AuthRequest {
   action: 'signin' | 'signup'
@@ -13,6 +9,8 @@ interface AuthRequest {
   phoneNumber?: string
   timezone?: string
 }
+
+const REDIRECT_URL = 'https://journalbytext.com/journal'; // fixed allowlisted redirect
 
 // Input validation functions
 function validateEmail(email: string): boolean {
@@ -57,9 +55,10 @@ function getClientIP(req: Request): string {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const cors = corsHeadersFor(req);
+  if (!cors) return new Response('Forbidden', { status: 403 });
+  const pre = okCorsPreflight(req, cors);
+  if (pre) return pre;
 
   try {
     const supabaseClient = createClient(
@@ -74,7 +73,7 @@ serve(async (req) => {
     } catch {
       return new Response(
         JSON.stringify({ error: 'Invalid JSON in request body' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -85,21 +84,21 @@ serve(async (req) => {
     if (!action || !['signin', 'signup'].includes(action)) {
       return new Response(
         JSON.stringify({ error: 'Invalid action. Must be signin or signup.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
       )
     }
 
     if (!email || !validateEmail(email)) {
       return new Response(
         JSON.stringify({ error: 'Valid email address is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
       )
     }
 
     if (!password) {
       return new Response(
         JSON.stringify({ error: 'Password is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -109,7 +108,7 @@ serve(async (req) => {
         JSON.stringify({ 
           error: 'Password must be at least 8 characters long and contain uppercase, lowercase, and at least one number' 
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -117,7 +116,7 @@ serve(async (req) => {
     if (phoneNumber && !validatePhoneNumber(phoneNumber)) {
       return new Response(
         JSON.stringify({ error: 'Invalid phone number format' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -153,7 +152,7 @@ serve(async (req) => {
           error: 'Too many attempts. Please try again later.',
           blocked_until: rateLimitCheck.blocked_until
         }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 429, headers: { ...cors, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -171,7 +170,7 @@ serve(async (req) => {
             error: 'Account temporarily locked due to multiple failed login attempts',
             locked_until: lockoutData.locked_until
           }),
-          { status: 423, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 423, headers: { ...cors, 'Content-Type': 'application/json' } }
         )
       }
     }
@@ -187,17 +186,15 @@ serve(async (req) => {
             max_attempts: rateLimitCheck.max_attempts
           }
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...cors, 'Content-Type': 'application/json' } }
       )
     } else {
-      // For signup, handle the actual signup since it doesn't affect client auth state
-      const redirectUrl = `${req.headers.get('origin') || 'https://journalbytext.com'}/`
-      
+      // For signup, handle the actual signup and generate token
       const { data, error } = await supabaseClient.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
+          emailRedirectTo: REDIRECT_URL,
           data: {
             ...(phoneNumber && { phone_number: phoneNumber }),
             ...(timezone && { timezone })
@@ -206,14 +203,37 @@ serve(async (req) => {
       })
 
       if (error) {
+        console.error('User creation failed:', error);
         return new Response(
           JSON.stringify({ error: error.message }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
         )
       }
 
+      const userId = data.user?.id;
+      if (!userId) {
+        console.error('No user ID returned from signup');
+        return new Response(
+          JSON.stringify({ error: 'Signup failed' }),
+          { status: 500, headers: { ...cors, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // 1) Create raw token and store hash
+      const rawToken = randomTokenBase64Url(32);
+      const tokenHash = await sha256ToHex(rawToken);
+
+      const { error: insErr } = await supabaseClient
+        .from('phone_verification_tokens')
+        .insert({ user_id: userId, token_hash: tokenHash });
+
+      if (insErr) {
+        console.error('Token insert failed:', insErr);
+        // Don't fail signup; proceed but client won't have auto-signin
+      }
+
+      // Log successful signup
       if (data.user) {
-        // Log successful signup
         await supabaseClient
           .from('security_events')
           .insert({
@@ -229,15 +249,15 @@ serve(async (req) => {
           })
       }
 
+      // 2) Return raw token to client (client keeps it in memory only)
       return new Response(
-        JSON.stringify({ 
-          data,
-          rate_limit: {
-            attempts: rateLimitCheck.attempts,
-            max_attempts: rateLimitCheck.max_attempts
-          }
+        JSON.stringify({
+          ok: true,
+          user_id: userId,
+          verification_token: rawToken,
+          redirect_to: REDIRECT_URL
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...cors, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -247,7 +267,7 @@ serve(async (req) => {
       JSON.stringify({ error: 'Internal server error' }),
       { 
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...cors, 'Content-Type': 'application/json' }
       }
     )
   }
