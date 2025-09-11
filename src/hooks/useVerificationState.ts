@@ -17,6 +17,8 @@ interface VerificationStateData {
   attemptCount: number;
   lastAttemptTime: number | null;
   timeoutMs: number;
+  timeElapsed: number;
+  startTime: number | null;
 }
 
 type VerificationAction =
@@ -25,7 +27,8 @@ type VerificationAction =
   | { type: 'VERIFICATION_ERROR'; error: string }
   | { type: 'VERIFICATION_TIMEOUT' }
   | { type: 'USER_VERIFIED' }
-  | { type: 'RETRY_VERIFICATION' };
+  | { type: 'RETRY_VERIFICATION' }
+  | { type: 'UPDATE_TIMER'; timeElapsed: number };
 
 const INITIAL_STATE: VerificationStateData = {
   state: 'INITIAL',
@@ -34,6 +37,8 @@ const INITIAL_STATE: VerificationStateData = {
   attemptCount: 0,
   lastAttemptTime: null,
   timeoutMs: 10 * 60 * 1000, // 10 minutes
+  timeElapsed: 0,
+  startTime: null,
 };
 
 function verificationReducer(state: VerificationStateData, action: VerificationAction): VerificationStateData {
@@ -45,6 +50,7 @@ function verificationReducer(state: VerificationStateData, action: VerificationA
         error: null,
         attemptCount: state.attemptCount + 1,
         lastAttemptTime: Date.now(),
+        startTime: state.startTime || Date.now(), // Set start time only once
       };
     
     case 'VERIFICATION_SUCCESS':
@@ -81,6 +87,14 @@ function verificationReducer(state: VerificationStateData, action: VerificationA
         ...state,
         state: 'INITIAL',
         error: null,
+        timeElapsed: 0,
+        startTime: null,
+      };
+    
+    case 'UPDATE_TIMER':
+      return {
+        ...state,
+        timeElapsed: action.timeElapsed,
       };
     
     default:
@@ -106,6 +120,7 @@ export const useVerificationState = ({
   const timeoutRef = useRef<NodeJS.Timeout>();
   const retryTimeoutRef = useRef<NodeJS.Timeout>();
   const channelRef = useRef<any>();
+  const timerRef = useRef<NodeJS.Timeout>();
 
   // Calculate retry delay with exponential backoff
   const getRetryDelay = (attemptCount: number) => {
@@ -224,11 +239,33 @@ export const useVerificationState = ({
     }
   }, [verificationToken, state.state, attemptVerification]);
 
+  // Timer effect for elapsed time tracking
+  useEffect(() => {
+    if (state.startTime && (state.state === 'AWAITING_VERIFICATION' || state.state === 'INITIAL')) {
+      timerRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - state.startTime!) / 1000);
+        dispatch({ type: 'UPDATE_TIMER', timeElapsed: elapsed });
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = undefined;
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [state.startTime, state.state]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
@@ -244,6 +281,7 @@ export const useVerificationState = ({
     error: state.error,
     authLink: state.authLink,
     attemptCount: state.attemptCount,
+    timeElapsed: state.timeElapsed,
     isVerifying: state.state === 'AWAITING_VERIFICATION',
     isSuccess: state.state === 'VERIFICATION_SUCCESS' || state.state === 'USER_VERIFIED',
     isError: state.state === 'VERIFICATION_ERROR',

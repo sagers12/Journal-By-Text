@@ -20,7 +20,6 @@ export const PhoneVerification = () => {
   const verificationToken = location.state?.verificationToken;
   const redirectTo = location.state?.redirectTo;
   
-  const [timeElapsed, setTimeElapsed] = useState(0);
   const [showSupport, setShowSupport] = useState(false);
 
   // Use verification state hook
@@ -29,6 +28,7 @@ export const PhoneVerification = () => {
     error: verificationError,
     authLink,
     attemptCount,
+    timeElapsed,
     isVerifying,
     isSuccess,
     isError,
@@ -64,18 +64,11 @@ export const PhoneVerification = () => {
     noIndex: true
   });
 
-  // Timer effect
+  // Show support option after 2 minutes
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeElapsed(prev => prev + 1);
-    }, 1000);
-
-    // Show support option after 2 minutes
     if (timeElapsed >= 120) {
       setShowSupport(true);
     }
-
-    return () => clearInterval(timer);
   }, [timeElapsed]);
 
   const formatTimeElapsed = (seconds: number) => {
