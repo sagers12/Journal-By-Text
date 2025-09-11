@@ -24,7 +24,7 @@ const SignUp = () => {
   }, [user, loading, navigate]);
 
   const handleSignUpSuccess = (phoneNumber: string) => {
-    // Handle successful sign up - could show verification screen or redirect
+    // Handle successful sign up - form will redirect to verification page
     console.log('Sign up successful for phone:', phoneNumber);
   };
 

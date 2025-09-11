@@ -272,6 +272,28 @@ export async function processPhoneVerification(
     console.log('Phone verified successfully for user:', userId)
   }
 
+  // Store SMS consent now that user will be authenticated
+  try {
+    const consentText = "I authorize Journal By Text to send journaling reminders and prompts to the provided phone number using automated means. Message/data rates apply. Message frequency varies. Text HELP for help or STOP to opt out. Consent is not a condition of purchase. See privacy policy.";
+    
+    const { error: consentError } = await supabaseClient
+      .from('sms_consents')
+      .insert({
+        user_id: userId,
+        phone_number: fromPhone,
+        consent_text: consentText,
+        user_agent: 'SMS Verification',
+      });
+
+    if (consentError) {
+      console.error('Failed to store SMS consent after verification:', consentError);
+    } else {
+      console.log('SMS consent recorded successfully after verification');
+    }
+  } catch (error) {
+    console.error('Error storing SMS consent after verification:', error);
+  }
+
   // Store the YES message
   await supabaseClient
     .from('sms_messages')
@@ -286,6 +308,8 @@ export async function processPhoneVerification(
       byte_count: messageBody ? new TextEncoder().encode(messageBody).length : 0,
       truncated: false
     })
+
+  // Phone verification complete - the client will poll for this status change
 
   return { success: true, action: 'phone_verified', messageId }
 }

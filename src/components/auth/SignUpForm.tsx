@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useTimezone } from '@/hooks/useTimezone';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useCSRFToken } from '@/components/CSRFToken';
 import { sanitizeInput, detectSuspiciousActivity, logSecurityEvent, checkClientRateLimit } from '@/utils/securityMonitoring';
@@ -30,6 +30,7 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
   const { toast } = useToast();
   const { userTimezone } = useTimezone();
   const { csrfToken, validateAndRefreshToken } = useCSRFToken();
+  const navigate = useNavigate();
 
   const consentText = "I authorize Journal By Text to send journaling reminders and prompts to the provided phone number using automated means. Message/data rates apply. Message frequency varies. Text HELP for help or STOP to opt out. Consent is not a condition of purchase. See privacy policy.";
 
@@ -56,26 +57,7 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
     }
   };
 
-  const storeSmsConsent = async (userId: string, formattedPhone: string) => {
-    try {
-      const { error } = await supabase
-        .from('sms_consents')
-        .insert({
-          user_id: userId,
-          phone_number: formattedPhone,
-          consent_text: consentText,
-          user_agent: navigator.userAgent,
-        });
-
-      if (error) {
-        console.error('Failed to store SMS consent:', error);
-      } else {
-        console.log('SMS consent recorded successfully');
-      }
-    } catch (error) {
-      console.error('Error storing SMS consent:', error);
-    }
-  };
+  // Note: SMS consent will be stored after phone verification when user has authenticated session
 
   const sendSignupConfirmation = async (formattedPhone: string) => {
     try {
@@ -152,18 +134,22 @@ export const SignUpForm = ({ loading, setLoading, onSignUpSuccess }: SignUpFormP
         throw error;
       }
       
-      // Store SMS consent record after successful signup
+      // Send signup confirmation SMS (SMS consent will be stored after phone verification)
       if (data.user?.id) {
-        await storeSmsConsent(data.user.id, formattedPhone);
-        
-        // Send signup confirmation SMS
         await sendSignupConfirmation(formattedPhone);
       }
       
       onSignUpSuccess(formattedPhone);
+      
+      // Store password temporarily for auto-signin after verification
+      sessionStorage.setItem('signup_password', password);
+      
+      // Redirect to phone verification page instead of staying on signup page
+      navigate(`/phone-verification?phone=${encodeURIComponent(formattedPhone)}&email=${encodeURIComponent(sanitizedEmail)}`);
+      
       toast({
         title: "Account created!",
-        description: "We've sent a confirmation message to your phone. Please reply YES to start journaling via SMS."
+        description: "Check your phone for a verification text. Reply YES to complete setup."
       });
     } catch (error: any) {
       // Log failed signup attempt

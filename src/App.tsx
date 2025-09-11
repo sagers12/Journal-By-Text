@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Marketing from "./pages/Marketing";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
+import PhoneVerification from "./pages/PhoneVerification";
 import Journal from "./pages/Journal";
 import Privacy from "./pages/Privacy";
 import Settings from "./pages/Settings";
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/" element={<Marketing />} />
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/sign-up" element={<SignUp />} />
+          <Route path="/phone-verification" element={<PhoneVerification />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/journal" element={
