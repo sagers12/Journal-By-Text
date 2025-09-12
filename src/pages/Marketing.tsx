@@ -417,15 +417,16 @@ const Marketing = () => {
             <div className="border-2 border-blue-500 bg-white/70 backdrop-blur-sm rounded-lg">
               <div className="flex flex-col space-y-1.5 p-6 text-center">
                 <h3 className="text-2xl font-semibold leading-none tracking-tight">Monthly</h3>
-                <p className="text-lg text-muted-foreground">Perfect for regular journaling</p>
-                <div className="text-4xl font-bold text-slate-800 mt-4">$4.99</div>
+                <p className="text-lg text-muted-foreground">A great place to start</p>
+                <div className="text-4xl font-bold text-slate-800 mt-4">$5.99</div>
                 <div className="text-slate-600">per month</div>
-                <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium mt-4 inline-block">
-                  10-day free trial
-                </div>
               </div>
               <div className="p-6 pt-0 space-y-4">
                 <ul className="space-y-2 text-slate-600">
+                  <li className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    No CC required to start
+                  </li>
                   <li className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     Unlimited SMS entries
@@ -456,7 +457,7 @@ const Marketing = () => {
                   </li>
                 </ul>
                 <Link to="/sign-up" className="block">
-                  <Button className="w-full mt-6" variant="outline">
+                  <Button className="w-full mt-6 border-blue-600 text-blue-600 hover:bg-blue-50" variant="outline">
                     Start 10-Day Free Trial
                   </Button>
                 </Link>
@@ -469,16 +470,20 @@ const Marketing = () => {
               </Badge>
               <div className="flex flex-col space-y-1.5 p-6 text-center">
                 <h3 className="text-2xl font-semibold leading-none tracking-tight">Yearly</h3>
-                <p className="text-lg text-muted-foreground">Save $20 compared to monthly</p>
-                <div className="text-4xl font-bold text-slate-800 mt-4">$39.99</div>
+                <p className="text-lg text-muted-foreground">Commit to your journal</p>
+                <div className="text-4xl font-bold text-slate-800 mt-4">$49.99</div>
                 <div className="text-slate-600">per year</div>
-                <div className="text-sm text-slate-500 line-through">$59.88 if billed monthly</div>
+                <div className="text-sm text-slate-500 line-through">$71.88 if billed monthly</div>
                 <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium mt-4 inline-block">
-                  10-day free trial
+                  Save 30% over monthly plan
                 </div>
               </div>
               <div className="p-6 pt-0 space-y-4">
                 <ul className="space-y-2 text-slate-600">
+                  <li className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    No CC required to start
+                  </li>
                   <li className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     Everything in Monthly
