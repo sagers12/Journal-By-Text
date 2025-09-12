@@ -1,5 +1,8 @@
 project_id = "zfxdjbpjxpgreymebpsr"
 
+[functions.secure-auth]
+verify_jwt = false
+
 [functions.sms-webhook]
 verify_jwt = false
 
