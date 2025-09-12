@@ -550,7 +550,7 @@ const Marketing = () => {
           
           {/* Third box spanning both columns */}
           <div className="mt-12 max-w-4xl mx-auto">
-            <div className="border-2 border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-8">
+            <div className="border-2 border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg p-8">
               <h3 className="text-2xl font-bold text-slate-800 mb-6 text-center">Why isn't there a free version?</h3>
               <p className="text-slate-700 leading-relaxed text-lg">
                 Free sounds great, but when something costs nothing, we tend to value it the same—at zero. Paying even a little creates commitment, making you far more likely to stick with journaling for months or years, not just a few days. Journaling is important because your life is important. And trust us when we say, your life's memories are worth a whole lot more than $5/month.
