@@ -22,6 +22,14 @@ interface DeletionSummary {
     subscriberRecord: boolean
     userPromptHistory: number
     smsConsents: number
+    accountLockouts: number
+    oversizedMessages: number
+    phoneVerificationTokens: number
+    securityEvents: number
+    smsProcessingEvents: number
+    subscriptionEvents: number
+    trialReminderHistory: number
+    weeklyRecapHistory: number
   }
   filesDeleted: string[]
   filesFailedToDelete: string[]
@@ -133,7 +141,15 @@ serve(async (req) => {
         profileRecord: false,
         subscriberRecord: false,
         userPromptHistory: 0,
-        smsConsents: 0
+        smsConsents: 0,
+        accountLockouts: 0,
+        oversizedMessages: 0,
+        phoneVerificationTokens: 0,
+        securityEvents: 0,
+        smsProcessingEvents: 0,
+        subscriptionEvents: 0,
+        trialReminderHistory: 0,
+        weeklyRecapHistory: 0
       },
       filesDeleted: [],
       filesFailedToDelete: []
@@ -211,6 +227,78 @@ serve(async (req) => {
       .select()
 
     summary.deletedRecords.smsConsents = deletedConsents?.length || 0
+
+    // Delete account lockouts
+    const { data: deletedLockouts } = await supabaseAdmin
+      .from('account_lockouts')
+      .delete()
+      .eq('user_id', userId)
+      .select()
+
+    summary.deletedRecords.accountLockouts = deletedLockouts?.length || 0
+
+    // Delete oversized messages
+    const { data: deletedOversized } = await supabaseAdmin
+      .from('oversized_messages')
+      .delete()
+      .eq('user_id', userId)
+      .select()
+
+    summary.deletedRecords.oversizedMessages = deletedOversized?.length || 0
+
+    // Delete phone verification tokens
+    const { data: deletedTokens } = await supabaseAdmin
+      .from('phone_verification_tokens')
+      .delete()
+      .eq('user_id', userId)
+      .select()
+
+    summary.deletedRecords.phoneVerificationTokens = deletedTokens?.length || 0
+
+    // Delete security events
+    const { data: deletedSecurityEvents } = await supabaseAdmin
+      .from('security_events')
+      .delete()
+      .eq('user_id', userId)
+      .select()
+
+    summary.deletedRecords.securityEvents = deletedSecurityEvents?.length || 0
+
+    // Delete SMS processing events
+    const { data: deletedSmsProcessing } = await supabaseAdmin
+      .from('sms_processing_events')
+      .delete()
+      .eq('user_id', userId)
+      .select()
+
+    summary.deletedRecords.smsProcessingEvents = deletedSmsProcessing?.length || 0
+
+    // Delete subscription events
+    const { data: deletedSubscriptionEvents } = await supabaseAdmin
+      .from('subscription_events')
+      .delete()
+      .eq('user_id', userId)
+      .select()
+
+    summary.deletedRecords.subscriptionEvents = deletedSubscriptionEvents?.length || 0
+
+    // Delete trial reminder history
+    const { data: deletedTrialHistory } = await supabaseAdmin
+      .from('trial_reminder_history')
+      .delete()
+      .eq('user_id', userId)
+      .select()
+
+    summary.deletedRecords.trialReminderHistory = deletedTrialHistory?.length || 0
+
+    // Delete weekly recap history
+    const { data: deletedWeeklyHistory } = await supabaseAdmin
+      .from('weekly_recap_history')
+      .delete()
+      .eq('user_id', userId)
+      .select()
+
+    summary.deletedRecords.weeklyRecapHistory = deletedWeeklyHistory?.length || 0
 
     // Delete subscriber record
     const { error: subscriberError } = await supabaseAdmin
