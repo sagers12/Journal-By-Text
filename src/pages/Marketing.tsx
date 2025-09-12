@@ -5,6 +5,7 @@ import { MessageSquare, Smartphone, Search, Download, Clock, Shield, Zap, Heart,
 import { Link } from "react-router-dom";
 import { useSEO } from "@/hooks/useSEO";
 import { useEffect } from "react";
+import starbucksOrder from "@/assets/starbucks-order.png";
 
 const Marketing = () => {
   // SEO optimization for the marketing page
@@ -413,7 +414,48 @@ const Marketing = () => {
               It costs less than your favorite drink at Starbucks to create a record of your life. (Start on a free trial today, no credit card required)
             </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {/* Starbucks Comparison Card */}
+            <div className="border-2 border-orange-400 bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg">
+              <div className="flex flex-col space-y-1.5 p-6 text-center">
+                <h3 className="text-2xl font-semibold leading-none tracking-tight">Your Coffee</h3>
+                <p className="text-lg text-muted-foreground">One drink at Starbucks</p>
+                <div className="my-4">
+                  <img 
+                    src={starbucksOrder} 
+                    alt="Starbucks Pumpkin Spice Frappuccino order showing $6.78 total" 
+                    className="w-full max-w-[200px] mx-auto rounded-lg shadow-sm"
+                  />
+                </div>
+                <div className="text-4xl font-bold text-slate-800">$6.78</div>
+                <div className="text-slate-600">one time</div>
+              </div>
+              <div className="p-6 pt-0 space-y-4">
+                <ul className="space-y-2 text-slate-600">
+                  <li className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    Lasts about 30 minutes
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    420 calories of sugar
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    Zero lasting memories
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    Gone forever
+                  </li>
+                </ul>
+                <div className="text-center text-sm text-slate-500 mt-6 italic">
+                  vs. a lifetime of memories →
+                </div>
+              </div>
+            </div>
+
+            {/* Monthly Card */}
             <div className="border-2 border-blue-500 bg-white/70 backdrop-blur-sm rounded-lg">
               <div className="flex flex-col space-y-1.5 p-6 text-center">
                 <h3 className="text-2xl font-semibold leading-none tracking-tight">Monthly</h3>
