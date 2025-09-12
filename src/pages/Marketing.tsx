@@ -106,8 +106,8 @@ const Marketing = () => {
                 ✨ Journal anywhere, anytime
               </div>
               
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold text-slate-800 leading-tight">
-                The easiest way to keep <br />
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold text-slate-800 leading-tight text-center lg:text-left">
+                The easiest way to keep <br className="hidden lg:block" />
                 <span className="text-blue-600">a journal</span>
               </h1>
               
