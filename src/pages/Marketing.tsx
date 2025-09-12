@@ -416,7 +416,7 @@ const Marketing = () => {
           </div>
           <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {/* Starbucks Comparison Card */}
-            <div className="border-2 border-orange-400 bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg">
+            <div className="border-2 border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
               <div className="flex flex-col space-y-1.5 p-6 text-center">
                 <h3 className="text-2xl font-semibold leading-none tracking-tight">Your Coffee</h3>
                 <p className="text-lg text-muted-foreground">One drink at Starbucks</p>
@@ -433,19 +433,19 @@ const Marketing = () => {
               <div className="p-6 pt-0 space-y-4">
                 <ul className="space-y-2 text-slate-600">
                   <li className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     Lasts about 30 minutes
                   </li>
                   <li className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     420 calories of sugar
                   </li>
                   <li className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     Zero lasting memories
                   </li>
                   <li className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     Gone forever
                   </li>
                 </ul>
@@ -506,8 +506,8 @@ const Marketing = () => {
               </div>
             </div>
             
-            <div className="border-2 border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 relative rounded-lg flex flex-col">
-              <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white">
+            <div className="border-2 border-orange-400 bg-gradient-to-br from-orange-50 to-amber-50 relative rounded-lg flex flex-col">
+              <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-orange-600 text-white">
                 BEST VALUE
               </Badge>
               <div className="flex flex-col space-y-1.5 p-6 text-center">
@@ -516,31 +516,31 @@ const Marketing = () => {
                 <div className="text-4xl font-bold text-slate-800 mt-4">$49.99</div>
                 <div className="text-slate-600">per year</div>
                 <div className="text-sm text-slate-500 line-through">$71.88 if billed monthly</div>
-                <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium mt-4 inline-block">
+                <div className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-medium mt-4 inline-block">
                   Save 30% over monthly plan
                 </div>
               </div>
               <div className="p-6 pt-0 space-y-4 flex-1 flex flex-col">
                 <ul className="space-y-2 text-slate-600 flex-1">
                   <li className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                     No CC required to start
                   </li>
                   <li className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                     Everything in Monthly
                   </li>
                   <li className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                     Almost 4 months free (save $22)
                   </li>
                   <li className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                     Bonus features coming soon
                   </li>
                 </ul>
                 <Link to="/sign-up" className="block mt-auto">
-                  <Button className="w-full mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                  <Button className="w-full mt-6 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700">
                     Start 10-Day Free Trial
                   </Button>
                 </Link>
