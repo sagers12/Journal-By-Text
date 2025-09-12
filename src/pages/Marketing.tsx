@@ -490,7 +490,7 @@ const Marketing = () => {
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    2 months free (save $20)
+                    Almost 4 months free (save $22)
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
