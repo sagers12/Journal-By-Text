@@ -420,6 +420,8 @@ const Marketing = () => {
               <div className="flex flex-col space-y-1.5 p-6 text-center">
                 <h3 className="text-2xl font-semibold leading-none tracking-tight">Your Coffee</h3>
                 <p className="text-lg text-muted-foreground">One drink at Starbucks</p>
+                <div className="text-4xl font-bold text-slate-800 mt-4">$6.78</div>
+                <div className="text-slate-600">one time</div>
                 <div className="my-4">
                   <img 
                     src={starbucksOrder} 
@@ -427,8 +429,6 @@ const Marketing = () => {
                     className="w-full max-w-[200px] mx-auto rounded-lg shadow-sm"
                   />
                 </div>
-                <div className="text-4xl font-bold text-slate-800">$6.78</div>
-                <div className="text-slate-600">one time</div>
               </div>
               <div className="p-6 pt-0 space-y-4">
                 <ul className="space-y-2 text-slate-600">
